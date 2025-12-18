@@ -37,7 +37,7 @@ const Index = () => {
 
     return {
       totalDays: schedules.length,
-      employees: uniqueEmployees.size,
+      doctors: uniqueEmployees.size,
       morningShifts,
       afternoonShifts,
     };
@@ -60,8 +60,8 @@ const Index = () => {
             color="primary"
           />
           <StatsCard
-            title="Funcionários"
-            value={stats.employees}
+            title="Médicos"
+            value={stats.doctors}
             icon={Users}
             color="accent"
           />
