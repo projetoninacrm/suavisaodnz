@@ -3,6 +3,7 @@ import { Trash2, MessageCircle, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableCell } from "./EditableCell";
 import { DatePickerCell } from "./DatePickerCell";
+import { CalendarFilterPopover } from "./CalendarFilterPopover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Lead } from "@/hooks/useLeads";
 
@@ -13,19 +14,19 @@ interface LeadsTableProps {
 }
 
 interface Filters {
-  data_registro: string;
+  data_registro: string[];
   canal: string;
   orcamento: string;
-  entrar_em_contato: string;
+  entrar_em_contato: string[];
   medico: string;
 }
 
 export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
   const [filters, setFilters] = useState<Filters>({
-    data_registro: "",
+    data_registro: [],
     canal: "",
     orcamento: "",
-    entrar_em_contato: "",
+    entrar_em_contato: [],
     medico: "",
   });
 
@@ -39,23 +40,23 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
 
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
-      if (filters.data_registro && lead.data_registro !== filters.data_registro) return false;
+      if (filters.data_registro.length > 0 && !filters.data_registro.includes(lead.data_registro || "")) return false;
       if (filters.canal && lead.canal !== filters.canal) return false;
       if (filters.orcamento && lead.orcamento !== filters.orcamento) return false;
-      if (filters.entrar_em_contato && lead.entrar_em_contato !== filters.entrar_em_contato) return false;
+      if (filters.entrar_em_contato.length > 0 && !filters.entrar_em_contato.includes(lead.entrar_em_contato || "")) return false;
       if (filters.medico && lead.medico !== filters.medico) return false;
       return true;
     });
   }, [leads, filters]);
 
-  const hasActiveFilters = Object.values(filters).some(v => v !== "");
+  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.orcamento !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "";
 
   const clearFilters = () => {
     setFilters({
-      data_registro: "",
+      data_registro: [],
       canal: "",
       orcamento: "",
-      entrar_em_contato: "",
+      entrar_em_contato: [],
       medico: "",
     });
   };
@@ -176,11 +177,11 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Data</label>
-            <FilterSelect
-              value={filters.data_registro}
-              onChange={(v) => setFilters(f => ({ ...f, data_registro: v === "all" ? "" : v }))}
-              options={uniqueValues.data_registro}
+            <CalendarFilterPopover
+              selectedDates={filters.data_registro}
+              onDatesChange={(dates) => setFilters(f => ({ ...f, data_registro: dates }))}
               placeholder="Todas"
+              availableDates={uniqueValues.data_registro}
             />
           </div>
           <div className="space-y-1">
@@ -203,11 +204,11 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Entrar em Contato</label>
-            <FilterSelect
-              value={filters.entrar_em_contato}
-              onChange={(v) => setFilters(f => ({ ...f, entrar_em_contato: v === "all" ? "" : v }))}
-              options={uniqueValues.entrar_em_contato}
+            <CalendarFilterPopover
+              selectedDates={filters.entrar_em_contato}
+              onDatesChange={(dates) => setFilters(f => ({ ...f, entrar_em_contato: dates }))}
               placeholder="Todas"
+              availableDates={uniqueValues.entrar_em_contato}
             />
           </div>
           <div className="space-y-1">
