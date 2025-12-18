@@ -268,6 +268,13 @@ const Index = () => {
                 </tr>
               </thead>
               <tbody>
+                <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors bg-primary/5">
+                  <td className="px-4 py-3 font-medium text-primary">Sua Visão</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.leads}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.orcamentos}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.vendas}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.conversao}%</td>
+                </tr>
                 <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium">Loja</td>
                   <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.leads}</td>
