@@ -83,7 +83,30 @@ serve(async (req) => {
       throw new Error('Missing environment variables');
     }
 
-    const { start_date, end_date } = await req.json();
+    // Parse body - use today's date if not provided (for cron jobs)
+    let start_date: string;
+    let end_date: string;
+    
+    try {
+      const body = await req.json();
+      start_date = body.start_date;
+      end_date = body.end_date;
+    } catch {
+      // No body provided - use today's date
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+      start_date = dateStr;
+      end_date = dateStr;
+    }
+    
+    // Default to today if dates not provided
+    if (!start_date || !end_date) {
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+      start_date = start_date || dateStr;
+      end_date = end_date || dateStr;
+    }
+    
     console.log(`Fetching attendances from ${start_date} to ${end_date}`);
 
     // Fetch done attendances from Amigo API
@@ -118,38 +141,65 @@ serve(async (req) => {
     });
     console.log(`Filtered attendances: ${filteredAttendances.length}`);
 
-    // Fetch patient details for each attendance to get email and know_by
+    // Initialize Supabase client
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Fetch existing records to avoid duplicates (by nome + data + telefone)
+    const { data: existingRecords, error: fetchError } = await supabase
+      .from('detalhado')
+      .select('nome, data, telefone');
+    
+    if (fetchError) {
+      console.error('Error fetching existing records:', fetchError);
+      throw fetchError;
+    }
+    
+    // Create a Set of existing record keys for fast lookup
+    const existingKeys = new Set(
+      (existingRecords || []).map(r => `${r.nome?.toLowerCase() || ''}|${r.data || ''}|${r.telefone || ''}`)
+    );
+    console.log(`Existing records in database: ${existingKeys.size}`);
+
+    // Fetch patient details for each attendance to get email
     const records = [];
+    let skipped = 0;
+    
     for (const att of filteredAttendances) {
+      const nome = att.patient?.name || '';
+      const telefone = formatPhone(att.patient?.contact_cellphone);
+      const data = formatDate(att.start_date);
+      
+      // Check if record already exists
+      const key = `${nome.toLowerCase()}|${data}|${telefone}`;
+      if (existingKeys.has(key)) {
+        skipped++;
+        continue;
+      }
+      
       const patientId = att.patient?.id;
       let email = '';
-      let comoConheceu = '';
       
       if (patientId) {
         const patientResponse = await fetchPatientDetails(patientId, apiToken);
         if (patientResponse?.data) {
           const patientData = patientResponse.data;
-          // Email is directly in data.email
           email = patientData.email || '';
-          // Como conheceu is not available in the API response
-          comoConheceu = '';
         }
       }
       
       records.push({
-        nome: att.patient?.name || '',
-        telefone: formatPhone(att.patient?.contact_cellphone),
-        email: email,
-        como_conheceu: comoConheceu,
+        nome,
+        telefone,
+        email,
+        como_conheceu: '',
         receita: '',
-        data: formatDate(att.start_date),
+        data,
         visitou_loja: '',
       });
     }
-
-    // Insert into Supabase
-    const supabase = createClient(supabaseUrl, supabaseKey);
     
+    console.log(`New records to insert: ${records.length}, Skipped duplicates: ${skipped}`);
+
     // Insert in batches of 50
     const batchSize = 50;
     let inserted = 0;
@@ -169,6 +219,7 @@ serve(async (req) => {
       success: true, 
       total_fetched: attendances.length,
       total_filtered: filteredAttendances.length,
+      total_skipped: skipped,
       total_inserted: inserted
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
