@@ -6,6 +6,7 @@ import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
 import { LeadsTable } from "@/components/Dashboard/LeadsTable";
 import { GenericTable } from "@/components/Dashboard/GenericTable";
 import { DetalhadoTable } from "@/components/Dashboard/DetalhadoTable";
+import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
 import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { StatsCard } from "@/components/Dashboard/StatsCard";
 import { useSchedules } from "@/hooks/useSchedules";
@@ -197,13 +198,7 @@ const Index = () => {
         );
       case "Indicadores":
         return (
-          <GenericTable
-            records={indicadores.records}
-            columns={INDICADORES_COLUMNS}
-            onUpdate={indicadores.updateRecord}
-            onDelete={indicadores.deleteRecord}
-            emptyMessage="Nenhum indicador cadastrado."
-          />
+          <IndicadoresTable leads={leads.leads} />
         );
       case "Metas":
         return (
