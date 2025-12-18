@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Trash2, MessageCircle } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Trash2, MessageCircle, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableCell } from "./EditableCell";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Lead } from "@/hooks/useLeads";
 
 interface LeadsTableProps {
@@ -10,7 +11,54 @@ interface LeadsTableProps {
   onDelete: (id: string) => void;
 }
 
+interface Filters {
+  data_registro: string;
+  canal: string;
+  orcamento: string;
+  entrar_em_contato: string;
+  medico: string;
+}
+
 export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
+  const [filters, setFilters] = useState<Filters>({
+    data_registro: "",
+    canal: "",
+    orcamento: "",
+    entrar_em_contato: "",
+    medico: "",
+  });
+
+  const uniqueValues = useMemo(() => ({
+    data_registro: [...new Set(leads.map(l => l.data_registro).filter(Boolean))] as string[],
+    canal: [...new Set(leads.map(l => l.canal).filter(Boolean))] as string[],
+    orcamento: ["Sim", "Não"],
+    entrar_em_contato: [...new Set(leads.map(l => l.entrar_em_contato).filter(Boolean))] as string[],
+    medico: [...new Set(leads.map(l => l.medico).filter(Boolean))] as string[],
+  }), [leads]);
+
+  const filteredLeads = useMemo(() => {
+    return leads.filter(lead => {
+      if (filters.data_registro && lead.data_registro !== filters.data_registro) return false;
+      if (filters.canal && lead.canal !== filters.canal) return false;
+      if (filters.orcamento && lead.orcamento !== filters.orcamento) return false;
+      if (filters.entrar_em_contato && lead.entrar_em_contato !== filters.entrar_em_contato) return false;
+      if (filters.medico && lead.medico !== filters.medico) return false;
+      return true;
+    });
+  }, [leads, filters]);
+
+  const hasActiveFilters = Object.values(filters).some(v => v !== "");
+
+  const clearFilters = () => {
+    setFilters({
+      data_registro: "",
+      canal: "",
+      orcamento: "",
+      entrar_em_contato: "",
+      medico: "",
+    });
+  };
+
   const statusBadge = (value: string | null) => {
     if (value === "Sim") {
       return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-accent/20 text-accent">Sim</span>;
@@ -20,9 +68,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
 
   const formatPhoneForWhatsApp = (phone: string | null) => {
     if (!phone) return null;
-    // Remove all non-numeric characters
     const cleaned = phone.replace(/\D/g, "");
-    // Add Brazil country code if not present
     if (cleaned.length === 11 || cleaned.length === 10) {
       return `55${cleaned}`;
     }
@@ -85,78 +131,169 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
     );
   };
 
+  const FilterSelect = ({ 
+    value, 
+    onChange, 
+    options, 
+    placeholder 
+  }: { 
+    value: string; 
+    onChange: (v: string) => void; 
+    options: string[]; 
+    placeholder: string;
+  }) => (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-8 text-xs bg-background border-border">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent className="bg-popover border-border z-50">
+        <SelectItem value="all">{placeholder}</SelectItem>
+        {options.map(opt => (
+          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden card-shadow-lg animate-fade-in">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-table-header border-b border-table-border">
-              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[110px]">Data</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Canal</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Nome</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[160px]">Número</th>
-              <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Orçam.</th>
-              <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[70px]">Venda</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Entrar em Contato</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Médico</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
-              <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[50px]"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-table-border">
-            {leads.map((lead, index) => (
-              <tr 
-                key={lead.id} 
-                className="table-cell-hover animate-slide-in"
-                style={{ animationDelay: `${index * 15}ms` }}
-              >
-                <td className="px-1 py-1">
-                  <EditableCell value={lead.data_registro || ""} onSave={(v) => onUpdate(lead.id, "data_registro", v)} placeholder="DD/MM/AAAA" />
-                </td>
-                <td className="px-1 py-1">
-                  <EditableCell value={lead.canal || ""} onSave={(v) => onUpdate(lead.id, "canal", v)} placeholder="Canal" />
-                </td>
-                <td className="px-1 py-1">
-                  <EditableCell value={lead.nome || ""} onSave={(v) => onUpdate(lead.id, "nome", v)} placeholder="Nome" />
-                </td>
-                <td className="py-1">
-                  <PhoneCell phone={lead.numero} leadId={lead.id} />
-                </td>
-                <td className="px-3 py-2 text-center">
-                  <button onClick={() => onUpdate(lead.id, "orcamento", lead.orcamento === "Sim" ? "Não" : "Sim")}>
-                    {statusBadge(lead.orcamento)}
-                  </button>
-                </td>
-                <td className="px-3 py-2 text-center">
-                  <button onClick={() => onUpdate(lead.id, "venda", lead.venda === "Sim" ? "Não" : "Sim")}>
-                    {statusBadge(lead.venda)}
-                  </button>
-                </td>
-                <td className="px-1 py-1">
-                  <EditableCell value={lead.entrar_em_contato || ""} onSave={(v) => onUpdate(lead.id, "entrar_em_contato", v)} placeholder="DD/MM/AAAA" />
-                </td>
-                <td className="px-1 py-1">
-                  <EditableCell value={lead.medico || ""} onSave={(v) => onUpdate(lead.id, "medico", v)} placeholder="Médico" />
-                </td>
-                <td className="px-1 py-1">
-                  <EditableCell value={lead.obs || ""} onSave={(v) => onUpdate(lead.id, "obs", v)} placeholder="Observação" />
-                </td>
-                <td className="px-2 py-2 text-center">
-                  <Button variant="ghost" size="icon" onClick={() => onDelete(lead.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {leads.length === 0 && (
-        <div className="px-6 py-12 text-center text-muted-foreground">
-          <p>Nenhum lead encontrado.</p>
-          <p className="text-sm mt-1">Clique em "Nova Linha" para adicionar.</p>
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="bg-card rounded-xl border border-border p-4 card-shadow animate-fade-in">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">Filtros</span>
+          <span className="text-xs text-muted-foreground ml-2">
+            {filteredLeads.length} de {leads.length} leads
+          </span>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="ml-auto h-7 text-xs">
+              <X className="w-3 h-3 mr-1" />
+              Limpar filtros
+            </Button>
+          )}
         </div>
-      )}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Data</label>
+            <FilterSelect
+              value={filters.data_registro}
+              onChange={(v) => setFilters(f => ({ ...f, data_registro: v === "all" ? "" : v }))}
+              options={uniqueValues.data_registro}
+              placeholder="Todas"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Canal</label>
+            <FilterSelect
+              value={filters.canal}
+              onChange={(v) => setFilters(f => ({ ...f, canal: v === "all" ? "" : v }))}
+              options={uniqueValues.canal}
+              placeholder="Todos"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Orçamento</label>
+            <FilterSelect
+              value={filters.orcamento}
+              onChange={(v) => setFilters(f => ({ ...f, orcamento: v === "all" ? "" : v }))}
+              options={uniqueValues.orcamento}
+              placeholder="Todos"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Entrar em Contato</label>
+            <FilterSelect
+              value={filters.entrar_em_contato}
+              onChange={(v) => setFilters(f => ({ ...f, entrar_em_contato: v === "all" ? "" : v }))}
+              options={uniqueValues.entrar_em_contato}
+              placeholder="Todas"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Médico</label>
+            <FilterSelect
+              value={filters.medico}
+              onChange={(v) => setFilters(f => ({ ...f, medico: v === "all" ? "" : v }))}
+              options={uniqueValues.medico}
+              placeholder="Todos"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-card rounded-xl border border-border overflow-hidden card-shadow-lg animate-fade-in">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-table-header border-b border-table-border">
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[110px]">Data</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Canal</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Nome</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[160px]">Número</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Orçam.</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[70px]">Venda</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Entrar em Contato</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Médico</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[50px]"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-table-border">
+              {filteredLeads.map((lead, index) => (
+                <tr 
+                  key={lead.id} 
+                  className="table-cell-hover animate-slide-in"
+                  style={{ animationDelay: `${index * 15}ms` }}
+                >
+                  <td className="px-1 py-1">
+                    <EditableCell value={lead.data_registro || ""} onSave={(v) => onUpdate(lead.id, "data_registro", v)} placeholder="DD/MM/AAAA" />
+                  </td>
+                  <td className="px-1 py-1">
+                    <EditableCell value={lead.canal || ""} onSave={(v) => onUpdate(lead.id, "canal", v)} placeholder="Canal" />
+                  </td>
+                  <td className="px-1 py-1">
+                    <EditableCell value={lead.nome || ""} onSave={(v) => onUpdate(lead.id, "nome", v)} placeholder="Nome" />
+                  </td>
+                  <td className="py-1">
+                    <PhoneCell phone={lead.numero} leadId={lead.id} />
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <button onClick={() => onUpdate(lead.id, "orcamento", lead.orcamento === "Sim" ? "Não" : "Sim")}>
+                      {statusBadge(lead.orcamento)}
+                    </button>
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <button onClick={() => onUpdate(lead.id, "venda", lead.venda === "Sim" ? "Não" : "Sim")}>
+                      {statusBadge(lead.venda)}
+                    </button>
+                  </td>
+                  <td className="px-1 py-1">
+                    <EditableCell value={lead.entrar_em_contato || ""} onSave={(v) => onUpdate(lead.id, "entrar_em_contato", v)} placeholder="DD/MM/AAAA" />
+                  </td>
+                  <td className="px-1 py-1">
+                    <EditableCell value={lead.medico || ""} onSave={(v) => onUpdate(lead.id, "medico", v)} placeholder="Médico" />
+                  </td>
+                  <td className="px-1 py-1">
+                    <EditableCell value={lead.obs || ""} onSave={(v) => onUpdate(lead.id, "obs", v)} placeholder="Observação" />
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <Button variant="ghost" size="icon" onClick={() => onDelete(lead.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {filteredLeads.length === 0 && (
+          <div className="px-6 py-12 text-center text-muted-foreground">
+            <p>Nenhum lead encontrado.</p>
+            <p className="text-sm mt-1">{hasActiveFilters ? "Tente ajustar os filtros." : "Clique em \"Nova Linha\" para adicionar."}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
