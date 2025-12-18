@@ -129,9 +129,10 @@ serve(async (req) => {
         const patientResponse = await fetchPatientDetails(patientId, apiToken);
         if (patientResponse?.data) {
           const patientData = patientResponse.data;
-          email = patientData.email || patientData.contact_email || '';
-          // Check multiple possible field names for "como conheceu"
-          comoConheceu = patientData.know_by || patientData.how_met || patientData.source || patientData.referral || '';
+          // Email is directly in data.email
+          email = patientData.email || '';
+          // Como conheceu is not available in the API response
+          comoConheceu = '';
         }
       }
       
