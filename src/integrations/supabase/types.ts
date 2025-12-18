@@ -16,37 +16,43 @@ export type Database = {
     Tables: {
       detalhado: {
         Row: {
-          categoria: string | null
+          como_conheceu: string | null
           created_at: string
           data: string | null
-          descricao: string | null
+          email: string | null
           id: string
+          nome: string | null
           obs: string | null
-          responsavel: string | null
+          receita: string | null
+          telefone: string | null
           updated_at: string
-          valor: string | null
+          visitou_loja: string | null
         }
         Insert: {
-          categoria?: string | null
+          como_conheceu?: string | null
           created_at?: string
           data?: string | null
-          descricao?: string | null
+          email?: string | null
           id?: string
+          nome?: string | null
           obs?: string | null
-          responsavel?: string | null
+          receita?: string | null
+          telefone?: string | null
           updated_at?: string
-          valor?: string | null
+          visitou_loja?: string | null
         }
         Update: {
-          categoria?: string | null
+          como_conheceu?: string | null
           created_at?: string
           data?: string | null
-          descricao?: string | null
+          email?: string | null
           id?: string
+          nome?: string | null
           obs?: string | null
-          responsavel?: string | null
+          receita?: string | null
+          telefone?: string | null
           updated_at?: string
-          valor?: string | null
+          visitou_loja?: string | null
         }
         Relationships: []
       }

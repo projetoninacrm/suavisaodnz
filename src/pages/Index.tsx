@@ -32,11 +32,13 @@ const METAS_COLUMNS = [
 ];
 
 const DETALHADO_COLUMNS = [
+  { key: "nome", label: "Nome", width: "200px" },
+  { key: "telefone", label: "Telefone", width: "140px" },
+  { key: "email", label: "Email", width: "180px" },
+  { key: "como_conheceu", label: "Como Conheceu", width: "150px" },
+  { key: "receita", label: "Receita", width: "100px" },
   { key: "data", label: "Data", width: "100px" },
-  { key: "descricao", label: "Descrição", width: "250px" },
-  { key: "valor", label: "Valor", width: "120px" },
-  { key: "categoria", label: "Categoria", width: "120px" },
-  { key: "responsavel", label: "Responsável", width: "120px" },
+  { key: "visitou_loja", label: "Visitou a Loja", width: "120px" },
   { key: "obs", label: "Observações" },
 ];
 
