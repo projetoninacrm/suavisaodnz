@@ -247,7 +247,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
             <thead>
               <tr className="bg-table-header border-b border-table-border">
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[110px]">Data</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Canal</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Canal</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Nome</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[160px]">Número</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Orçam.</th>
@@ -268,8 +268,8 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
                   <td className="px-1 py-1">
                     <DatePickerCell value={lead.data_registro || ""} onSave={(v) => onUpdate(lead.id, "data_registro", v)} placeholder="Selecionar" />
                   </td>
-                <td className="px-1 py-1">
-                    <SelectCell value={lead.canal || ""} onSave={(v) => onUpdate(lead.id, "canal", v)} options={CANAL_OPTIONS} placeholder="Canal" />
+                  <td className="px-1 py-1">
+                    <EditableCell value={lead.canal || ""} onSave={(v) => onUpdate(lead.id, "canal", v)} placeholder="Canal" />
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={lead.nome || ""} onSave={(v) => onUpdate(lead.id, "nome", v)} placeholder="Nome" />
