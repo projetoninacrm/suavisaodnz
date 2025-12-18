@@ -87,6 +87,7 @@ export type Database = {
         Row: {
           canal: string | null
           created_at: string
+          data_registro: string | null
           entrar_em_contato: string | null
           id: string
           medico: string | null
@@ -96,11 +97,11 @@ export type Database = {
           orcamento: string | null
           updated_at: string
           venda: string | null
-          year: string | null
         }
         Insert: {
           canal?: string | null
           created_at?: string
+          data_registro?: string | null
           entrar_em_contato?: string | null
           id?: string
           medico?: string | null
@@ -110,11 +111,11 @@ export type Database = {
           orcamento?: string | null
           updated_at?: string
           venda?: string | null
-          year?: string | null
         }
         Update: {
           canal?: string | null
           created_at?: string
+          data_registro?: string | null
           entrar_em_contato?: string | null
           id?: string
           medico?: string | null
@@ -124,7 +125,6 @@ export type Database = {
           orcamento?: string | null
           updated_at?: string
           venda?: string | null
-          year?: string | null
         }
         Relationships: []
       }
