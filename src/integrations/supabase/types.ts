@@ -14,6 +14,195 @@ export type Database = {
   }
   public: {
     Tables: {
+      detalhado: {
+        Row: {
+          categoria: string | null
+          created_at: string
+          data: string | null
+          descricao: string | null
+          id: string
+          obs: string | null
+          responsavel: string | null
+          updated_at: string
+          valor: string | null
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string
+          data?: string | null
+          descricao?: string | null
+          id?: string
+          obs?: string | null
+          responsavel?: string | null
+          updated_at?: string
+          valor?: string | null
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string
+          data?: string | null
+          descricao?: string | null
+          id?: string
+          obs?: string | null
+          responsavel?: string | null
+          updated_at?: string
+          valor?: string | null
+        }
+        Relationships: []
+      }
+      indicadores: {
+        Row: {
+          created_at: string
+          id: string
+          indicador: string | null
+          meta: string | null
+          obs: string | null
+          periodo: string | null
+          updated_at: string
+          valor: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          indicador?: string | null
+          meta?: string | null
+          obs?: string | null
+          periodo?: string | null
+          updated_at?: string
+          valor?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          indicador?: string | null
+          meta?: string | null
+          obs?: string | null
+          periodo?: string | null
+          updated_at?: string
+          valor?: string | null
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          canal: string | null
+          created_at: string
+          entrar_em_contato: string | null
+          id: string
+          medico: string | null
+          nome: string | null
+          numero: string | null
+          obs: string | null
+          orcamento: string | null
+          updated_at: string
+          venda: string | null
+          year: string | null
+        }
+        Insert: {
+          canal?: string | null
+          created_at?: string
+          entrar_em_contato?: string | null
+          id?: string
+          medico?: string | null
+          nome?: string | null
+          numero?: string | null
+          obs?: string | null
+          orcamento?: string | null
+          updated_at?: string
+          venda?: string | null
+          year?: string | null
+        }
+        Update: {
+          canal?: string | null
+          created_at?: string
+          entrar_em_contato?: string | null
+          id?: string
+          medico?: string | null
+          nome?: string | null
+          numero?: string | null
+          obs?: string | null
+          orcamento?: string | null
+          updated_at?: string
+          venda?: string | null
+          year?: string | null
+        }
+        Relationships: []
+      }
+      metas: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          obs: string | null
+          percentual: string | null
+          status: string | null
+          updated_at: string
+          valor_atual: string | null
+          valor_meta: string | null
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          obs?: string | null
+          percentual?: string | null
+          status?: string | null
+          updated_at?: string
+          valor_atual?: string | null
+          valor_meta?: string | null
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          obs?: string | null
+          percentual?: string | null
+          status?: string | null
+          updated_at?: string
+          valor_atual?: string | null
+          valor_meta?: string | null
+        }
+        Relationships: []
+      }
+      mkt: {
+        Row: {
+          campanha: string | null
+          canal: string | null
+          conversoes: string | null
+          created_at: string
+          id: string
+          investimento: string | null
+          leads_gerados: string | null
+          obs: string | null
+          retorno: string | null
+          updated_at: string
+        }
+        Insert: {
+          campanha?: string | null
+          canal?: string | null
+          conversoes?: string | null
+          created_at?: string
+          id?: string
+          investimento?: string | null
+          leads_gerados?: string | null
+          obs?: string | null
+          retorno?: string | null
+          updated_at?: string
+        }
+        Update: {
+          campanha?: string | null
+          canal?: string | null
+          conversoes?: string | null
+          created_at?: string
+          id?: string
+          investimento?: string | null
+          leads_gerados?: string | null
+          obs?: string | null
+          retorno?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       schedules: {
         Row: {
           afternoon_shift: string | null
