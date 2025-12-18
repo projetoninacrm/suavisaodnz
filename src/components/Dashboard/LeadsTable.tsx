@@ -8,7 +8,7 @@ import { CalendarFilterPopover } from "./CalendarFilterPopover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Lead } from "@/hooks/useLeads";
 
-const CANAL_OPTIONS = ["INSTAGRAM", "WHATSAPP", "LOJA"];
+const CANAL_OPTIONS = ["Internet", "Sua Visão", "Loja"];
 
 interface LeadsTableProps {
   leads: Lead[];
