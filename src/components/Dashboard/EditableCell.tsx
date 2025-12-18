@@ -45,7 +45,7 @@ export function EditableCell({ value, onSave, placeholder = "" }: EditableCellPr
         ref={inputRef}
         type="text"
         value={editValue}
-        onChange={(e) => setEditValue(e.target.value.toUpperCase())}
+        onChange={(e) => setEditValue(e.target.value)}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         className="editable-cell px-3 py-2 text-sm w-full min-w-[100px]"
