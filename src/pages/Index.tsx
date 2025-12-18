@@ -1,13 +1,14 @@
 import { useState, useMemo } from "react";
-import { Calendar, Users, Clock, Sun, Target, TrendingUp, Megaphone, FileText } from "lucide-react";
+import { Calendar, Users, Clock, Sun, Target, TrendingUp } from "lucide-react";
 import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
 import { LeadsTable } from "@/components/Dashboard/LeadsTable";
 import { GenericTable } from "@/components/Dashboard/GenericTable";
+import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { StatsCard } from "@/components/Dashboard/StatsCard";
 import { useSchedules } from "@/hooks/useSchedules";
-import { useLeads } from "@/hooks/useLeads";
+import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
 
 const TABS = ["Agenda", "Leads", "Indicadores", "Metas", "Detalhado", "MKT"];
@@ -50,6 +51,7 @@ const MKT_COLUMNS = [
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState(TABS[0]);
+  const [showNewLeadDialog, setShowNewLeadDialog] = useState(false);
   
   const schedules = useSchedules("Escala");
   const leads = useLeads();
@@ -109,12 +111,16 @@ const Index = () => {
   const handleAddRow = () => {
     switch (activeTab) {
       case "Agenda": schedules.addSchedule(); break;
-      case "Leads": leads.addLead(); break;
+      case "Leads": setShowNewLeadDialog(true); break;
       case "Indicadores": indicadores.addRecord(); break;
       case "Metas": metas.addRecord(); break;
       case "Detalhado": detalhado.addRecord(); break;
       case "MKT": mkt.addRecord(); break;
     }
+  };
+
+  const handleNewLeadSubmit = (data: NewLeadData) => {
+    leads.addLead(data);
   };
 
   const renderTable = () => {
@@ -238,6 +244,12 @@ const Index = () => {
 
         {renderTable()}
       </main>
+
+      <NewLeadDialog 
+        open={showNewLeadDialog} 
+        onOpenChange={setShowNewLeadDialog}
+        onSubmit={handleNewLeadSubmit}
+      />
     </div>
   );
 };

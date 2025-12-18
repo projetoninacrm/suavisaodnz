@@ -17,6 +17,18 @@ export interface Lead {
   updated_at: string;
 }
 
+export interface NewLeadData {
+  data_registro: string;
+  canal: string;
+  nome: string;
+  numero: string;
+  orcamento: string;
+  venda: string;
+  entrar_em_contato: string;
+  medico: string;
+  obs: string;
+}
+
 export function useLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,25 +80,22 @@ export function useLeads() {
     }
   };
 
-  const addLead = async () => {
+  const addLead = async (leadData: NewLeadData) => {
     try {
-      const today = new Date();
-      const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-      
       const { data, error } = await supabase
         .from("leads")
-        .insert({ data_registro: formattedDate, orcamento: "Não", venda: "Não" })
+        .insert(leadData)
         .select()
         .single();
 
       if (error) throw error;
       setLeads((prev) => [...prev, data]);
-      toast({ title: "Adicionado", description: "Novo lead criado." });
+      toast({ title: "Adicionado", description: "Novo lead criado com sucesso!" });
     } catch (error) {
       console.error("Error adding lead:", error);
       toast({
         title: "Erro ao adicionar",
-        description: "Não foi possível adicionar.",
+        description: "Não foi possível adicionar o lead.",
         variant: "destructive",
       });
     }
