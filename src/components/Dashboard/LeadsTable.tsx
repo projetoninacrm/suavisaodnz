@@ -23,13 +23,13 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
         <table className="w-full">
           <thead>
             <tr className="bg-table-header border-b border-table-border">
-              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[70px]">Ano</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[110px]">Data</th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Canal</th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Nome</th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">Número</th>
               <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Orçam.</th>
               <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[70px]">Venda</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Contato (Data)</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Entrar em Contato</th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Médico</th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
               <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[50px]"></th>
@@ -43,7 +43,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
                 style={{ animationDelay: `${index * 15}ms` }}
               >
                 <td className="px-1 py-1">
-                  <EditableCell value={lead.year || ""} onSave={(v) => onUpdate(lead.id, "year", v)} placeholder="Ano" />
+                  <EditableCell value={lead.data_registro || ""} onSave={(v) => onUpdate(lead.id, "data_registro", v)} placeholder="DD/MM/AAAA" />
                 </td>
                 <td className="px-1 py-1">
                   <EditableCell value={lead.canal || ""} onSave={(v) => onUpdate(lead.id, "canal", v)} placeholder="Canal" />

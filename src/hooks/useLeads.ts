@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export interface Lead {
   id: string;
-  year: string | null;
+  data_registro: string | null;
   canal: string | null;
   nome: string | null;
   numero: string | null;
@@ -70,9 +70,12 @@ export function useLeads() {
 
   const addLead = async () => {
     try {
+      const today = new Date();
+      const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+      
       const { data, error } = await supabase
         .from("leads")
-        .insert({ year: "2025", orcamento: "Não", venda: "Não" })
+        .insert({ data_registro: formattedDate, orcamento: "Não", venda: "Não" })
         .select()
         .single();
 
