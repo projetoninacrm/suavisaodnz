@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Trash2, MessageCircle, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableCell } from "./EditableCell";
+import { DatePickerCell } from "./DatePickerCell";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Lead } from "@/hooks/useLeads";
 
@@ -247,7 +248,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
                   style={{ animationDelay: `${index * 15}ms` }}
                 >
                   <td className="px-1 py-1">
-                    <EditableCell value={lead.data_registro || ""} onSave={(v) => onUpdate(lead.id, "data_registro", v)} placeholder="DD/MM/AAAA" />
+                    <DatePickerCell value={lead.data_registro || ""} onSave={(v) => onUpdate(lead.id, "data_registro", v)} placeholder="Selecionar" />
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={lead.canal || ""} onSave={(v) => onUpdate(lead.id, "canal", v)} placeholder="Canal" />
@@ -269,7 +270,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
                     </button>
                   </td>
                   <td className="px-1 py-1">
-                    <EditableCell value={lead.entrar_em_contato || ""} onSave={(v) => onUpdate(lead.id, "entrar_em_contato", v)} placeholder="DD/MM/AAAA" />
+                    <DatePickerCell value={lead.entrar_em_contato || ""} onSave={(v) => onUpdate(lead.id, "entrar_em_contato", v)} placeholder="Selecionar" />
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={lead.medico || ""} onSave={(v) => onUpdate(lead.id, "medico", v)} placeholder="Médico" />
