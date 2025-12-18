@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Users, Target, TrendingUp, DollarSign, ShoppingCart, Receipt } from "lucide-react";
+import { DollarSign, ShoppingCart, Receipt } from "lucide-react";
 import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
@@ -69,14 +69,28 @@ const Index = () => {
     activeTab === "Detalhado" ? detalhado.isLoading :
     mkt.isLoading;
 
-  // Stats for Leads tab
-  const leadsStats = useMemo(() => {
-    const totalLeads = leads.leads.length;
-    const vendas = leads.leads.filter((l) => l.venda === "Sim").length;
-    const orcamentos = leads.leads.filter((l) => l.orcamento === "Sim").length;
-    const taxaConversao = totalLeads > 0 ? Math.round((vendas / totalLeads) * 100) : 0;
+  // Stats for Leads tab - by channel
+  const leadsStatsByChannel = useMemo(() => {
+    const calcStats = (filteredLeads: typeof leads.leads) => {
+      const total = filteredLeads.length;
+      const orcamentos = filteredLeads.filter((l) => l.orcamento === "Sim").length;
+      const vendas = filteredLeads.filter((l) => l.venda === "Sim").length;
+      const conversao = orcamentos > 0 ? Math.round((vendas / orcamentos) * 100) : 0;
+      return { leads: total, orcamentos, vendas, conversao };
+    };
 
-    return { totalLeads, vendas, orcamentos, taxaConversao };
+    const lojaLeads = leads.leads.filter(l => l.canal?.toLowerCase() === "loja");
+    const internetLeads = leads.leads.filter(l => 
+      l.canal?.toLowerCase() === "internet" || 
+      l.canal?.toLowerCase() === "google" || 
+      l.canal?.toLowerCase() === "facebook"
+    );
+
+    return {
+      loja: calcStats(lojaLeads),
+      internet: calcStats(internetLeads),
+      todos: calcStats(leads.leads),
+    };
   }, [leads.leads]);
 
   // Stats for Metas tab - Vendas e Faturamento por período
@@ -240,33 +254,43 @@ const Index = () => {
       />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats for Leads tab only */}
+        {/* Stats for Leads tab - table format by channel */}
         {activeTab === "Leads" && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <StatsCard
-              title="Total Leads"
-              value={leadsStats.totalLeads}
-              icon={Users}
-              color="primary"
-            />
-            <StatsCard
-              title="Orçamentos"
-              value={leadsStats.orcamentos}
-              icon={Receipt}
-              color="chart-4"
-            />
-            <StatsCard
-              title="Vendas"
-              value={leadsStats.vendas}
-              icon={Target}
-              color="accent"
-            />
-            <StatsCard
-              title="Taxa Conversão"
-              value={`${leadsStats.taxaConversao}%`}
-              icon={TrendingUp}
-              color="chart-3"
-            />
+          <div className="mb-8 overflow-hidden rounded-lg border border-border bg-card">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Canal</th>
+                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Leads</th>
+                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Orçamentos</th>
+                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendas</th>
+                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Conversão</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-3 font-medium">Loja</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.leads}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.orcamentos}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.vendas}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.conversao}%</td>
+                </tr>
+                <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-3 font-medium">Internet</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.leads}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.orcamentos}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.vendas}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.conversao}%</td>
+                </tr>
+                <tr className="hover:bg-muted/30 transition-colors font-semibold bg-muted/20">
+                  <td className="px-4 py-3">Todos</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.leads}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.orcamentos}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.vendas}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.conversao}%</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         )}
 
