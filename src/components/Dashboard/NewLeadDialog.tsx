@@ -89,7 +89,6 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit }: NewLeadDialogPro
                   <SelectItem value="Internet">Internet</SelectItem>
                   <SelectItem value="Sua Visão">Sua Visão</SelectItem>
                   <SelectItem value="Loja">Loja</SelectItem>
-                  <SelectItem value="Indicação">Indicação</SelectItem>
                   <SelectItem value="Outro">Outro</SelectItem>
                 </SelectContent>
               </Select>
