@@ -59,7 +59,7 @@ export function EditableCell({ value, onSave, placeholder = "" }: EditableCellPr
       onClick={() => setIsEditing(true)}
       className="px-3 py-2 text-sm cursor-pointer min-h-[36px] min-w-[100px] rounded-md hover:bg-muted/50 transition-colors"
     >
-      {value || <span className="text-muted-foreground/50">{placeholder || "Clique para editar"}</span>}
+      {value || <span className="text-muted-foreground">-</span>}
     </div>
   );
 }
