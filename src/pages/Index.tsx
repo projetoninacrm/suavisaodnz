@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Calendar, Users, Clock, Sun, Target, TrendingUp } from "lucide-react";
+import { Users, Target, TrendingUp, DollarSign, ShoppingCart, Receipt } from "lucide-react";
 import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
@@ -10,6 +10,7 @@ import { StatsCard } from "@/components/Dashboard/StatsCard";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, parse, isWithinInterval, isToday, isValid } from "date-fns";
 
 const TABS = ["Agenda", "Leads", "Indicadores", "Metas", "Detalhado", "MKT"];
 
@@ -68,34 +69,78 @@ const Index = () => {
     activeTab === "Detalhado" ? detalhado.isLoading :
     mkt.isLoading;
 
-  const stats = useMemo(() => {
-    const uniqueDoctors = new Set<string>();
-    let morningShifts = 0;
-    let afternoonShifts = 0;
-
-    schedules.schedules.forEach((s) => {
-      if (s.morning_shift) {
-        uniqueDoctors.add(s.morning_shift);
-        morningShifts++;
-      }
-      if (s.afternoon_shift) {
-        uniqueDoctors.add(s.afternoon_shift);
-        afternoonShifts++;
-      }
-    });
-
+  // Stats for Leads tab
+  const leadsStats = useMemo(() => {
     const totalLeads = leads.leads.length;
     const vendas = leads.leads.filter((l) => l.venda === "Sim").length;
+    const orcamentos = leads.leads.filter((l) => l.orcamento === "Sim").length;
+    const taxaConversao = totalLeads > 0 ? Math.round((vendas / totalLeads) * 100) : 0;
+
+    return { totalLeads, vendas, orcamentos, taxaConversao };
+  }, [leads.leads]);
+
+  // Stats for Metas tab - Vendas e Faturamento por período
+  const metasStats = useMemo(() => {
+    const today = new Date();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+    const monthStart = startOfMonth(today);
+    const monthEnd = endOfMonth(today);
+
+    const parseDateStr = (dateStr: string | null): Date | null => {
+      if (!dateStr) return null;
+      const parsed = parse(dateStr, "dd/MM/yyyy", new Date());
+      return isValid(parsed) ? parsed : null;
+    };
+
+    // Filter vendas (sales) by period
+    const vendasHoje = leads.leads.filter(l => {
+      if (l.venda !== "Sim") return false;
+      const date = parseDateStr(l.data_registro);
+      return date && isToday(date);
+    }).length;
+
+    const vendasSemana = leads.leads.filter(l => {
+      if (l.venda !== "Sim") return false;
+      const date = parseDateStr(l.data_registro);
+      return date && isWithinInterval(date, { start: weekStart, end: weekEnd });
+    }).length;
+
+    const vendasMes = leads.leads.filter(l => {
+      if (l.venda !== "Sim") return false;
+      const date = parseDateStr(l.data_registro);
+      return date && isWithinInterval(date, { start: monthStart, end: monthEnd });
+    }).length;
+
+    // Calculate faturamento from detalhado table (assuming it has valor column)
+    const calcFaturamento = (records: any[], start: Date, end: Date, checkToday = false) => {
+      return records.reduce((sum, r) => {
+        const date = parseDateStr(r.data);
+        if (!date) return sum;
+        const inPeriod = checkToday ? isToday(date) : isWithinInterval(date, { start, end });
+        if (!inPeriod) return sum;
+        const valor = parseFloat(String(r.valor || "0").replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+        return sum + valor;
+      }, 0);
+    };
+
+    const faturamentoHoje = calcFaturamento(detalhado.records, today, today, true);
+    const faturamentoSemana = calcFaturamento(detalhado.records, weekStart, weekEnd);
+    const faturamentoMes = calcFaturamento(detalhado.records, monthStart, monthEnd);
+
+    // Ticket médio
+    const ticketMedio = vendasMes > 0 ? faturamentoMes / vendasMes : 0;
 
     return {
-      totalDays: schedules.schedules.length,
-      doctors: uniqueDoctors.size,
-      morningShifts,
-      afternoonShifts,
-      totalLeads,
-      vendas,
+      vendasHoje,
+      vendasSemana,
+      vendasMes,
+      faturamentoHoje,
+      faturamentoSemana,
+      faturamentoMes,
+      ticketMedio
     };
-  }, [schedules.schedules, leads.leads]);
+  }, [leads.leads, detalhado.records]);
 
   const handleRefresh = () => {
     switch (activeTab) {
@@ -195,44 +240,83 @@ const Index = () => {
       />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          <StatsCard
-            title="Dias na Agenda"
-            value={stats.totalDays}
-            icon={Calendar}
-            color="primary"
-          />
-          <StatsCard
-            title="Médicos"
-            value={stats.doctors}
-            icon={Users}
-            color="accent"
-          />
-          <StatsCard
-            title="Turnos Manhã"
-            value={stats.morningShifts}
-            icon={Sun}
-            color="chart-4"
-          />
-          <StatsCard
-            title="Turnos Tarde"
-            value={stats.afternoonShifts}
-            icon={Clock}
-            color="chart-5"
-          />
-          <StatsCard
-            title="Total Leads"
-            value={stats.totalLeads}
-            icon={TrendingUp}
-            color="chart-3"
-          />
-          <StatsCard
-            title="Vendas"
-            value={stats.vendas}
-            icon={Target}
-            color="accent"
-          />
-        </div>
+        {/* Stats for Leads tab only */}
+        {activeTab === "Leads" && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <StatsCard
+              title="Total Leads"
+              value={leadsStats.totalLeads}
+              icon={Users}
+              color="primary"
+            />
+            <StatsCard
+              title="Orçamentos"
+              value={leadsStats.orcamentos}
+              icon={Receipt}
+              color="chart-4"
+            />
+            <StatsCard
+              title="Vendas"
+              value={leadsStats.vendas}
+              icon={Target}
+              color="accent"
+            />
+            <StatsCard
+              title="Taxa Conversão"
+              value={`${leadsStats.taxaConversao}%`}
+              icon={TrendingUp}
+              color="chart-3"
+            />
+          </div>
+        )}
+
+        {/* Stats for Metas tab */}
+        {activeTab === "Metas" && (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+            <StatsCard
+              title="Vendas Hoje"
+              value={metasStats.vendasHoje}
+              icon={ShoppingCart}
+              color="primary"
+            />
+            <StatsCard
+              title="Vendas Semana"
+              value={metasStats.vendasSemana}
+              icon={ShoppingCart}
+              color="chart-4"
+            />
+            <StatsCard
+              title="Vendas Mês"
+              value={metasStats.vendasMes}
+              icon={ShoppingCart}
+              color="accent"
+            />
+            <StatsCard
+              title="Fat. Hoje"
+              value={`R$ ${metasStats.faturamentoHoje.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`}
+              icon={DollarSign}
+              color="chart-3"
+            />
+            <StatsCard
+              title="Fat. Semana"
+              value={`R$ ${metasStats.faturamentoSemana.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`}
+              icon={DollarSign}
+              color="chart-4"
+            />
+            <StatsCard
+              title="Fat. Mês"
+              value={`R$ ${metasStats.faturamentoMes.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`}
+              icon={DollarSign}
+              color="chart-5"
+            />
+            <StatsCard
+              title="Ticket Médio"
+              value={`R$ ${metasStats.ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`}
+              icon={Receipt}
+              color="accent"
+            />
+          </div>
+        )}
 
         <div className="mb-6">
           <TabNavigation

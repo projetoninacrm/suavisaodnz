@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { format, parse, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, X } from "lucide-react";
+import { CalendarIcon, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
 
 interface CalendarFilterPopoverProps {
   selectedDates: string[];
@@ -23,19 +22,16 @@ export function CalendarFilterPopover({
 }: CalendarFilterPopoverProps) {
   const [open, setOpen] = useState(false);
 
-  // Parse date strings to Date objects
   const parseDateStr = (dateStr: string): Date | null => {
     if (!dateStr) return null;
     const parsed = parse(dateStr, "dd/MM/yyyy", new Date());
     return isValid(parsed) ? parsed : null;
   };
 
-  // Convert selected date strings to Date objects
   const selectedDateObjects = selectedDates
     .map(parseDateStr)
     .filter((d): d is Date => d !== null);
 
-  // Convert available dates to Date objects for highlighting
   const availableDateObjects = availableDates
     .map(parseDateStr)
     .filter((d): d is Date => d !== null);
@@ -49,12 +45,14 @@ export function CalendarFilterPopover({
     onDatesChange(dateStrings);
   };
 
-  const removeDate = (dateToRemove: string) => {
-    onDatesChange(selectedDates.filter(d => d !== dateToRemove));
-  };
-
   const clearAll = () => {
     onDatesChange([]);
+  };
+
+  const getButtonLabel = () => {
+    if (selectedDates.length === 0) return placeholder;
+    if (selectedDates.length === 1) return selectedDates[0];
+    return `${selectedDates.length} datas`;
   };
 
   return (
@@ -63,49 +61,61 @@ export function CalendarFilterPopover({
         <Button
           variant="outline"
           className={cn(
-            "h-8 text-xs bg-background border-border justify-start text-left font-normal w-full",
-            selectedDates.length === 0 && "text-muted-foreground"
+            "h-8 text-xs border-border justify-between text-left font-normal w-full gap-2",
+            selectedDates.length > 0 
+              ? "bg-accent/20 border-accent/50 text-accent-foreground" 
+              : "bg-background text-muted-foreground"
           )}
         >
-          <CalendarIcon className="mr-2 h-3 w-3" />
-          {selectedDates.length === 0 ? (
-            placeholder
-          ) : selectedDates.length === 1 ? (
-            selectedDates[0]
-          ) : (
-            `${selectedDates.length} datas`
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-3.5 w-3.5" />
+            <span className="truncate">{getButtonLabel()}</span>
+          </div>
+          {selectedDates.length > 0 && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground text-[10px] font-bold">
+              {selectedDates.length}
+            </span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 z-50" align="start">
-        <div className="p-2 border-b border-border">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
-              {selectedDates.length} selecionada(s)
-            </span>
+      <PopoverContent className="w-auto p-0 z-50 shadow-lg" align="start">
+        <div className="bg-card rounded-t-lg">
+          <div className="flex items-center justify-between p-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-accent" />
+              <span className="text-sm font-medium">
+                {selectedDates.length} selecionada(s)
+              </span>
+            </div>
             {selectedDates.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearAll} className="h-6 text-xs">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={clearAll} 
+                className="h-7 text-xs text-muted-foreground hover:text-destructive"
+              >
                 <X className="w-3 h-3 mr-1" />
                 Limpar
               </Button>
             )}
           </div>
+          
           {selectedDates.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2 max-w-[280px]">
-              {selectedDates.map(date => (
-                <Badge 
-                  key={date} 
-                  variant="secondary" 
-                  className="text-xs cursor-pointer hover:bg-destructive/20"
-                  onClick={() => removeDate(date)}
+            <div className="flex flex-wrap gap-1.5 p-3 border-b border-border bg-muted/30 max-w-[300px]">
+              {selectedDates.sort().map(date => (
+                <button
+                  key={date}
+                  onClick={() => onDatesChange(selectedDates.filter(d => d !== date))}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-accent/20 text-accent-foreground hover:bg-destructive/20 hover:text-destructive transition-colors"
                 >
                   {date}
-                  <X className="w-3 h-3 ml-1" />
-                </Badge>
+                  <X className="w-3 h-3" />
+                </button>
               ))}
             </div>
           )}
         </div>
+        
         <Calendar
           mode="multiple"
           selected={selectedDateObjects}
@@ -113,15 +123,20 @@ export function CalendarFilterPopover({
           locale={ptBR}
           className="p-3 pointer-events-auto"
           modifiers={{
-            available: availableDateObjects
+            available: availableDateObjects,
+            selected: selectedDateObjects
           }}
-          modifiersStyles={{
-            available: {
-              fontWeight: "bold",
-              backgroundColor: "hsl(var(--accent) / 0.2)"
-            }
+          modifiersClassNames={{
+            available: "font-bold bg-accent/30 text-accent-foreground",
+            selected: "bg-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground"
           }}
         />
+        
+        <div className="p-2 border-t border-border bg-muted/30">
+          <p className="text-[10px] text-muted-foreground text-center">
+            Datas destacadas possuem registros
+          </p>
+        </div>
       </PopoverContent>
     </Popover>
   );
