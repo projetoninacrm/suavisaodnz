@@ -46,6 +46,29 @@ function formatPhone(phone: string | null): string {
   return phone;
 }
 
+async function fetchPatientDetails(patientId: string, apiToken: string): Promise<any> {
+  try {
+    const url = `${AMIGO_API_BASE}/patients/${patientId}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      console.error(`Patient fetch failed: ${response.status}`);
+      return null;
+    }
+    const data = await response.json();
+    console.log(`Patient ${patientId} raw data: ${JSON.stringify(data).substring(0, 500)}`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching patient ${patientId}:`, error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -95,16 +118,33 @@ serve(async (req) => {
     });
     console.log(`Filtered attendances: ${filteredAttendances.length}`);
 
-// Transform to detalhado format
-    const records = filteredAttendances.map((att: any) => ({
-      nome: att.patient?.name || '',
-      telefone: formatPhone(att.patient?.contact_cellphone),
-      email: att.patient?.contact_email || '',
-      como_conheceu: att.patient?.know_by || '',
-      receita: '',
-      data: formatDate(att.start_date),
-      visitou_loja: '',
-    }));
+    // Fetch patient details for each attendance to get email and know_by
+    const records = [];
+    for (const att of filteredAttendances) {
+      const patientId = att.patient?.id;
+      let email = '';
+      let comoConheceu = '';
+      
+      if (patientId) {
+        const patientResponse = await fetchPatientDetails(patientId, apiToken);
+        if (patientResponse?.data) {
+          const patientData = patientResponse.data;
+          email = patientData.email || patientData.contact_email || '';
+          // Check multiple possible field names for "como conheceu"
+          comoConheceu = patientData.know_by || patientData.how_met || patientData.source || patientData.referral || '';
+        }
+      }
+      
+      records.push({
+        nome: att.patient?.name || '',
+        telefone: formatPhone(att.patient?.contact_cellphone),
+        email: email,
+        como_conheceu: comoConheceu,
+        receita: '',
+        data: formatDate(att.start_date),
+        visitou_loja: '',
+      });
+    }
 
     // Insert into Supabase
     const supabase = createClient(supabaseUrl, supabaseKey);
