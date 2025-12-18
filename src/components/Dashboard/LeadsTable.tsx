@@ -3,9 +3,12 @@ import { Trash2, MessageCircle, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableCell } from "./EditableCell";
 import { DatePickerCell } from "./DatePickerCell";
+import { SelectCell } from "./SelectCell";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Lead } from "@/hooks/useLeads";
+
+const CANAL_OPTIONS = ["INSTAGRAM", "WHATSAPP", "LOJA"];
 
 interface LeadsTableProps {
   leads: Lead[];
@@ -265,8 +268,8 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
                   <td className="px-1 py-1">
                     <DatePickerCell value={lead.data_registro || ""} onSave={(v) => onUpdate(lead.id, "data_registro", v)} placeholder="Selecionar" />
                   </td>
-                  <td className="px-1 py-1">
-                    <EditableCell value={lead.canal || ""} onSave={(v) => onUpdate(lead.id, "canal", v)} placeholder="Canal" />
+                <td className="px-1 py-1">
+                    <SelectCell value={lead.canal || ""} onSave={(v) => onUpdate(lead.id, "canal", v)} options={CANAL_OPTIONS} placeholder="Canal" />
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={lead.nome || ""} onSave={(v) => onUpdate(lead.id, "nome", v)} placeholder="Nome" />
