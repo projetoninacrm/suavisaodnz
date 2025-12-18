@@ -17,6 +17,7 @@ interface Filters {
   data_registro: string[];
   canal: string;
   orcamento: string;
+  venda: string;
   entrar_em_contato: string[];
   medico: string;
 }
@@ -26,6 +27,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
     data_registro: [],
     canal: "",
     orcamento: "",
+    venda: "",
     entrar_em_contato: [],
     medico: "",
   });
@@ -34,6 +36,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
     data_registro: [...new Set(leads.map(l => l.data_registro).filter(Boolean))] as string[],
     canal: [...new Set(leads.map(l => l.canal).filter(Boolean))] as string[],
     orcamento: ["Sim", "Não"],
+    venda: ["Sim", "Não"],
     entrar_em_contato: [...new Set(leads.map(l => l.entrar_em_contato).filter(Boolean))] as string[],
     medico: [...new Set(leads.map(l => l.medico).filter(Boolean))] as string[],
   }), [leads]);
@@ -43,19 +46,21 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
       if (filters.data_registro.length > 0 && !filters.data_registro.includes(lead.data_registro || "")) return false;
       if (filters.canal && lead.canal !== filters.canal) return false;
       if (filters.orcamento && lead.orcamento !== filters.orcamento) return false;
+      if (filters.venda && lead.venda !== filters.venda) return false;
       if (filters.entrar_em_contato.length > 0 && !filters.entrar_em_contato.includes(lead.entrar_em_contato || "")) return false;
       if (filters.medico && lead.medico !== filters.medico) return false;
       return true;
     });
   }, [leads, filters]);
 
-  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.orcamento !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "";
+  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.orcamento !== "" || filters.venda !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "";
 
   const clearFilters = () => {
     setFilters({
       data_registro: [],
       canal: "",
       orcamento: "",
+      venda: "",
       entrar_em_contato: [],
       medico: "",
     });
@@ -174,7 +179,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Data</label>
             <CalendarFilterPopover
@@ -199,6 +204,15 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
               value={filters.orcamento}
               onChange={(v) => setFilters(f => ({ ...f, orcamento: v === "all" ? "" : v }))}
               options={uniqueValues.orcamento}
+              placeholder="Todos"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Venda</label>
+            <FilterSelect
+              value={filters.venda}
+              onChange={(v) => setFilters(f => ({ ...f, venda: v === "all" ? "" : v }))}
+              options={uniqueValues.venda}
               placeholder="Todos"
             />
           </div>
