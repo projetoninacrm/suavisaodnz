@@ -31,11 +31,12 @@ serve(async (req) => {
         endpoint = '/events';
         break;
       case 'attendances':
-        // Lista de atendimentos (requer start_date e end_date)
+        // Lista de atendimentos (requer start_date e end_date, opcional status)
         endpoint = '/attendances';
         const startDate = params?.start_date || new Date().toISOString().split('T')[0];
         const endDate = params?.end_date || startDate;
-        queryParams = `?start_date=${startDate}&end_date=${endDate}`;
+        const status = params?.status || '';
+        queryParams = `?start_date=${startDate}&end_date=${endDate}${status ? `&status=${status}` : ''}`;
         break;
       case 'patient':
         // Dados de um paciente específico

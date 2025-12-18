@@ -2,3 +2,6 @@ project_id = "hlnzqkvffyoafppxcozx"
 
 [functions.amigo-api]
 verify_jwt = false
+
+[functions.import-attendances]
+verify_jwt = false
