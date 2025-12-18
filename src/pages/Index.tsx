@@ -79,6 +79,7 @@ const Index = () => {
       return { leads: total, orcamentos, vendas, conversao };
     };
 
+    const suaVisaoLeads = leads.leads.filter(l => l.canal?.toLowerCase() === "sua visão");
     const lojaLeads = leads.leads.filter(l => l.canal?.toLowerCase() === "loja");
     const internetLeads = leads.leads.filter(l => 
       l.canal?.toLowerCase() === "internet" || 
@@ -87,6 +88,7 @@ const Index = () => {
     );
 
     return {
+      suaVisao: calcStats(suaVisaoLeads),
       loja: calcStats(lojaLeads),
       internet: calcStats(internetLeads),
       todos: calcStats(leads.leads),
@@ -270,10 +272,10 @@ const Index = () => {
               <tbody>
                 <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors bg-primary/5">
                   <td className="px-4 py-3 font-medium text-primary">Sua Visão</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.leads}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.orcamentos}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.vendas}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.conversao}%</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.leads}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.orcamentos}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.vendas}</td>
+                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.conversao}%</td>
                 </tr>
                 <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium">Loja</td>
