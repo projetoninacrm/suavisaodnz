@@ -5,6 +5,7 @@ import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
 import { LeadsTable } from "@/components/Dashboard/LeadsTable";
 import { GenericTable } from "@/components/Dashboard/GenericTable";
+import { DetalhadoTable } from "@/components/Dashboard/DetalhadoTable";
 import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { StatsCard } from "@/components/Dashboard/StatsCard";
 import { useSchedules } from "@/hooks/useSchedules";
@@ -31,16 +32,6 @@ const METAS_COLUMNS = [
   { key: "obs", label: "Observações" },
 ];
 
-const DETALHADO_COLUMNS = [
-  { key: "nome", label: "Nome", width: "200px" },
-  { key: "telefone", label: "Telefone", width: "140px" },
-  { key: "email", label: "Email", width: "180px" },
-  { key: "como_conheceu", label: "Como Conheceu", width: "150px" },
-  { key: "receita", label: "Receita", width: "100px" },
-  { key: "data", label: "Data", width: "100px" },
-  { key: "visitou_loja", label: "Visitou a Loja", width: "120px" },
-  { key: "obs", label: "Observações" },
-];
 
 const MKT_COLUMNS = [
   { key: "campanha", label: "Campanha", width: "200px" },
@@ -226,12 +217,10 @@ const Index = () => {
         );
       case "Detalhado":
         return (
-          <GenericTable
+          <DetalhadoTable
             records={detalhado.records}
-            columns={DETALHADO_COLUMNS}
             onUpdate={detalhado.updateRecord}
             onDelete={detalhado.deleteRecord}
-            emptyMessage="Nenhum registro detalhado."
           />
         );
       case "MKT":
