@@ -95,16 +95,15 @@ serve(async (req) => {
     });
     console.log(`Filtered attendances: ${filteredAttendances.length}`);
 
-    // Transform to detalhado format
+// Transform to detalhado format
     const records = filteredAttendances.map((att: any) => ({
       nome: att.patient?.name || '',
       telefone: formatPhone(att.patient?.contact_cellphone),
-      email: '', // API doesn't have email
-      como_conheceu: '', // User fills
-      receita: '', // User fills
+      email: att.patient?.contact_email || '',
+      como_conheceu: att.patient?.know_by || '',
+      receita: '',
       data: formatDate(att.start_date),
-      visitou_loja: '', // User fills
-      obs: att.observation || '',
+      visitou_loja: '',
     }));
 
     // Insert into Supabase
