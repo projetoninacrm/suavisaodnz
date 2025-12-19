@@ -15,12 +15,22 @@ interface Detalhado {
 }
 
 interface AmigoAttendance {
-  id: string;
-  event_name: string;
-  patient_name: string;
-  doctor_name: string;
-  date: string;
+  id: number;
+  start_date: string;
+  canceled: boolean;
   status: string;
+  agenda_event?: {
+    id: number;
+    name: string;
+  };
+  patient?: {
+    id: number;
+    name: string;
+  };
+  user?: {
+    id: number;
+    name: string;
+  };
 }
 
 interface DayMetrics {
@@ -100,10 +110,13 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
           return;
         }
 
-        if (data?.success && Array.isArray(data.data)) {
-          setAttendances(data.data);
-        } else if (data?.success && data.data?.attendances) {
-          setAttendances(data.data.attendances);
+        if (data?.success && data.data?.data && Array.isArray(data.data.data)) {
+          // Filtrar apenas atendimentos não cancelados
+          const validAttendances = data.data.data.filter((att: AmigoAttendance) => !att.canceled);
+          console.log(`Atendimentos carregados: ${validAttendances.length}`);
+          setAttendances(validAttendances);
+        } else if (data?.success && Array.isArray(data.data)) {
+          setAttendances(data.data.filter((att: AmigoAttendance) => !att.canceled));
         } else {
           console.log("Resposta da API:", data);
           setAttendances([]);
@@ -163,19 +176,21 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
 
   // Calcular métricas para um dia específico
   const getMetricsForDay = (day: number): DayMetrics => {
-    const targetDateStr = `${String(day).padStart(2, "0")}/${String(selectedMonth).padStart(2, "0")}/${year}`;
-
     // ATENDIMENTOS - da API do Amigo, excluindo cirurgias e exames complementares
     const dayAttendances = attendances.filter((att) => {
-      const attDate = parseDate(att.date);
-      if (!attDate) return false;
-      return attDate.day === day && attDate.month === selectedMonth && attDate.year === year;
+      // Parsear start_date no formato ISO
+      const attDate = new Date(att.start_date);
+      if (isNaN(attDate.getTime())) return false;
+      return attDate.getDate() === day && 
+             (attDate.getMonth() + 1) === selectedMonth && 
+             attDate.getFullYear() === year;
     });
     
-    const atendimentos = dayAttendances.filter(att => !shouldExcludeFromAtendimentos(att.event_name || "")).length;
+    const eventName = (att: AmigoAttendance) => att.agenda_event?.name || "";
+    const atendimentos = dayAttendances.filter(att => !shouldExcludeFromAtendimentos(eventName(att))).length;
 
     // CONSULTAS - da API do Amigo, excluindo cirurgias, exames, mapeamento, ishihara, teste ortóptico
-    const consultas = dayAttendances.filter(att => !shouldExcludeFromConsultas(att.event_name || "")).length;
+    const consultas = dayAttendances.filter(att => !shouldExcludeFromConsultas(eventName(att))).length;
 
     // RECEITAS - da aba DETALHADO, onde receita = "sim"
     const dayDetalhados = detalhados.filter((det) => {
