@@ -159,9 +159,9 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
         )}
       </div>
 
-      <div className="w-full overflow-x-auto rounded-lg border border-border">
-        <div className="relative min-w-max">
-          <Table>
+      <div className="w-full rounded-lg border border-border">
+        <div className="overflow-x-auto">
+          <Table className="relative">
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="sticky left-0 z-20 bg-muted min-w-[180px] font-bold border-r border-border shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]">
