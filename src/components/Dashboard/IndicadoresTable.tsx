@@ -159,12 +159,12 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
         )}
       </div>
 
-      <ScrollArea className="w-full whitespace-nowrap rounded-lg border border-border">
-        <div className="min-w-max">
+      <div className="w-full overflow-x-auto rounded-lg border border-border">
+        <div className="relative min-w-max">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="sticky left-0 z-20 bg-muted min-w-[180px] font-bold border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                <TableHead className="sticky left-0 z-20 bg-muted min-w-[180px] font-bold border-r border-border shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]">
                   SUA VISÃO / DNZ
                 </TableHead>
                 {daysOfMonth.map((day) => (
@@ -177,7 +177,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
             <TableBody>
               {SUA_VISAO_METRICS.map((metric) => (
                 <TableRow key={metric.key} className="hover:bg-muted/30">
-                  <TableCell className="sticky left-0 z-10 bg-card min-w-[180px] font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                  <TableCell className="sticky left-0 z-10 bg-card min-w-[180px] font-medium border-r border-border shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]">
                     {metric.label}
                   </TableCell>
                   {daysOfMonth.map((day, idx) => {
@@ -201,7 +201,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="sticky left-0 z-20 bg-muted min-w-[180px] font-bold border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                <TableHead className="sticky left-0 z-20 bg-muted min-w-[180px] font-bold border-r border-border shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]">
                   LOJA
                 </TableHead>
                 {daysOfMonth.map((day) => (
@@ -214,7 +214,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
             <TableBody>
               {LOJA_METRICS.map((metric) => (
                 <TableRow key={metric.key} className="hover:bg-muted/30">
-                  <TableCell className="sticky left-0 z-10 bg-card min-w-[180px] font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                  <TableCell className="sticky left-0 z-10 bg-card min-w-[180px] font-medium border-r border-border shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]">
                     {metric.label}
                   </TableCell>
                   {daysOfMonth.map((day, idx) => {
@@ -238,7 +238,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="sticky left-0 z-20 bg-muted min-w-[180px] font-bold border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                <TableHead className="sticky left-0 z-20 bg-muted min-w-[180px] font-bold border-r border-border shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]">
                   MKT
                 </TableHead>
                 {daysOfMonth.map((day) => (
@@ -251,7 +251,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
             <TableBody>
               {MKT_METRICS.map((metric) => (
                 <TableRow key={metric.key} className="hover:bg-muted/30">
-                  <TableCell className="sticky left-0 z-10 bg-card min-w-[180px] font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                  <TableCell className="sticky left-0 z-10 bg-card min-w-[180px] font-medium border-r border-border shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]">
                     {metric.label}
                   </TableCell>
                   {daysOfMonth.map((day, idx) => {
@@ -268,8 +268,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
             </TableBody>
           </Table>
         </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </div>
     </div>
   );
 }

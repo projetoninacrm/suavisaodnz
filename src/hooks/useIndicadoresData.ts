@@ -205,24 +205,22 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     // POTENCIAL (%) = Receitas / Consultas
     const potencial = consultas > 0 ? (receitas / consultas) * 100 : 0;
 
-    // VISITOU DNZ - da aba LEADS, onde visitou_loja = "sim" (ou campo equivalente)
-    // Note: Na tabela leads não tem campo "visitou_loja", vou verificar na tabela detalhado
-    const visitou_dnz = dayDetalhados.filter(det => 
-      det.visitou_loja?.toLowerCase().trim() === "sim"
+    // VISITOU DNZ - da aba LEADS, canal "Sua Visão", onde orcamento = "sim"
+    const dayLeadsSuaVisao = leads.filter((lead) => {
+      const leadDate = parseDate(lead.data_registro);
+      if (!leadDate) return false;
+      const isSuaVisao = lead.canal?.toLowerCase().trim() === "sua visão";
+      return leadDate.day === day && leadDate.month === selectedMonth && leadDate.year === year && isSuaVisao;
+    });
+    const visitou_dnz = dayLeadsSuaVisao.filter(lead => 
+      lead.orcamento?.toLowerCase().trim() === "sim"
     ).length;
 
     // COMPARECIMENTO (%) = Visitou DNZ / Receitas
     const comparecimento = receitas > 0 ? (visitou_dnz / receitas) * 100 : 0;
 
-    // VENDAS - da aba LEADS, onde venda = "Sim"
-    const dayLeads = leads.filter((lead) => {
-      const leadDate = parseDate(lead.data_registro);
-      if (!leadDate) return false;
-      // Verificar se é do canal "Sua Visão"
-      const isSuaVisao = lead.canal?.toLowerCase().trim() === "sua visão";
-      return leadDate.day === day && leadDate.month === selectedMonth && leadDate.year === year && isSuaVisao;
-    });
-    const vendas = dayLeads.filter(lead => 
+    // VENDAS - da aba LEADS, canal "Sua Visão", onde venda = "Sim"
+    const vendas = dayLeadsSuaVisao.filter(lead => 
       lead.venda?.toLowerCase().trim() === "sim"
     ).length;
 
