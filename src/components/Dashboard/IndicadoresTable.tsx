@@ -164,7 +164,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="sticky left-0 z-20 bg-muted/50 min-w-[150px] font-bold">
+                <TableHead className="sticky left-0 z-20 bg-muted min-w-[180px] font-bold border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                   SUA VISÃO / DNZ
                 </TableHead>
                 {daysOfMonth.map((day) => (
@@ -177,7 +177,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
             <TableBody>
               {SUA_VISAO_METRICS.map((metric) => (
                 <TableRow key={metric.key} className="hover:bg-muted/30">
-                  <TableCell className="sticky left-0 z-10 bg-card font-medium border-r">
+                  <TableCell className="sticky left-0 z-10 bg-card min-w-[180px] font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                     {metric.label}
                   </TableCell>
                   {daysOfMonth.map((day, idx) => {
@@ -201,7 +201,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="sticky left-0 z-20 bg-muted/50 min-w-[150px] font-bold">
+                <TableHead className="sticky left-0 z-20 bg-muted min-w-[180px] font-bold border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                   LOJA
                 </TableHead>
                 {daysOfMonth.map((day) => (
@@ -214,7 +214,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
             <TableBody>
               {LOJA_METRICS.map((metric) => (
                 <TableRow key={metric.key} className="hover:bg-muted/30">
-                  <TableCell className="sticky left-0 z-10 bg-card font-medium border-r">
+                  <TableCell className="sticky left-0 z-10 bg-card min-w-[180px] font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                     {metric.label}
                   </TableCell>
                   {daysOfMonth.map((day, idx) => {
@@ -238,7 +238,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="sticky left-0 z-20 bg-muted/50 min-w-[150px] font-bold">
+                <TableHead className="sticky left-0 z-20 bg-muted min-w-[180px] font-bold border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                   MKT
                 </TableHead>
                 {daysOfMonth.map((day) => (
@@ -251,7 +251,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
             <TableBody>
               {MKT_METRICS.map((metric) => (
                 <TableRow key={metric.key} className="hover:bg-muted/30">
-                  <TableCell className="sticky left-0 z-10 bg-card font-medium border-r">
+                  <TableCell className="sticky left-0 z-10 bg-card min-w-[180px] font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                     {metric.label}
                   </TableCell>
                   {daysOfMonth.map((day, idx) => {
