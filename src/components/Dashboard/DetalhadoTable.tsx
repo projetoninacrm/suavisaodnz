@@ -43,8 +43,18 @@ export function DetalhadoTable({ records, onUpdate, onDelete }: DetalhadoTablePr
     visitou_loja: [...new Set(records.map(r => r.visitou_loja).filter(Boolean))] as string[],
   }), [records]);
 
+  // Função para converter data DD/MM/YYYY em Date para ordenação
+  const parseDate = (dateStr: string | null): Date | null => {
+    if (!dateStr) return null;
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+    return null;
+  };
+
   const filteredRecords = useMemo(() => {
-    return records.filter(record => {
+    const filtered = records.filter(record => {
       if (filters.nome && record.nome !== filters.nome) return false;
       if (filters.telefone && record.telefone !== filters.telefone) return false;
       if (filters.email && record.email !== filters.email) return false;
@@ -53,6 +63,16 @@ export function DetalhadoTable({ records, onUpdate, onDelete }: DetalhadoTablePr
       if (filters.data.length > 0 && !filters.data.includes(record.data || "")) return false;
       if (filters.visitou_loja && record.visitou_loja !== filters.visitou_loja) return false;
       return true;
+    });
+
+    // Ordenar por data em ordem crescente
+    return filtered.sort((a, b) => {
+      const dateA = parseDate(a.data);
+      const dateB = parseDate(b.data);
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      return dateA.getTime() - dateB.getTime();
     });
   }, [records, filters]);
 
