@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { format, getDaysInMonth, getDay, parse, isValid } from "date-fns";
+import { format, getDaysInMonth, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Select,
@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/table";
 import { Lead } from "@/hooks/useLeads";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useIndicadoresData } from "@/hooks/useIndicadoresData";
+import { Loader2 } from "lucide-react";
 
 interface IndicadoresTableProps {
   leads: Lead[];
@@ -76,11 +78,14 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
   const currentMonth = new Date().getMonth() + 1;
   const [selectedMonth, setSelectedMonth] = useState(String(currentMonth));
 
+  const { isLoading, getMetricsForDay, getLojaMetricsForDay, getMktMetricsForDay } = 
+    useIndicadoresData(leads, parseInt(selectedMonth), CURRENT_YEAR);
+
   // Gerar dias do mês (excluindo domingos)
   const daysOfMonth = useMemo(() => {
     const month = parseInt(selectedMonth);
     const daysInMonth = getDaysInMonth(new Date(CURRENT_YEAR, month - 1));
-    const days: { day: number; dateStr: string; formattedDate: string }[] = [];
+    const days: { day: number; formattedDate: string }[] = [];
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(CURRENT_YEAR, month - 1, day);
@@ -91,7 +96,6 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
         const monthAbbrev = format(date, "MMM", { locale: ptBR });
         days.push({
           day,
-          dateStr: format(date, "dd/MM/yyyy"),
           formattedDate: `${String(day).padStart(2, "0")}/${monthAbbrev}`,
         });
       }
@@ -100,117 +104,34 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
     return days;
   }, [selectedMonth]);
 
-  // Parse data_registro para Date
-  const parseDateStr = (dateStr: string | null): Date | null => {
-    if (!dateStr) return null;
-    const parsed = parse(dateStr, "dd/MM/yyyy", new Date());
-    return isValid(parsed) ? parsed : null;
-  };
-
-  // Filtrar leads por canal e data
-  const getLeadsForDayAndChannel = (dateStr: string, channel: string) => {
-    return leads.filter((lead) => {
-      const leadDate = lead.data_registro;
-      const leadChannel = lead.canal?.toLowerCase();
-      const targetChannel = channel.toLowerCase();
-      
-      if (channel === "sua visão") {
-        return leadDate === dateStr && leadChannel === "sua visão";
-      } else if (channel === "loja") {
-        return leadDate === dateStr && leadChannel === "loja";
-      } else if (channel === "internet") {
-        return leadDate === dateStr && (
-          leadChannel === "internet" || 
-          leadChannel === "google" || 
-          leadChannel === "facebook"
-        );
-      }
-      return false;
-    });
-  };
-
-  // Calcular métricas para Sua Visão
-  const calcSuaVisaoMetrics = (dateStr: string) => {
-    const dayLeads = getLeadsForDayAndChannel(dateStr, "sua visão");
-    const atendimentos = dayLeads.length;
-    const consultas = dayLeads.filter(l => l.medico).length;
-    const receitas = dayLeads.filter(l => l.orcamento === "Sim").length;
-    const potencial = atendimentos > 0 ? ((receitas / atendimentos) * 100) : 0;
-    const visitou_dnz = dayLeads.filter(l => l.venda === "Sim" || l.orcamento === "Sim").length;
-    const comparecimento = receitas > 0 ? ((visitou_dnz / receitas) * 100) : 0;
-    const vendas = dayLeads.filter(l => l.venda === "Sim").length;
-    const conversao = visitou_dnz > 0 ? ((vendas / visitou_dnz) * 100) : 0;
-    
-    // Placeholder para faturamento - seria necessário campo de valor
-    const faturamento = vendas * 1500; // Valor médio estimado
-    const ticket = vendas > 0 ? faturamento / vendas : 0;
-
-    return {
-      atendimentos,
-      consultas,
-      receitas,
-      potencial,
-      visitou_dnz,
-      comparecimento,
-      vendas,
-      conversao,
-      faturamento,
-      ticket,
-    };
-  };
-
-  // Calcular métricas para Loja
-  const calcLojaMetrics = (dateStr: string) => {
-    const dayLeads = getLeadsForDayAndChannel(dateStr, "loja");
-    const visitas = dayLeads.length;
-    const vendas = dayLeads.filter(l => l.venda === "Sim").length;
-    const conversao = visitas > 0 ? ((vendas / visitas) * 100) : 0;
-    const faturamento = vendas * 1200; // Valor médio estimado
-    const ticket = vendas > 0 ? faturamento / vendas : 0;
-
-    return { visitas, vendas, conversao, faturamento, ticket };
-  };
-
-  // Calcular métricas para MKT (Internet)
-  const calcMktMetrics = (dateStr: string) => {
-    const dayLeads = getLeadsForDayAndChannel(dateStr, "internet");
-    const leadsCount = dayLeads.length;
-    const vendas = dayLeads.filter(l => l.venda === "Sim").length;
-    const conversao = leadsCount > 0 ? ((vendas / leadsCount) * 100) : 0;
-    const faturamento = vendas * 1000; // Valor médio estimado
-    const ticket = vendas > 0 ? faturamento / vendas : 0;
-    const investimento = 0; // Viria da tabela MKT
-    const cac = vendas > 0 ? investimento / vendas : 0;
-
-    return { leads: leadsCount, vendas, conversao, faturamento, ticket, investimento, cac };
-  };
-
   // Formatar valores para exibição
   const formatValue = (value: number, type: string): string => {
     if (type.includes("%")) {
       return value === 0 ? "0,00%" : `${value.toFixed(2).replace(".", ",")}%`;
     }
     if (type.includes("R$") || type === "ticket" || type === "faturamento") {
-      return value === 0 ? "R$ 0,00" : `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+      if (value === 0) return "";
+      return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
     }
     if (type === "cac" || type === "investimento") {
-      return value === 0 ? "R$ 0,00" : `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+      if (value === 0) return "";
+      return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
     }
     return value === 0 ? "" : String(value);
   };
 
   // Gerar valores para cada métrica e dia
   const suaVisaoData = useMemo(() => {
-    return daysOfMonth.map(day => calcSuaVisaoMetrics(day.dateStr));
-  }, [daysOfMonth, leads]);
+    return daysOfMonth.map(day => getMetricsForDay(day.day));
+  }, [daysOfMonth, getMetricsForDay]);
 
   const lojaData = useMemo(() => {
-    return daysOfMonth.map(day => calcLojaMetrics(day.dateStr));
-  }, [daysOfMonth, leads]);
+    return daysOfMonth.map(day => getLojaMetricsForDay(day.day));
+  }, [daysOfMonth, getLojaMetricsForDay]);
 
   const mktData = useMemo(() => {
-    return daysOfMonth.map(day => calcMktMetrics(day.dateStr));
-  }, [daysOfMonth, leads]);
+    return daysOfMonth.map(day => getMktMetricsForDay(day.day));
+  }, [daysOfMonth, getMktMetricsForDay]);
 
   return (
     <div className="space-y-4">
@@ -230,6 +151,12 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
           </SelectContent>
         </Select>
         <span className="text-sm text-muted-foreground">/ {CURRENT_YEAR}</span>
+        {isLoading && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Carregando dados da API...</span>
+          </div>
+        )}
       </div>
 
       <ScrollArea className="w-full whitespace-nowrap rounded-lg border border-border">
@@ -238,7 +165,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="sticky left-0 z-20 bg-muted/50 min-w-[150px] font-bold">
-                  SUA VISÃO
+                  SUA VISÃO / DNZ
                 </TableHead>
                 {daysOfMonth.map((day) => (
                   <TableHead key={day.day} className="text-center min-w-[80px] font-semibold">
