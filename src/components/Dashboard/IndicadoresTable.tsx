@@ -40,7 +40,7 @@ const MONTHS = [
   { value: "12", label: "Dezembro" },
 ];
 
-const CURRENT_YEAR = new Date().getFullYear();
+const CURRENT_YEAR = 2025;
 
 // Métricas para cada bloco
 const SUA_VISAO_METRICS = [
