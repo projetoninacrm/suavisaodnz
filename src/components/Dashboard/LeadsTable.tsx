@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Trash2, MessageCircle, Filter, X } from "lucide-react";
+import { Trash2, MessageCircle, Filter, X, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EditableCell } from "./EditableCell";
 import { DatePickerCell } from "./DatePickerCell";
@@ -51,7 +52,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
     return leads.filter(lead => {
       if (filters.data_registro.length > 0 && !filters.data_registro.includes(lead.data_registro || "")) return false;
       if (filters.canal && lead.canal !== filters.canal) return false;
-      if (filters.nome && lead.nome !== filters.nome) return false;
+      if (filters.nome && !(lead.nome || "").toLowerCase().includes(filters.nome.toLowerCase())) return false;
       if (filters.orcamento && lead.orcamento !== filters.orcamento) return false;
       if (filters.venda && lead.venda !== filters.venda) return false;
       if (filters.entrar_em_contato.length > 0 && !filters.entrar_em_contato.includes(lead.entrar_em_contato || "")) return false;
@@ -208,12 +209,15 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nome</label>
-            <FilterSelect
-              value={filters.nome}
-              onChange={(v) => setFilters(f => ({ ...f, nome: v === "all" ? "" : v }))}
-              options={uniqueValues.nome}
-              placeholder="Todos"
-            />
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+              <Input
+                placeholder="Buscar..."
+                value={filters.nome}
+                onChange={(e) => setFilters(f => ({ ...f, nome: e.target.value }))}
+                className="h-8 text-xs pl-7 bg-background border-border"
+              />
+            </div>
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Orçamento</label>
