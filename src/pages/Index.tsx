@@ -352,6 +352,7 @@ const Index = () => {
         open={showNewLeadDialog} 
         onOpenChange={setShowNewLeadDialog}
         onSubmit={handleNewLeadSubmit}
+        existingLeads={leads.leads}
       />
     </div>
   );

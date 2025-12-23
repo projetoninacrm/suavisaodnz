@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format, parse, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import type { Lead } from "@/hooks/useLeads";
 
 interface NewLeadFormData {
   data_registro: string;
@@ -28,9 +30,10 @@ interface NewLeadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: NewLeadFormData) => void;
+  existingLeads?: Lead[];
 }
 
-export function NewLeadDialog({ open, onOpenChange, onSubmit }: NewLeadDialogProps) {
+export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = [] }: NewLeadDialogProps) {
   const today = new Date();
   const formattedToday = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
@@ -46,8 +49,58 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit }: NewLeadDialogPro
     obs: "",
   });
 
+  const [showConfirmation, setShowConfirmation] = useState(false);
+
+  // Normalize phone number for comparison
+  const normalizePhone = (phone: string | null): string => {
+    if (!phone) return "";
+    return phone.replace(/\D/g, "");
+  };
+
+  // Normalize name for comparison (lowercase, trim)
+  const normalizeName = (name: string | null): string => {
+    if (!name) return "";
+    return name.toLowerCase().trim();
+  };
+
+  // Check for duplicate leads
+  const duplicateInfo = useMemo(() => {
+    const normalizedFormName = normalizeName(formData.nome);
+    const normalizedFormPhone = normalizePhone(formData.numero);
+    
+    const duplicates: { byName: Lead[]; byPhone: Lead[] } = {
+      byName: [],
+      byPhone: [],
+    };
+
+    if (!normalizedFormName && !normalizedFormPhone) {
+      return duplicates;
+    }
+
+    existingLeads.forEach(lead => {
+      if (normalizedFormName && normalizeName(lead.nome) === normalizedFormName) {
+        duplicates.byName.push(lead);
+      }
+      if (normalizedFormPhone && normalizePhone(lead.numero) === normalizedFormPhone) {
+        duplicates.byPhone.push(lead);
+      }
+    });
+
+    return duplicates;
+  }, [formData.nome, formData.numero, existingLeads]);
+
+  const hasDuplicates = duplicateInfo.byName.length > 0 || duplicateInfo.byPhone.length > 0;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If there are duplicates and user hasn't confirmed, show confirmation
+    if (hasDuplicates && !showConfirmation) {
+      setShowConfirmation(true);
+      return;
+    }
+
+    // Proceed with submission
     onSubmit(formData);
     // Reset form
     setFormData({
@@ -61,15 +114,34 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit }: NewLeadDialogPro
       medico: "",
       obs: "",
     });
+    setShowConfirmation(false);
     onOpenChange(false);
+  };
+
+  const handleCancel = () => {
+    setShowConfirmation(false);
+    onOpenChange(false);
+  };
+
+  const handleCancelConfirmation = () => {
+    setShowConfirmation(false);
   };
 
   const updateField = (field: keyof NewLeadFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Reset confirmation when user changes data
+    if (showConfirmation) {
+      setShowConfirmation(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!newOpen) {
+        setShowConfirmation(false);
+      }
+      onOpenChange(newOpen);
+    }}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Lead</DialogTitle>
@@ -138,6 +210,29 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit }: NewLeadDialogPro
               placeholder="(31) 99999-9999"
             />
           </div>
+
+          {/* Duplicate Warning Alert */}
+          {hasDuplicates && showConfirmation && (
+            <Alert variant="destructive" className="bg-destructive/10 border-destructive/30">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="space-y-2">
+                <p className="font-semibold">Lead já existente encontrado!</p>
+                {duplicateInfo.byName.length > 0 && (
+                  <p>
+                    <span className="font-medium">Nome duplicado:</span>{" "}
+                    {duplicateInfo.byName.map(l => `"${l.nome}" (${l.data_registro || "sem data"})`).join(", ")}
+                  </p>
+                )}
+                {duplicateInfo.byPhone.length > 0 && (
+                  <p>
+                    <span className="font-medium">Telefone duplicado:</span>{" "}
+                    {duplicateInfo.byPhone.map(l => `"${l.nome || "Sem nome"}" - ${l.numero}`).join(", ")}
+                  </p>
+                )}
+                <p className="text-sm mt-2">Tem certeza que deseja adicionar este lead mesmo assim?</p>
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -225,12 +320,25 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit }: NewLeadDialogPro
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit">
-              Adicionar Lead
-            </Button>
+            {showConfirmation ? (
+              <>
+                <Button type="button" variant="outline" onClick={handleCancelConfirmation}>
+                  Voltar
+                </Button>
+                <Button type="submit" variant="destructive">
+                  Adicionar Mesmo Assim
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={handleCancel}>
+                  Cancelar
+                </Button>
+                <Button type="submit">
+                  Adicionar Lead
+                </Button>
+              </>
+            )}
           </div>
         </form>
       </DialogContent>

@@ -19,6 +19,7 @@ interface LeadsTableProps {
 interface Filters {
   data_registro: string[];
   canal: string;
+  nome: string;
   orcamento: string;
   venda: string;
   entrar_em_contato: string[];
@@ -29,6 +30,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
   const [filters, setFilters] = useState<Filters>({
     data_registro: [],
     canal: "",
+    nome: "",
     orcamento: "",
     venda: "",
     entrar_em_contato: [],
@@ -38,6 +40,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
   const uniqueValues = useMemo(() => ({
     data_registro: [...new Set(leads.map(l => l.data_registro).filter(Boolean))] as string[],
     canal: [...new Set(leads.map(l => l.canal).filter(Boolean))] as string[],
+    nome: [...new Set(leads.map(l => l.nome).filter(Boolean))].sort() as string[],
     orcamento: ["Sim", "Não"],
     venda: ["Sim", "Não"],
     entrar_em_contato: [...new Set(leads.map(l => l.entrar_em_contato).filter(Boolean))] as string[],
@@ -48,6 +51,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
     return leads.filter(lead => {
       if (filters.data_registro.length > 0 && !filters.data_registro.includes(lead.data_registro || "")) return false;
       if (filters.canal && lead.canal !== filters.canal) return false;
+      if (filters.nome && lead.nome !== filters.nome) return false;
       if (filters.orcamento && lead.orcamento !== filters.orcamento) return false;
       if (filters.venda && lead.venda !== filters.venda) return false;
       if (filters.entrar_em_contato.length > 0 && !filters.entrar_em_contato.includes(lead.entrar_em_contato || "")) return false;
@@ -56,12 +60,13 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
     });
   }, [leads, filters]);
 
-  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.orcamento !== "" || filters.venda !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "";
+  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.nome !== "" || filters.orcamento !== "" || filters.venda !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "";
 
   const clearFilters = () => {
     setFilters({
       data_registro: [],
       canal: "",
+      nome: "",
       orcamento: "",
       venda: "",
       entrar_em_contato: [],
@@ -182,7 +187,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Data</label>
             <CalendarFilterPopover
@@ -198,6 +203,15 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
               value={filters.canal}
               onChange={(v) => setFilters(f => ({ ...f, canal: v === "all" ? "" : v }))}
               options={uniqueValues.canal}
+              placeholder="Todos"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Nome</label>
+            <FilterSelect
+              value={filters.nome}
+              onChange={(v) => setFilters(f => ({ ...f, nome: v === "all" ? "" : v }))}
+              options={uniqueValues.nome}
               placeholder="Todos"
             />
           </div>
