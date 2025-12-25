@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format, parse, isValid } from "date-fns";
+import { format, parse, isValid, eachDayOfInterval, isBefore, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ export function CalendarFilterPopover({
   availableDates = []
 }: CalendarFilterPopoverProps) {
   const [open, setOpen] = useState(false);
+  const [rangeStart, setRangeStart] = useState<Date | null>(null);
 
   const parseDateStr = (dateStr: string): Date | null => {
     if (!dateStr) return null;
@@ -36,17 +37,32 @@ export function CalendarFilterPopover({
     .map(parseDateStr)
     .filter((d): d is Date => d !== null);
 
-  const handleSelect = (dates: Date[] | undefined) => {
-    if (!dates) {
-      onDatesChange([]);
-      return;
+  const handleDayClick = (day: Date) => {
+    if (!rangeStart) {
+      // First click - set start of range
+      setRangeStart(day);
+      const dateStr = format(day, "dd/MM/yyyy");
+      if (!selectedDates.includes(dateStr)) {
+        onDatesChange([...selectedDates, dateStr]);
+      }
+    } else {
+      // Second click - complete the range
+      const start = isBefore(day, rangeStart) ? day : rangeStart;
+      const end = isAfter(day, rangeStart) ? day : rangeStart;
+      
+      const datesInRange = eachDayOfInterval({ start, end });
+      const dateStrings = datesInRange.map(d => format(d, "dd/MM/yyyy"));
+      
+      // Merge with existing selected dates (avoiding duplicates)
+      const newSelectedDates = [...new Set([...selectedDates, ...dateStrings])];
+      onDatesChange(newSelectedDates);
+      setRangeStart(null);
     }
-    const dateStrings = dates.map(d => format(d, "dd/MM/yyyy"));
-    onDatesChange(dateStrings);
   };
 
   const clearAll = () => {
     onDatesChange([]);
+    setRangeStart(null);
   };
 
   const getButtonLabel = () => {
@@ -55,8 +71,18 @@ export function CalendarFilterPopover({
     return `${selectedDates.length} datas`;
   };
 
+  const getRangeLabel = () => {
+    if (rangeStart) {
+      return `Início: ${format(rangeStart, "dd/MM")} - Clique no fim do intervalo`;
+    }
+    return "Clique em uma data para iniciar o intervalo";
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen);
+      if (!isOpen) setRangeStart(null);
+    }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -100,8 +126,18 @@ export function CalendarFilterPopover({
             )}
           </div>
           
+          {/* Range selection hint */}
+          <div className="px-3 py-2 border-b border-border bg-primary/10">
+            <p className={cn(
+              "text-xs text-center",
+              rangeStart ? "text-primary font-medium" : "text-muted-foreground"
+            )}>
+              {getRangeLabel()}
+            </p>
+          </div>
+          
           {selectedDates.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 p-3 border-b border-border bg-muted/30 max-w-[300px]">
+            <div className="flex flex-wrap gap-1.5 p-3 border-b border-border bg-muted/30 max-w-[300px] max-h-[100px] overflow-y-auto">
               {selectedDates.sort().map(date => (
                 <button
                   key={date}
@@ -119,16 +155,18 @@ export function CalendarFilterPopover({
         <Calendar
           mode="multiple"
           selected={selectedDateObjects}
-          onSelect={handleSelect}
+          onDayClick={handleDayClick}
           locale={ptBR}
           className="p-3 pointer-events-auto"
           modifiers={{
             available: availableDateObjects,
-            selected: selectedDateObjects
+            selected: selectedDateObjects,
+            rangeStart: rangeStart ? [rangeStart] : []
           }}
           modifiersClassNames={{
             available: "font-bold bg-accent/30 text-accent-foreground",
-            selected: "bg-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground"
+            selected: "bg-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground",
+            rangeStart: "ring-2 ring-primary ring-offset-2"
           }}
         />
         
