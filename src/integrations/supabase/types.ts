@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      acompanhamento_diario: {
+        Row: {
+          created_at: string
+          data: string
+          faturamento_realizado: number | null
+          id: string
+          obs: string | null
+          updated_at: string
+          vendas_realizadas: number | null
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          faturamento_realizado?: number | null
+          id?: string
+          obs?: string | null
+          updated_at?: string
+          vendas_realizadas?: number | null
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          faturamento_realizado?: number | null
+          id?: string
+          obs?: string | null
+          updated_at?: string
+          vendas_realizadas?: number | null
+        }
+        Relationships: []
+      }
       detalhado: {
         Row: {
           como_conheceu: string | null
