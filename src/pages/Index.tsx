@@ -12,6 +12,7 @@ import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
 import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
+import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 
 const TABS = ["Agenda", "Leads", "Indicadores", "Metas", "Detalhado", "MKT"];
 
@@ -53,6 +54,7 @@ const Index = () => {
   const indicadores = useGenericTable("indicadores");
   const detalhadoAmigo = useDetalhadoAmigo();
   const mkt = useGenericTable("mkt");
+  const acompanhamento = useAcompanhamentoDiario();
   const isLoading = 
     activeTab === "Agenda" ? schedules.isLoading :
     activeTab === "Leads" ? leads.isLoading :
@@ -167,7 +169,13 @@ const Index = () => {
         );
       case "Metas":
         return (
-          <MetasCalculator diasComMedico={diasComMedico} periodosComMedico={periodosComMedico} />
+          <MetasCalculator 
+            diasComMedico={diasComMedico} 
+            periodosComMedico={periodosComMedico}
+            schedules={schedules.schedules}
+            acompanhamentoRegistros={acompanhamento.registros}
+            onUpdateAcompanhamento={acompanhamento.upsertRegistro}
+          />
         );
       case "Detalhado":
         return (

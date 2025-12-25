@@ -3,10 +3,16 @@ import { Calculator, Settings, Target, TrendingUp, Zap, Calendar, CalendarDays, 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AcompanhamentoDiarioSection } from "./AcompanhamentoDiarioSection";
+import { Schedule } from "@/hooks/useSchedules";
+import { AcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 
 interface MetasCalculatorProps {
   diasComMedico: number;
   periodosComMedico: number;
+  schedules: Schedule[];
+  acompanhamentoRegistros: AcompanhamentoDiario[];
+  onUpdateAcompanhamento: (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number) => void;
 }
 
 interface ConfigValues {
@@ -18,7 +24,13 @@ interface ConfigValues {
   metaFaturamentoMensal: number;
 }
 
-export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalculatorProps) {
+export function MetasCalculator({ 
+  diasComMedico, 
+  periodosComMedico, 
+  schedules, 
+  acompanhamentoRegistros, 
+  onUpdateAcompanhamento 
+}: MetasCalculatorProps) {
   const [config, setConfig] = useState<ConfigValues>({
     periodos: periodosComMedico,
     mediaAtendimentos: 8,
@@ -533,6 +545,15 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
           </div>
         </CardContent>
       </Card>
+
+      {/* Seção de Acompanhamento Diário */}
+      <AcompanhamentoDiarioSection
+        schedules={schedules}
+        registros={acompanhamentoRegistros}
+        onUpdateRegistro={onUpdateAcompanhamento}
+        metaDiariaVendas={calculations.metaDiaria}
+        metaDiariaFaturamento={calculations.faturamentoDiario}
+      />
     </div>
   );
 }
