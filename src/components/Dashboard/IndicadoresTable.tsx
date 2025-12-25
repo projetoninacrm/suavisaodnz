@@ -40,7 +40,10 @@ const MONTHS = [
   { value: "12", label: "Dezembro" },
 ];
 
-const CURRENT_YEAR = 2025;
+const YEARS = [
+  { value: "2025", label: "2025" },
+  { value: "2026", label: "2026" },
+];
 
 // Métricas para cada bloco
 const SUA_VISAO_METRICS = [
@@ -76,19 +79,22 @@ const MKT_METRICS = [
 
 export function IndicadoresTable({ leads }: IndicadoresTableProps) {
   const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
   const [selectedMonth, setSelectedMonth] = useState(String(currentMonth));
+  const [selectedYear, setSelectedYear] = useState(String(currentYear));
 
   const { isLoading, getMetricsForDay, getLojaMetricsForDay, getMktMetricsForDay } = 
-    useIndicadoresData(leads, parseInt(selectedMonth), CURRENT_YEAR);
+    useIndicadoresData(leads, parseInt(selectedMonth), parseInt(selectedYear));
 
   // Gerar dias do mês (excluindo domingos)
   const daysOfMonth = useMemo(() => {
     const month = parseInt(selectedMonth);
-    const daysInMonth = getDaysInMonth(new Date(CURRENT_YEAR, month - 1));
+    const year = parseInt(selectedYear);
+    const daysInMonth = getDaysInMonth(new Date(year, month - 1));
     const days: { day: number; formattedDate: string }[] = [];
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(CURRENT_YEAR, month - 1, day);
+      const date = new Date(year, month - 1, day);
       const dayOfWeek = getDay(date);
       
       // Excluir domingos (0 = domingo)
@@ -102,7 +108,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
     }
 
     return days;
-  }, [selectedMonth]);
+  }, [selectedMonth, selectedYear]);
 
   // Formatar valores para exibição
   const formatValue = (value: number, type: string): string => {
@@ -135,12 +141,12 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
 
   return (
     <div className="space-y-4">
-      {/* Filtro de Mês */}
-      <div className="flex items-center gap-4 mb-6">
-        <span className="text-sm font-medium text-muted-foreground">Filtrar por mês:</span>
+      {/* Filtro de Mês e Ano */}
+      <div className="flex items-center gap-4 mb-6 flex-wrap">
+        <span className="text-sm font-medium text-muted-foreground">Filtrar por:</span>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[180px] bg-background">
-            <SelectValue placeholder="Selecione o mês" />
+          <SelectTrigger className="w-[160px] bg-background">
+            <SelectValue placeholder="Mês" />
           </SelectTrigger>
           <SelectContent className="bg-popover z-50">
             {MONTHS.map((month) => (
@@ -150,7 +156,18 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
             ))}
           </SelectContent>
         </Select>
-        <span className="text-sm text-muted-foreground">/ {CURRENT_YEAR}</span>
+        <Select value={selectedYear} onValueChange={setSelectedYear}>
+          <SelectTrigger className="w-[100px] bg-background">
+            <SelectValue placeholder="Ano" />
+          </SelectTrigger>
+          <SelectContent className="bg-popover z-50">
+            {YEARS.map((year) => (
+              <SelectItem key={year.value} value={year.value}>
+                {year.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {isLoading && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
