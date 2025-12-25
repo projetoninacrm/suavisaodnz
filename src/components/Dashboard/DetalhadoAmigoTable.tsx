@@ -21,7 +21,6 @@ interface DetalhadoAmigoTableProps {
 interface Filters {
   patient_name: string;
   patient_phone: string;
-  patient_email: string;
   patient_know_by: string;
   event_name: string;
   doctor_name: string;
@@ -38,7 +37,6 @@ export function DetalhadoAmigoTable({
   const [filters, setFilters] = useState<Filters>({
     patient_name: "",
     patient_phone: "",
-    patient_email: "",
     patient_know_by: "",
     event_name: "",
     doctor_name: "",
@@ -53,7 +51,6 @@ export function DetalhadoAmigoTable({
   const uniqueValues = useMemo(() => ({
     patient_name: [...new Set(attendances.map(r => r.patient_name).filter(Boolean))] as string[],
     patient_phone: [...new Set(attendances.map(r => r.patient_phone).filter(Boolean))] as string[],
-    patient_email: [...new Set(attendances.map(r => r.patient_email).filter(Boolean))] as string[],
     patient_know_by: [...new Set(attendances.map(r => r.patient_know_by).filter(Boolean))] as string[],
     event_name: [...new Set(attendances.map(r => r.event_name).filter(Boolean))] as string[],
     doctor_name: [...new Set(attendances.map(r => r.doctor_name).filter(Boolean))] as string[],
@@ -64,7 +61,6 @@ export function DetalhadoAmigoTable({
     return attendances.filter(record => {
       if (filters.patient_name && record.patient_name !== filters.patient_name) return false;
       if (filters.patient_phone && record.patient_phone !== filters.patient_phone) return false;
-      if (filters.patient_email && record.patient_email !== filters.patient_email) return false;
       if (filters.patient_know_by && record.patient_know_by !== filters.patient_know_by) return false;
       if (filters.event_name && record.event_name !== filters.event_name) return false;
       if (filters.doctor_name && record.doctor_name !== filters.doctor_name) return false;
@@ -81,7 +77,6 @@ export function DetalhadoAmigoTable({
     setFilters({
       patient_name: "",
       patient_phone: "",
-      patient_email: "",
       patient_know_by: "",
       event_name: "",
       doctor_name: "",
@@ -209,15 +204,6 @@ export function DetalhadoAmigoTable({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Email</label>
-            <FilterSelect
-              value={filters.patient_email}
-              onChange={(v) => setFilters(f => ({ ...f, patient_email: v === "all" ? "" : v }))}
-              options={uniqueValues.patient_email}
-              placeholder="Todos"
-            />
-          </div>
-          <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Como Conheceu</label>
             <FilterSelect
               value={filters.patient_know_by}
@@ -270,9 +256,9 @@ export function DetalhadoAmigoTable({
                 <tr className="bg-table-header border-b border-table-border">
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[200px]">Nome</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">Telefone</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[180px]">Email</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[130px]">Como Conheceu</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[150px]">Tipo</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Receita</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Data</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[150px]">Médico</th>
                 </tr>
@@ -303,9 +289,9 @@ export function DetalhadoAmigoTable({
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-sm">{record.patient_email || "-"}</td>
                       <td className="px-3 py-2 text-sm">{record.patient_know_by || "-"}</td>
                       <td className="px-3 py-2 text-sm">{record.event_name}</td>
+                      <td className="px-3 py-2 text-sm">-</td>
                       <td className="px-3 py-2 text-sm">{record.date}</td>
                       <td className="px-3 py-2 text-sm">{record.doctor_name || "-"}</td>
                     </tr>
