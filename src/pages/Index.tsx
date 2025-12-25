@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { DollarSign, ShoppingCart, Receipt } from "lucide-react";
 import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
@@ -7,13 +6,12 @@ import { LeadsTable, type LeadsFilters } from "@/components/Dashboard/LeadsTable
 import { GenericTable } from "@/components/Dashboard/GenericTable";
 import { DetalhadoAmigoTable } from "@/components/Dashboard/DetalhadoAmigoTable";
 import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
+import { MetasCalculator } from "@/components/Dashboard/MetasCalculator";
 import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
-import { StatsCard } from "@/components/Dashboard/StatsCard";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
 import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, parse, isWithinInterval, isToday, isValid } from "date-fns";
 
 const TABS = ["Agenda", "Leads", "Indicadores", "Metas", "Detalhado", "MKT"];
 
@@ -25,14 +23,6 @@ const INDICADORES_COLUMNS = [
   { key: "obs", label: "Observações" },
 ];
 
-const METAS_COLUMNS = [
-  { key: "descricao", label: "Descrição", width: "250px" },
-  { key: "valor_meta", label: "Meta", width: "120px" },
-  { key: "valor_atual", label: "Atual", width: "120px" },
-  { key: "percentual", label: "%", width: "80px" },
-  { key: "status", label: "Status", width: "100px" },
-  { key: "obs", label: "Observações" },
-];
 
 
 const MKT_COLUMNS = [
@@ -61,14 +51,13 @@ const Index = () => {
   const schedules = useSchedules("Escala");
   const leads = useLeads();
   const indicadores = useGenericTable("indicadores");
-  const metas = useGenericTable("metas");
   const detalhadoAmigo = useDetalhadoAmigo();
   const mkt = useGenericTable("mkt");
   const isLoading = 
     activeTab === "Agenda" ? schedules.isLoading :
     activeTab === "Leads" ? leads.isLoading :
     activeTab === "Indicadores" ? indicadores.isLoading :
-    activeTab === "Metas" ? metas.isLoading :
+    activeTab === "Metas" ? false :
     activeTab === "Detalhado" ? detalhadoAmigo.isLoading :
     mkt.isLoading;
 
@@ -106,64 +95,28 @@ const Index = () => {
     };
   }, [leads.leads, leadsFilters.data_registro]);
 
-  // Stats for Metas tab - Vendas e Faturamento por período
-  const metasStats = useMemo(() => {
-    const today = new Date();
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
-    const monthStart = startOfMonth(today);
-    const monthEnd = endOfMonth(today);
+  // Cálculo de períodos com médico a partir da Agenda
+  const periodosComMedico = useMemo(() => {
+    // Conta períodos que têm médico atribuído (manhã ou tarde)
+    return schedules.schedules.reduce((count, schedule) => {
+      let periodos = 0;
+      if (schedule.morning_shift && schedule.morning_shift.trim() !== "") {
+        periodos += 1;
+      }
+      if (schedule.afternoon_shift && schedule.afternoon_shift.trim() !== "") {
+        periodos += 1;
+      }
+      return count + periodos;
+    }, 0);
+  }, [schedules.schedules]);
 
-    const parseDateStr = (dateStr: string | null): Date | null => {
-      if (!dateStr) return null;
-      const parsed = parse(dateStr, "dd/MM/yyyy", new Date());
-      return isValid(parsed) ? parsed : null;
-    };
-
-    // Filter vendas (sales) by period
-    const vendasHoje = leads.leads.filter(l => {
-      if (l.venda !== "Sim") return false;
-      const date = parseDateStr(l.data_registro);
-      return date && isToday(date);
-    }).length;
-
-    const vendasSemana = leads.leads.filter(l => {
-      if (l.venda !== "Sim") return false;
-      const date = parseDateStr(l.data_registro);
-      return date && isWithinInterval(date, { start: weekStart, end: weekEnd });
-    }).length;
-
-    const vendasMes = leads.leads.filter(l => {
-      if (l.venda !== "Sim") return false;
-      const date = parseDateStr(l.data_registro);
-      return date && isWithinInterval(date, { start: monthStart, end: monthEnd });
-    }).length;
-
-    // Faturamento - zerado por enquanto (dados vêm da API Amigo)
-    const faturamentoHoje = 0;
-    const faturamentoSemana = 0;
-    const faturamentoMes = 0;
-
-    // Ticket médio
-    const ticketMedio = 0;
-
-    return {
-      vendasHoje,
-      vendasSemana,
-      vendasMes,
-      faturamentoHoje,
-      faturamentoSemana,
-      faturamentoMes,
-      ticketMedio
-    };
-  }, [leads.leads]);
 
   const handleRefresh = () => {
     switch (activeTab) {
       case "Agenda": schedules.fetchSchedules(); break;
       case "Leads": leads.fetchLeads(); break;
       case "Indicadores": indicadores.fetchRecords(); break;
-      case "Metas": metas.fetchRecords(); break;
+      case "Metas": schedules.fetchSchedules(); break; // Refresh agenda para atualizar períodos
       case "Detalhado": detalhadoAmigo.refresh(); break;
       case "MKT": mkt.fetchRecords(); break;
     }
@@ -174,7 +127,7 @@ const Index = () => {
       case "Agenda": schedules.addSchedule(); break;
       case "Leads": setShowNewLeadDialog(true); break;
       case "Indicadores": indicadores.addRecord(); break;
-      case "Metas": metas.addRecord(); break;
+      case "Metas": break; // Metas não precisa adicionar linhas
       case "Detalhado": break; // Detalhado agora é somente leitura da API
       case "MKT": mkt.addRecord(); break;
     }
@@ -209,13 +162,7 @@ const Index = () => {
         );
       case "Metas":
         return (
-          <GenericTable
-            records={metas.records}
-            columns={METAS_COLUMNS}
-            onUpdate={metas.updateRecord}
-            onDelete={metas.deleteRecord}
-            emptyMessage="Nenhuma meta cadastrada."
-          />
+          <MetasCalculator periodosComMedico={periodosComMedico} />
         );
       case "Detalhado":
         return (
@@ -298,53 +245,6 @@ const Index = () => {
           </div>
         )}
 
-        {/* Stats for Metas tab */}
-        {activeTab === "Metas" && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
-            <StatsCard
-              title="Vendas Hoje"
-              value={metasStats.vendasHoje}
-              icon={ShoppingCart}
-              color="primary"
-            />
-            <StatsCard
-              title="Vendas Semana"
-              value={metasStats.vendasSemana}
-              icon={ShoppingCart}
-              color="chart-4"
-            />
-            <StatsCard
-              title="Vendas Mês"
-              value={metasStats.vendasMes}
-              icon={ShoppingCart}
-              color="accent"
-            />
-            <StatsCard
-              title="Fat. Hoje"
-              value={`R$ ${metasStats.faturamentoHoje.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`}
-              icon={DollarSign}
-              color="chart-3"
-            />
-            <StatsCard
-              title="Fat. Semana"
-              value={`R$ ${metasStats.faturamentoSemana.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`}
-              icon={DollarSign}
-              color="chart-4"
-            />
-            <StatsCard
-              title="Fat. Mês"
-              value={`R$ ${metasStats.faturamentoMes.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`}
-              icon={DollarSign}
-              color="chart-5"
-            />
-            <StatsCard
-              title="Ticket Médio"
-              value={`R$ ${metasStats.ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`}
-              icon={Receipt}
-              color="accent"
-            />
-          </div>
-        )}
 
         <div className="mb-6">
           <TabNavigation
