@@ -48,40 +48,33 @@ export function AcompanhamentoDiarioSection({
     return map;
   }, [registros]);
 
-  // Cálculo do consolidado
+  // Cálculo do consolidado baseado nos dias preenchidos
   const consolidado = useMemo(() => {
-    const hoje = new Date();
-    
-    // Encontra o índice do dia atual ou o último dia passado
-    let diasPassados = 0;
+    let diasPreenchidos = 0;
     let metaAcumuladaVendas = 0;
     let metaAcumuladaFaturamento = 0;
     let realAcumuladoVendas = 0;
     let realAcumuladoFaturamento = 0;
 
-    diasComMedico.forEach((schedule, index) => {
-      const [dia, mes, ano] = schedule.date.split("/").map(Number);
-      const dataSchedule = new Date(ano, mes - 1, dia);
-      
-      // Se a data já passou ou é hoje
-      if (dataSchedule <= hoje) {
-        diasPassados = index + 1;
-        metaAcumuladaVendas = diasPassados * metaDiariaVendas;
-        metaAcumuladaFaturamento = diasPassados * metaDiariaFaturamento;
-        
-        const registro = registrosMap[schedule.date];
-        if (registro) {
-          realAcumuladoVendas += registro.vendas_realizadas || 0;
-          realAcumuladoFaturamento += registro.faturamento_realizado || 0;
-        }
+    diasComMedico.forEach((schedule) => {
+      const registro = registrosMap[schedule.date];
+      // Conta como preenchido se tem vendas OU faturamento
+      if (registro && (registro.vendas_realizadas > 0 || registro.faturamento_realizado > 0)) {
+        diasPreenchidos++;
+        realAcumuladoVendas += registro.vendas_realizadas || 0;
+        realAcumuladoFaturamento += registro.faturamento_realizado || 0;
       }
     });
+
+    // Meta acumulada é baseada nos dias preenchidos
+    metaAcumuladaVendas = diasPreenchidos * metaDiariaVendas;
+    metaAcumuladaFaturamento = diasPreenchidos * metaDiariaFaturamento;
 
     const diferencaVendas = realAcumuladoVendas - metaAcumuladaVendas;
     const diferencaFaturamento = realAcumuladoFaturamento - metaAcumuladaFaturamento;
 
     return {
-      diasPassados,
+      diasPreenchidos,
       metaAcumuladaVendas,
       metaAcumuladaFaturamento,
       realAcumuladoVendas,
@@ -141,7 +134,7 @@ export function AcompanhamentoDiarioSection({
             {/* Kanban de Consolidado */}
             <div className="mb-6">
               <h4 className="text-sm font-semibold mb-3 text-muted-foreground">
-                Consolidado até hoje ({consolidado.diasPassados} dias trabalhados)
+                Consolidado ({consolidado.diasPreenchidos} dias preenchidos)
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Meta Acumulada Vendas */}
@@ -202,91 +195,144 @@ export function AcompanhamentoDiarioSection({
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="px-3 py-3 text-left font-semibold text-muted-foreground">Data</th>
-                    <th className="px-3 py-3 text-left font-semibold text-muted-foreground">Dia</th>
-                    <th className="px-3 py-3 text-center font-semibold text-muted-foreground">Médico(s)</th>
                     <th className="px-3 py-3 text-center font-semibold text-muted-foreground">Meta Vendas</th>
                     <th className="px-3 py-3 text-center font-semibold text-muted-foreground">Vendas Real</th>
+                    <th className="px-3 py-3 text-center font-semibold text-muted-foreground">Status Vendas</th>
                     <th className="px-3 py-3 text-center font-semibold text-muted-foreground">Meta Fat.</th>
                     <th className="px-3 py-3 text-center font-semibold text-muted-foreground">Fat. Real</th>
-                    <th className="px-3 py-3 text-center font-semibold text-muted-foreground">Status</th>
+                    <th className="px-3 py-3 text-center font-semibold text-muted-foreground">Status Fat.</th>
+                    <th className="px-3 py-3 text-center font-semibold text-muted-foreground">Consol. Fat.</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {diasComMedico.map((schedule) => {
-                    const registro = registrosMap[schedule.date];
-                    const vendasReal = registro?.vendas_realizadas || 0;
-                    const faturamentoReal = registro?.faturamento_realizado || 0;
+                  {(() => {
+                    let acumuladoFaturamento = 0;
+                    let diasContados = 0;
                     
-                    const diferencaVendas = vendasReal - metaDiariaVendas;
-                    const statusVendas = diferencaVendas >= 0 ? "ok" : "atras";
-                    
-                    // Pega médicos do turno
-                    const medicos = [
-                      schedule.morning_shift,
-                      schedule.afternoon_shift
-                    ].filter(Boolean).join(" / ");
+                    return diasComMedico.map((schedule) => {
+                      const registro = registrosMap[schedule.date];
+                      const vendasReal = registro?.vendas_realizadas || 0;
+                      const faturamentoReal = registro?.faturamento_realizado || 0;
+                      
+                      const diferencaVendas = vendasReal - metaDiariaVendas;
+                      const statusVendas = diferencaVendas >= 0 ? "ok" : "atras";
+                      
+                      const diferencaFaturamento = faturamentoReal - metaDiariaFaturamento;
+                      const statusFaturamento = diferencaFaturamento >= 0 ? "ok" : "atras";
+                      
+                      // Calcula consolidado progressivo
+                      const temDados = vendasReal > 0 || faturamentoReal > 0;
+                      if (temDados) {
+                        diasContados++;
+                        acumuladoFaturamento += faturamentoReal;
+                      }
+                      const metaAcumuladaFat = diasContados * metaDiariaFaturamento;
+                      const diferencaConsolidada = acumuladoFaturamento - metaAcumuladaFat;
 
-                    return (
-                      <tr key={schedule.id} className="border-b border-border/50 hover:bg-muted/30">
-                        <td className="px-3 py-2 font-medium">{schedule.date}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{schedule.day_of_week}</td>
-                        <td className="px-3 py-2 text-center text-xs text-muted-foreground max-w-[200px] truncate">
-                          {medicos}
-                        </td>
-                        <td className="px-3 py-2 text-center text-blue-500 font-medium">
-                          {metaDiariaVendas.toFixed(2)}
-                        </td>
-                        <td className="px-3 py-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={vendasReal || ""}
-                            onChange={(e) => onUpdateRegistro(schedule.date, "vendas_realizadas", parseFloat(e.target.value) || 0)}
-                            className="h-8 w-20 text-center mx-auto"
-                            placeholder="0"
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-center text-green-500 font-medium">
-                          R$ {metaDiariaFaturamento.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
-                        </td>
-                        <td className="px-3 py-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={faturamentoReal || ""}
-                            onChange={(e) => onUpdateRegistro(schedule.date, "faturamento_realizado", parseFloat(e.target.value) || 0)}
-                            className="h-8 w-24 text-center mx-auto"
-                            placeholder="0"
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          {vendasReal > 0 || faturamentoReal > 0 ? (
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                              statusVendas === "ok" 
-                                ? "bg-green-500/20 text-green-600" 
-                                : "bg-red-500/20 text-red-600"
-                            }`}>
-                              {statusVendas === "ok" ? (
-                                <>
-                                  <TrendingUp className="h-3 w-3" />
-                                  +{diferencaVendas.toFixed(1)}
-                                </>
-                              ) : (
-                                <>
-                                  <TrendingDown className="h-3 w-3" />
-                                  {diferencaVendas.toFixed(1)}
-                                </>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                      return (
+                        <tr key={schedule.id} className="border-b border-border/50 hover:bg-muted/30">
+                          <td className="px-3 py-2 font-medium">{schedule.date}</td>
+                          <td className="px-3 py-2 text-center text-blue-500 font-medium">
+                            {metaDiariaVendas.toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={vendasReal || ""}
+                              onChange={(e) => onUpdateRegistro(schedule.date, "vendas_realizadas", parseFloat(e.target.value) || 0)}
+                              className="h-8 w-20 text-center mx-auto"
+                              placeholder="0"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {temDados ? (
+                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                                statusVendas === "ok" 
+                                  ? "bg-green-500/20 text-green-600" 
+                                  : "bg-red-500/20 text-red-600"
+                              }`}>
+                                {statusVendas === "ok" ? (
+                                  <>
+                                    <TrendingUp className="h-3 w-3" />
+                                    +{diferencaVendas.toFixed(1)}
+                                  </>
+                                ) : (
+                                  <>
+                                    <TrendingDown className="h-3 w-3" />
+                                    {diferencaVendas.toFixed(1)}
+                                  </>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-center text-green-500 font-medium">
+                            R$ {metaDiariaFaturamento.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={faturamentoReal || ""}
+                              onChange={(e) => onUpdateRegistro(schedule.date, "faturamento_realizado", parseFloat(e.target.value) || 0)}
+                              className="h-8 w-24 text-center mx-auto"
+                              placeholder="0"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {temDados ? (
+                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                                statusFaturamento === "ok" 
+                                  ? "bg-green-500/20 text-green-600" 
+                                  : "bg-red-500/20 text-red-600"
+                              }`}>
+                                {statusFaturamento === "ok" ? (
+                                  <>
+                                    <TrendingUp className="h-3 w-3" />
+                                    +{diferencaFaturamento.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                                  </>
+                                ) : (
+                                  <>
+                                    <TrendingDown className="h-3 w-3" />
+                                    {diferencaFaturamento.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                                  </>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {temDados ? (
+                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                                diferencaConsolidada >= 0 
+                                  ? "bg-green-500/20 text-green-600" 
+                                  : "bg-red-500/20 text-red-600"
+                              }`}>
+                                {diferencaConsolidada >= 0 ? (
+                                  <>
+                                    <TrendingUp className="h-3 w-3" />
+                                    +R$ {diferencaConsolidada.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                                  </>
+                                ) : (
+                                  <>
+                                    <TrendingDown className="h-3 w-3" />
+                                    R$ {diferencaConsolidada.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                                  </>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
 
