@@ -411,8 +411,26 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
           <div className="mt-6">
             <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-green-500" />
-              Metas de Faturamento (Ticket Médio: R$ {Math.round(calculations.ticketMedio).toLocaleString("pt-BR")})
+              Metas de Faturamento
             </h4>
+            
+            {/* Card do Ticket Médio em destaque */}
+            <div className="mb-4 p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-2 border-green-500/40 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Ticket Médio que devemos buscar</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Meta Faturamento (R$ {config.metaFaturamentoMensal.toLocaleString("pt-BR")}) ÷ Meta Vendas ({Math.round(calculations.metaVendas)})
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-4xl font-bold text-green-600">
+                    R$ {Math.round(calculations.ticketMedio).toLocaleString("pt-BR")}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {/* Faturamento Diário */}
               <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">

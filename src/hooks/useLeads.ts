@@ -89,7 +89,7 @@ export function useLeads() {
         .single();
 
       if (error) throw error;
-      setLeads((prev) => [...prev, data]);
+      setLeads((prev) => [data, ...prev]);
       toast({ title: "Adicionado", description: "Novo lead criado com sucesso!" });
     } catch (error) {
       console.error("Error adding lead:", error);
