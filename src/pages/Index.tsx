@@ -95,19 +95,24 @@ const Index = () => {
     };
   }, [leads.leads, leadsFilters.data_registro]);
 
-  // Cálculo de períodos com médico a partir da Agenda
-  const periodosComMedico = useMemo(() => {
-    // Conta períodos que têm médico atribuído (manhã ou tarde)
-    return schedules.schedules.reduce((count, schedule) => {
-      let periodos = 0;
-      if (schedule.morning_shift && schedule.morning_shift.trim() !== "") {
-        periodos += 1;
-      }
-      if (schedule.afternoon_shift && schedule.afternoon_shift.trim() !== "") {
-        periodos += 1;
-      }
-      return count + periodos;
-    }, 0);
+  // Cálculo de dias com médico e períodos totais a partir da Agenda
+  const { diasComMedico, periodosComMedico } = useMemo(() => {
+    let dias = 0;
+    let periodos = 0;
+    
+    schedules.schedules.forEach((schedule) => {
+      const temManha = schedule.morning_shift && schedule.morning_shift.trim() !== "";
+      const temTarde = schedule.afternoon_shift && schedule.afternoon_shift.trim() !== "";
+      
+      // Conta períodos (turnos)
+      if (temManha) periodos += 1;
+      if (temTarde) periodos += 1;
+      
+      // Conta dias (se tem pelo menos um turno)
+      if (temManha || temTarde) dias += 1;
+    });
+    
+    return { diasComMedico: dias, periodosComMedico: periodos };
   }, [schedules.schedules]);
 
 
@@ -162,7 +167,7 @@ const Index = () => {
         );
       case "Metas":
         return (
-          <MetasCalculator periodosComMedico={periodosComMedico} />
+          <MetasCalculator diasComMedico={diasComMedico} periodosComMedico={periodosComMedico} />
         );
       case "Detalhado":
         return (
