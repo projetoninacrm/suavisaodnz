@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface MetasCalculatorProps {
+  diasComMedico: number;
   periodosComMedico: number;
 }
 
@@ -16,7 +17,7 @@ interface ConfigValues {
   percentualConversao: number;
 }
 
-export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
+export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalculatorProps) {
   const [config, setConfig] = useState<ConfigValues>({
     periodos: periodosComMedico,
     mediaAtendimentos: 8,
@@ -46,12 +47,12 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
 
     const superMeta = metaVendas * 1.2;
     
-    // Metas por período
+    // Metas por período - agora usa diasComMedico para dividir
     const metaMensal = metaVendas;
-    const metaDiaria = periodosComMedico > 0 ? metaVendas / periodosComMedico : 0;
+    const metaDiaria = diasComMedico > 0 ? metaVendas / diasComMedico : 0;
     const metaSemanal = metaVendas / 4;
     const superMetaMensal = superMeta;
-    const superMetaDiaria = periodosComMedico > 0 ? superMeta / periodosComMedico : 0;
+    const superMetaDiaria = diasComMedico > 0 ? superMeta / diasComMedico : 0;
     const superMetaSemanal = superMeta / 4;
 
     return {
@@ -67,7 +68,7 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
       superMetaDiaria,
       superMetaSemanal,
     };
-  }, [config, periodosComMedico]);
+  }, [config, diasComMedico]);
 
   return (
     <div className="space-y-6">
@@ -278,7 +279,7 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
           <div className="mt-6">
             <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <Calendar className="h-4 w-4 text-primary" />
-              Metas por Período ({periodosComMedico} dias com médico)
+              Metas por Período ({diasComMedico} dias com médico / {periodosComMedico} períodos)
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {/* Meta Diária */}
@@ -291,7 +292,7 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
                   {calculations.metaDiaria.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {calculations.metaMensal.toFixed(1)} ÷ {periodosComMedico} dias
+                  {calculations.metaMensal.toFixed(1)} ÷ {diasComMedico} dias
                 </p>
               </div>
 
@@ -333,7 +334,7 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
                   {calculations.superMetaDiaria.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {calculations.superMetaMensal.toFixed(1)} ÷ {periodosComMedico} dias
+                  {calculations.superMetaMensal.toFixed(1)} ÷ {diasComMedico} dias
                 </p>
               </div>
 
