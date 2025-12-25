@@ -32,9 +32,18 @@ const formatPhone = (phone: string | null): string | null => {
   return phone;
 };
 
-const formatDate = (isoDate: string): string => {
+const formatDate = (isoDate?: string): string => {
+  if (!isoDate) return "";
   const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "";
   return format(date, "dd/MM/yyyy");
+};
+
+const formatTime = (isoDate?: string): string => {
+  if (!isoDate) return "";
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "";
+  return format(date, "HH:mm");
 };
 
 export function useDetalhadoAmigo() {
@@ -51,6 +60,11 @@ export function useDetalhadoAmigo() {
   const fetchAttendances = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Garantia extra contra "Invalid time value"
+      if (Number.isNaN(dateRange.start?.getTime?.()) || Number.isNaN(dateRange.end?.getTime?.())) {
+        throw new Error("Período inválido. Selecione novamente.");
+      }
+
       const startDate = format(dateRange.start, "yyyy-MM-dd");
       const endDate = format(dateRange.end, "yyyy-MM-dd");
 
@@ -93,20 +107,30 @@ export function useDetalhadoAmigo() {
 
       console.log(`[useDetalhadoAmigo] Filtered to ${filteredAttendances.length} attendances from target place`);
 
-      // Mapear para o formato desejado
-      const mapped: AmigoAttendance[] = filteredAttendances.map((att) => ({
-        id: att.id?.toString() || Math.random().toString(),
-        date: formatDate(att.date),
-        time: att.time || "",
-        patient_name: att.patient?.name || "Sem nome",
-        patient_phone: formatPhone(att.patient?.contact_phone || att.patient?.cellphone),
-        patient_email: att.patient?.contact_email || att.patient?.email || null,
-        patient_know_by: att.patient?.know_by || null,
-        event_name: att.event?.name || "Sem tipo",
-        doctor_name: att.doctor?.name || null,
-        place_name: att.place?.name || null,
-        status: att.status || "",
-      }));
+      // Mapear para o formato desejado (com validação)
+      const mapped: AmigoAttendance[] = filteredAttendances
+        .map((att) => {
+          const startDateIso: string | undefined = att.start_date || att.date;
+          const formattedDate = formatDate(startDateIso);
+          if (!formattedDate) return null;
+
+          return {
+            id: att.id?.toString() || (globalThis.crypto?.randomUUID?.() ?? String(Date.now() + Math.random())),
+            date: formattedDate,
+            time: formatTime(startDateIso),
+            patient_name: att.patient?.name || "Sem nome",
+            patient_phone: formatPhone(
+              att.patient?.contact_cellphone || att.patient?.contact_phone || att.patient?.cellphone || null
+            ),
+            patient_email: att.patient?.contact_email || att.patient?.email || null,
+            patient_know_by: att.patient?.know_by || null,
+            event_name: att.agenda_event?.name || att.event?.name || "Sem tipo",
+            doctor_name: att.doctor?.name || att.user?.name || null,
+            place_name: att.place?.name || null,
+            status: att.status || "",
+          } as AmigoAttendance;
+        })
+        .filter(Boolean) as AmigoAttendance[];
 
       // Ordenar por data (mais recente primeiro)
       mapped.sort((a, b) => {
