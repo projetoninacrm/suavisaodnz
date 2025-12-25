@@ -292,10 +292,10 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                 <span className="text-sm font-medium opacity-90">Meta de Vendas</span>
               </div>
               <p className="text-3xl font-bold">
-                {Math.round(calculations.metaVendas)}
+                {calculations.metaVendas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
               <p className="text-xs opacity-80 mt-1">
-                {Math.round(calculations.pacientesComparecem)} × {config.percentualConversao}%
+                {calculations.pacientesComparecem.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {config.percentualConversao}%
               </p>
             </div>
 
@@ -306,7 +306,7 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                 <span className="text-sm font-medium opacity-90">Super Meta</span>
               </div>
               <p className="text-3xl font-bold">
-                {Math.round(calculations.superMeta)}
+                {calculations.superMeta.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
               <p className="text-xs opacity-80 mt-1">
                 Meta + 20%
@@ -328,10 +328,10 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Meta Diária</span>
                 </div>
                 <p className="text-2xl font-bold text-blue-500">
-                  {Math.round(calculations.metaDiaria)}
+                  {calculations.metaDiaria.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {Math.round(calculations.metaMensal)} ÷ {diasComMedico} dias
+                  {calculations.metaMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ÷ {diasComMedico} dias
                 </p>
               </div>
 
@@ -342,10 +342,10 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Meta Semanal</span>
                 </div>
                 <p className="text-2xl font-bold text-indigo-500">
-                  {Math.round(calculations.metaSemanal)}
+                  {calculations.metaSemanal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {Math.round(calculations.metaMensal)} ÷ 4 semanas
+                  {calculations.metaMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ÷ 4 semanas
                 </p>
               </div>
 
@@ -356,7 +356,7 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Meta Mensal</span>
                 </div>
                 <p className="text-2xl font-bold text-primary">
-                  {Math.round(calculations.metaMensal)}
+                  {calculations.metaMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Total do mês
@@ -370,10 +370,10 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Super Diária</span>
                 </div>
                 <p className="text-2xl font-bold text-amber-500">
-                  {Math.round(calculations.superMetaDiaria)}
+                  {calculations.superMetaDiaria.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {Math.round(calculations.superMetaMensal)} ÷ {diasComMedico} dias
+                  {calculations.superMetaMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ÷ {diasComMedico} dias
                 </p>
               </div>
 
@@ -384,10 +384,10 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Super Semanal</span>
                 </div>
                 <p className="text-2xl font-bold text-orange-500">
-                  {Math.round(calculations.superMetaSemanal)}
+                  {calculations.superMetaSemanal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {Math.round(calculations.superMetaMensal)} ÷ 4 semanas
+                  {calculations.superMetaMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ÷ 4 semanas
                 </p>
               </div>
 
@@ -398,7 +398,7 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Super Mensal</span>
                 </div>
                 <p className="text-2xl font-bold text-amber-600">
-                  {Math.round(calculations.superMetaMensal)}
+                  {calculations.superMetaMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Meta + 20%
@@ -526,9 +526,9 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
             </div>
             <p className="text-sm text-muted-foreground font-mono">
               Períodos ({config.periodos}) × Média ({config.mediaAtendimentos}) = {calculations.totalPacientes} pacientes
-              → × {config.percentualReceita}% = {Math.round(calculations.pacientesComReceita)} c/ receita
-              → × {config.percentualComparecimento}% = {Math.round(calculations.pacientesComparecem)} comparecem
-              → × {config.percentualConversao}% = <span className="text-primary font-bold">{Math.round(calculations.metaVendas)} vendas</span>
+              → × {config.percentualReceita}% = {calculations.pacientesComReceita.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} c/ receita
+              → × {config.percentualComparecimento}% = {calculations.pacientesComparecem.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} comparecem
+              → × {config.percentualConversao}% = <span className="text-primary font-bold">{calculations.metaVendas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} vendas</span>
             </p>
           </div>
         </CardContent>
