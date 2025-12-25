@@ -84,11 +84,11 @@ export function useDetalhadoAmigo() {
       console.log(`[useDetalhadoAmigo] Received ${rawAttendances.length} raw attendances`);
 
       // Filtrar apenas atendimentos da unidade específica
+      // API retorna "SUA VISAO" sem acento
       const filteredAttendances = rawAttendances.filter((att) => {
-        const placeName = att.place?.name || "";
-        // Comparação case-insensitive e parcial para ser mais flexível
-        return placeName.toLowerCase().includes("sua visão") && 
-               placeName.toLowerCase().includes("padre pedro pinto");
+        const placeName = (att.place?.name || "").toLowerCase();
+        return placeName.includes("sua visao") && 
+               placeName.includes("padre pedro pinto");
       });
 
       console.log(`[useDetalhadoAmigo] Filtered to ${filteredAttendances.length} attendances from target place`);
