@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Calculator, Settings, Target, TrendingUp, Zap, Calendar, CalendarDays, CalendarRange } from "lucide-react";
+import { Calculator, Settings, Target, TrendingUp, Zap, Calendar, CalendarDays, CalendarRange, DollarSign } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ interface ConfigValues {
   percentualReceita: number;
   percentualComparecimento: number;
   percentualConversao: number;
+  metaFaturamentoMensal: number;
 }
 
 export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalculatorProps) {
@@ -24,6 +25,7 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
     percentualReceita: 60,
     percentualComparecimento: 50,
     percentualConversao: 66,
+    metaFaturamentoMensal: 60000,
   });
 
   // Atualiza períodos quando vem da Agenda
@@ -55,6 +57,15 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
     const superMetaDiaria = diasComMedico > 0 ? superMeta / diasComMedico : 0;
     const superMetaSemanal = superMeta / 4;
 
+    // Faturamento
+    const ticketMedio = metaVendas > 0 ? config.metaFaturamentoMensal / metaVendas : 0;
+    const faturamentoMensal = config.metaFaturamentoMensal;
+    const faturamentoDiario = diasComMedico > 0 ? faturamentoMensal / diasComMedico : 0;
+    const faturamentoSemanal = faturamentoMensal / 4;
+    const superFaturamentoMensal = faturamentoMensal * 1.2;
+    const superFaturamentoDiario = diasComMedico > 0 ? superFaturamentoMensal / diasComMedico : 0;
+    const superFaturamentoSemanal = superFaturamentoMensal / 4;
+
     return {
       totalPacientes,
       pacientesComReceita,
@@ -67,6 +78,13 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
       superMetaMensal,
       superMetaDiaria,
       superMetaSemanal,
+      ticketMedio,
+      faturamentoMensal,
+      faturamentoDiario,
+      faturamentoSemanal,
+      superFaturamentoMensal,
+      superFaturamentoDiario,
+      superFaturamentoSemanal,
     };
   }, [config, diasComMedico]);
 
@@ -184,6 +202,27 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
               </div>
               <p className="text-xs text-muted-foreground">Padrão: 66%</p>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="metaFaturamentoMensal" className="text-sm font-medium flex items-center gap-1">
+                <DollarSign className="h-3 w-3" />
+                Meta Faturamento Mensal
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  R$
+                </span>
+                <Input
+                  id="metaFaturamentoMensal"
+                  type="number"
+                  min="0"
+                  value={config.metaFaturamentoMensal}
+                  onChange={(e) => handleConfigChange("metaFaturamentoMensal", e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Padrão: R$ 60.000</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -253,10 +292,10 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                 <span className="text-sm font-medium opacity-90">Meta de Vendas</span>
               </div>
               <p className="text-3xl font-bold">
-                {calculations.metaVendas.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}
+                {Math.round(calculations.metaVendas)}
               </p>
               <p className="text-xs opacity-80 mt-1">
-                {calculations.pacientesComparecem.toFixed(0)} × {config.percentualConversao}%
+                {Math.round(calculations.pacientesComparecem)} × {config.percentualConversao}%
               </p>
             </div>
 
@@ -267,7 +306,7 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                 <span className="text-sm font-medium opacity-90">Super Meta</span>
               </div>
               <p className="text-3xl font-bold">
-                {calculations.superMeta.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}
+                {Math.round(calculations.superMeta)}
               </p>
               <p className="text-xs opacity-80 mt-1">
                 Meta + 20%
@@ -289,10 +328,10 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Meta Diária</span>
                 </div>
                 <p className="text-2xl font-bold text-blue-500">
-                  {calculations.metaDiaria.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                  {Math.round(calculations.metaDiaria)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {calculations.metaMensal.toFixed(1)} ÷ {diasComMedico} dias
+                  {Math.round(calculations.metaMensal)} ÷ {diasComMedico} dias
                 </p>
               </div>
 
@@ -303,10 +342,10 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Meta Semanal</span>
                 </div>
                 <p className="text-2xl font-bold text-indigo-500">
-                  {calculations.metaSemanal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                  {Math.round(calculations.metaSemanal)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {calculations.metaMensal.toFixed(1)} ÷ 4 semanas
+                  {Math.round(calculations.metaMensal)} ÷ 4 semanas
                 </p>
               </div>
 
@@ -317,7 +356,7 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Meta Mensal</span>
                 </div>
                 <p className="text-2xl font-bold text-primary">
-                  {calculations.metaMensal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                  {Math.round(calculations.metaMensal)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Total do mês
@@ -331,10 +370,10 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Super Diária</span>
                 </div>
                 <p className="text-2xl font-bold text-amber-500">
-                  {calculations.superMetaDiaria.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                  {Math.round(calculations.superMetaDiaria)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {calculations.superMetaMensal.toFixed(1)} ÷ {diasComMedico} dias
+                  {Math.round(calculations.superMetaMensal)} ÷ {diasComMedico} dias
                 </p>
               </div>
 
@@ -345,10 +384,10 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Super Semanal</span>
                 </div>
                 <p className="text-2xl font-bold text-orange-500">
-                  {calculations.superMetaSemanal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                  {Math.round(calculations.superMetaSemanal)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {calculations.superMetaMensal.toFixed(1)} ÷ 4 semanas
+                  {Math.round(calculations.superMetaMensal)} ÷ 4 semanas
                 </p>
               </div>
 
@@ -359,7 +398,100 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
                   <span className="text-xs font-medium text-muted-foreground">Super Mensal</span>
                 </div>
                 <p className="text-2xl font-bold text-amber-600">
-                  {calculations.superMetaMensal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                  {Math.round(calculations.superMetaMensal)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Meta + 20%
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Metas de Faturamento */}
+          <div className="mt-6">
+            <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-green-500" />
+              Metas de Faturamento (Ticket Médio: R$ {Math.round(calculations.ticketMedio).toLocaleString("pt-BR")})
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* Faturamento Diário */}
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CalendarDays className="h-4 w-4 text-green-500" />
+                  <span className="text-xs font-medium text-muted-foreground">Fat. Diário</span>
+                </div>
+                <p className="text-2xl font-bold text-green-500">
+                  R$ {Math.round(calculations.faturamentoDiario).toLocaleString("pt-BR")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  R$ {Math.round(calculations.faturamentoMensal).toLocaleString("pt-BR")} ÷ {diasComMedico} dias
+                </p>
+              </div>
+
+              {/* Faturamento Semanal */}
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CalendarRange className="h-4 w-4 text-emerald-500" />
+                  <span className="text-xs font-medium text-muted-foreground">Fat. Semanal</span>
+                </div>
+                <p className="text-2xl font-bold text-emerald-500">
+                  R$ {Math.round(calculations.faturamentoSemanal).toLocaleString("pt-BR")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  R$ {Math.round(calculations.faturamentoMensal).toLocaleString("pt-BR")} ÷ 4 semanas
+                </p>
+              </div>
+
+              {/* Faturamento Mensal */}
+              <div className="bg-teal-500/10 border border-teal-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="h-4 w-4 text-teal-500" />
+                  <span className="text-xs font-medium text-muted-foreground">Fat. Mensal</span>
+                </div>
+                <p className="text-2xl font-bold text-teal-500">
+                  R$ {Math.round(calculations.faturamentoMensal).toLocaleString("pt-BR")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Meta configurada
+                </p>
+              </div>
+
+              {/* Super Faturamento Diário */}
+              <div className="bg-lime-500/10 border border-lime-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-lime-600" />
+                  <span className="text-xs font-medium text-muted-foreground">Super Diário</span>
+                </div>
+                <p className="text-2xl font-bold text-lime-600">
+                  R$ {Math.round(calculations.superFaturamentoDiario).toLocaleString("pt-BR")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  R$ {Math.round(calculations.superFaturamentoMensal).toLocaleString("pt-BR")} ÷ {diasComMedico} dias
+                </p>
+              </div>
+
+              {/* Super Faturamento Semanal */}
+              <div className="bg-green-600/10 border border-green-600/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-green-600" />
+                  <span className="text-xs font-medium text-muted-foreground">Super Semanal</span>
+                </div>
+                <p className="text-2xl font-bold text-green-600">
+                  R$ {Math.round(calculations.superFaturamentoSemanal).toLocaleString("pt-BR")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  R$ {Math.round(calculations.superFaturamentoMensal).toLocaleString("pt-BR")} ÷ 4 semanas
+                </p>
+              </div>
+
+              {/* Super Faturamento Mensal */}
+              <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-green-700" />
+                  <span className="text-xs font-medium text-muted-foreground">Super Mensal</span>
+                </div>
+                <p className="text-2xl font-bold text-green-700">
+                  R$ {Math.round(calculations.superFaturamentoMensal).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Meta + 20%
@@ -376,9 +508,9 @@ export function MetasCalculator({ diasComMedico, periodosComMedico }: MetasCalcu
             </div>
             <p className="text-sm text-muted-foreground font-mono">
               Períodos ({config.periodos}) × Média ({config.mediaAtendimentos}) = {calculations.totalPacientes} pacientes
-              → × {config.percentualReceita}% = {calculations.pacientesComReceita.toFixed(0)} c/ receita
-              → × {config.percentualComparecimento}% = {calculations.pacientesComparecem.toFixed(0)} comparecem
-              → × {config.percentualConversao}% = <span className="text-primary font-bold">{calculations.metaVendas.toFixed(2)} vendas</span>
+              → × {config.percentualReceita}% = {Math.round(calculations.pacientesComReceita)} c/ receita
+              → × {config.percentualComparecimento}% = {Math.round(calculations.pacientesComparecem)} comparecem
+              → × {config.percentualConversao}% = <span className="text-primary font-bold">{Math.round(calculations.metaVendas)} vendas</span>
             </p>
           </div>
         </CardContent>
