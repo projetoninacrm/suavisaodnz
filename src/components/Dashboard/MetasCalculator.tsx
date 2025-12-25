@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Calculator, Settings, Target, TrendingUp } from "lucide-react";
+import { Calculator, Settings, Target, TrendingUp, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,11 +44,14 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
     const pacientesComparecem = pacientesComReceita * (config.percentualComparecimento / 100);
     const metaVendas = pacientesComparecem * (config.percentualConversao / 100);
 
+    const superMeta = metaVendas * 1.2;
+
     return {
       totalPacientes,
       pacientesComReceita,
       pacientesComparecem,
       metaVendas,
+      superMeta,
     };
   }, [config]);
 
@@ -179,7 +182,7 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Passo 1 */}
             <div className="bg-background rounded-lg p-4 border border-border">
               <div className="flex items-center gap-2 mb-2">
@@ -239,6 +242,20 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
               </p>
               <p className="text-xs opacity-80 mt-1">
                 {calculations.pacientesComparecem.toFixed(0)} × {config.percentualConversao}%
+              </p>
+            </div>
+
+            {/* Super Meta */}
+            <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg p-4 text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="h-5 w-5" />
+                <span className="text-sm font-medium opacity-90">Super Meta</span>
+              </div>
+              <p className="text-3xl font-bold">
+                {calculations.superMeta.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs opacity-80 mt-1">
+                Meta + 20%
               </p>
             </div>
           </div>
