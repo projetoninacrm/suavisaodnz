@@ -11,13 +11,7 @@ import type { Lead } from "@/hooks/useLeads";
 
 const CANAL_OPTIONS = ["Internet", "Sua Visão", "Loja"];
 
-interface LeadsTableProps {
-  leads: Lead[];
-  onUpdate: (id: string, field: keyof Lead, value: string) => void;
-  onDelete: (id: string) => void;
-}
-
-interface Filters {
+export interface LeadsFilters {
   data_registro: string[];
   canal: string;
   nome: string;
@@ -27,8 +21,15 @@ interface Filters {
   medico: string;
 }
 
-export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
-  const [filters, setFilters] = useState<Filters>({
+interface LeadsTableProps {
+  leads: Lead[];
+  onUpdate: (id: string, field: keyof Lead, value: string) => void;
+  onDelete: (id: string) => void;
+  onFiltersChange?: (filters: LeadsFilters) => void;
+}
+
+export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: LeadsTableProps) {
+  const [filters, setFilters] = useState<LeadsFilters>({
     data_registro: [],
     canal: "",
     nome: "",
@@ -37,6 +38,11 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
     entrar_em_contato: [],
     medico: "",
   });
+
+  const updateFilters = (newFilters: LeadsFilters) => {
+    setFilters(newFilters);
+    onFiltersChange?.(newFilters);
+  };
 
   const uniqueValues = useMemo(() => ({
     data_registro: [...new Set(leads.map(l => l.data_registro).filter(Boolean))] as string[],
@@ -64,7 +70,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
   const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.nome !== "" || filters.orcamento !== "" || filters.venda !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "";
 
   const clearFilters = () => {
-    setFilters({
+    const newFilters = {
       data_registro: [],
       canal: "",
       nome: "",
@@ -72,7 +78,9 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
       venda: "",
       entrar_em_contato: [],
       medico: "",
-    });
+    };
+    setFilters(newFilters);
+    onFiltersChange?.(newFilters);
   };
 
   const statusBadge = (value: string | null) => {
@@ -193,7 +201,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
             <label className="text-xs text-muted-foreground">Data</label>
             <CalendarFilterPopover
               selectedDates={filters.data_registro}
-              onDatesChange={(dates) => setFilters(f => ({ ...f, data_registro: dates }))}
+              onDatesChange={(dates) => updateFilters({ ...filters, data_registro: dates })}
               placeholder="Todas"
               availableDates={uniqueValues.data_registro}
             />
@@ -202,7 +210,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
             <label className="text-xs text-muted-foreground">Canal</label>
             <FilterSelect
               value={filters.canal}
-              onChange={(v) => setFilters(f => ({ ...f, canal: v === "all" ? "" : v }))}
+              onChange={(v) => updateFilters({ ...filters, canal: v === "all" ? "" : v })}
               options={uniqueValues.canal}
               placeholder="Todos"
             />
@@ -214,7 +222,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
               <Input
                 placeholder="Buscar..."
                 value={filters.nome}
-                onChange={(e) => setFilters(f => ({ ...f, nome: e.target.value }))}
+                onChange={(e) => updateFilters({ ...filters, nome: e.target.value })}
                 className="h-8 text-xs pl-7 bg-background border-border"
               />
             </div>
@@ -223,7 +231,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
             <label className="text-xs text-muted-foreground">Orçamento</label>
             <FilterSelect
               value={filters.orcamento}
-              onChange={(v) => setFilters(f => ({ ...f, orcamento: v === "all" ? "" : v }))}
+              onChange={(v) => updateFilters({ ...filters, orcamento: v === "all" ? "" : v })}
               options={uniqueValues.orcamento}
               placeholder="Todos"
             />
@@ -232,7 +240,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
             <label className="text-xs text-muted-foreground">Venda</label>
             <FilterSelect
               value={filters.venda}
-              onChange={(v) => setFilters(f => ({ ...f, venda: v === "all" ? "" : v }))}
+              onChange={(v) => updateFilters({ ...filters, venda: v === "all" ? "" : v })}
               options={uniqueValues.venda}
               placeholder="Todos"
             />
@@ -241,7 +249,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
             <label className="text-xs text-muted-foreground">Entrar em Contato</label>
             <CalendarFilterPopover
               selectedDates={filters.entrar_em_contato}
-              onDatesChange={(dates) => setFilters(f => ({ ...f, entrar_em_contato: dates }))}
+              onDatesChange={(dates) => updateFilters({ ...filters, entrar_em_contato: dates })}
               placeholder="Todas"
               availableDates={uniqueValues.entrar_em_contato}
             />
@@ -250,7 +258,7 @@ export function LeadsTable({ leads, onUpdate, onDelete }: LeadsTableProps) {
             <label className="text-xs text-muted-foreground">Médico</label>
             <FilterSelect
               value={filters.medico}
-              onChange={(v) => setFilters(f => ({ ...f, medico: v === "all" ? "" : v }))}
+              onChange={(v) => updateFilters({ ...filters, medico: v === "all" ? "" : v })}
               options={uniqueValues.medico}
               placeholder="Todos"
             />
