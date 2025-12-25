@@ -22,8 +22,6 @@ interface Filters {
   patient_name: string;
   patient_phone: string;
   patient_know_by: string;
-  event_name: string;
-  doctor_name: string;
   data: string[];
 }
 
@@ -38,8 +36,6 @@ export function DetalhadoAmigoTable({
     patient_name: "",
     patient_phone: "",
     patient_know_by: "",
-    event_name: "",
-    doctor_name: "",
     data: [],
   });
 
@@ -52,8 +48,6 @@ export function DetalhadoAmigoTable({
     patient_name: [...new Set(attendances.map(r => r.patient_name).filter(Boolean))] as string[],
     patient_phone: [...new Set(attendances.map(r => r.patient_phone).filter(Boolean))] as string[],
     patient_know_by: [...new Set(attendances.map(r => r.patient_know_by).filter(Boolean))] as string[],
-    event_name: [...new Set(attendances.map(r => r.event_name).filter(Boolean))] as string[],
-    doctor_name: [...new Set(attendances.map(r => r.doctor_name).filter(Boolean))] as string[],
     data: [...new Set(attendances.map(r => r.date).filter(Boolean))] as string[],
   }), [attendances]);
 
@@ -62,8 +56,6 @@ export function DetalhadoAmigoTable({
       if (filters.patient_name && record.patient_name !== filters.patient_name) return false;
       if (filters.patient_phone && record.patient_phone !== filters.patient_phone) return false;
       if (filters.patient_know_by && record.patient_know_by !== filters.patient_know_by) return false;
-      if (filters.event_name && record.event_name !== filters.event_name) return false;
-      if (filters.doctor_name && record.doctor_name !== filters.doctor_name) return false;
       if (filters.data.length > 0 && !filters.data.includes(record.date || "")) return false;
       return true;
     });
@@ -78,8 +70,6 @@ export function DetalhadoAmigoTable({
       patient_name: "",
       patient_phone: "",
       patient_know_by: "",
-      event_name: "",
-      doctor_name: "",
       data: [],
     });
   };
@@ -184,7 +174,7 @@ export function DetalhadoAmigoTable({
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nome</label>
             <FilterSelect
@@ -213,30 +203,12 @@ export function DetalhadoAmigoTable({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Tipo</label>
-            <FilterSelect
-              value={filters.event_name}
-              onChange={(v) => setFilters(f => ({ ...f, event_name: v === "all" ? "" : v }))}
-              options={uniqueValues.event_name}
-              placeholder="Todos"
-            />
-          </div>
-          <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Data</label>
             <CalendarFilterPopover
               selectedDates={filters.data}
               onDatesChange={(dates) => setFilters(f => ({ ...f, data: dates }))}
               placeholder="Todas"
               availableDates={uniqueValues.data}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Médico</label>
-            <FilterSelect
-              value={filters.doctor_name}
-              onChange={(v) => setFilters(f => ({ ...f, doctor_name: v === "all" ? "" : v }))}
-              options={uniqueValues.doctor_name}
-              placeholder="Todos"
             />
           </div>
         </div>
@@ -257,10 +229,9 @@ export function DetalhadoAmigoTable({
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[200px]">Nome</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">Telefone</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[130px]">Como Conheceu</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[150px]">Tipo</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Receita</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Data</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[150px]">Médico</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Visitou a Loja</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-table-border">
@@ -290,10 +261,9 @@ export function DetalhadoAmigoTable({
                         </div>
                       </td>
                       <td className="px-3 py-2 text-sm">{record.patient_know_by || "-"}</td>
-                      <td className="px-3 py-2 text-sm">{record.event_name}</td>
                       <td className="px-3 py-2 text-sm">-</td>
                       <td className="px-3 py-2 text-sm">{record.date}</td>
-                      <td className="px-3 py-2 text-sm">{record.doctor_name || "-"}</td>
+                      <td className="px-3 py-2 text-sm">-</td>
                     </tr>
                   );
                 })}
