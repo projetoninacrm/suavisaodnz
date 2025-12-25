@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format, parse, isValid, eachDayOfInterval, isBefore, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, X, Check } from "lucide-react";
+import { CalendarIcon, X, Check, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -39,12 +39,10 @@ export function CalendarFilterPopover({
 
   const handleDayClick = (day: Date) => {
     if (!rangeStart) {
-      // First click - set start of range
+      // First click - set start of range and clear previous selection
       setRangeStart(day);
       const dateStr = format(day, "dd/MM/yyyy");
-      if (!selectedDates.includes(dateStr)) {
-        onDatesChange([...selectedDates, dateStr]);
-      }
+      onDatesChange([dateStr]);
     } else {
       // Second click - complete the range
       const start = isBefore(day, rangeStart) ? day : rangeStart;
@@ -53,9 +51,7 @@ export function CalendarFilterPopover({
       const datesInRange = eachDayOfInterval({ start, end });
       const dateStrings = datesInRange.map(d => format(d, "dd/MM/yyyy"));
       
-      // Merge with existing selected dates (avoiding duplicates)
-      const newSelectedDates = [...new Set([...selectedDates, ...dateStrings])];
-      onDatesChange(newSelectedDates);
+      onDatesChange(dateStrings);
       setRangeStart(null);
     }
   };
@@ -65,17 +61,29 @@ export function CalendarFilterPopover({
     setRangeStart(null);
   };
 
+  const resetSelection = () => {
+    setRangeStart(null);
+  };
+
   const getButtonLabel = () => {
     if (selectedDates.length === 0) return placeholder;
     if (selectedDates.length === 1) return selectedDates[0];
-    return `${selectedDates.length} datas`;
+    if (selectedDates.length === 2) return `${selectedDates.sort()[0]} - ${selectedDates.sort()[selectedDates.length - 1]}`;
+    // Show range format for multiple dates
+    const sorted = [...selectedDates].sort((a, b) => {
+      const dateA = parseDateStr(a);
+      const dateB = parseDateStr(b);
+      if (!dateA || !dateB) return 0;
+      return dateA.getTime() - dateB.getTime();
+    });
+    return `${sorted[0]} - ${sorted[sorted.length - 1]}`;
   };
 
   const getRangeLabel = () => {
     if (rangeStart) {
       return `Início: ${format(rangeStart, "dd/MM")} - Clique no fim do intervalo`;
     }
-    return "Clique em uma data para iniciar o intervalo";
+    return "Clique para iniciar novo intervalo";
   };
 
   return (
@@ -113,17 +121,30 @@ export function CalendarFilterPopover({
                 {selectedDates.length} selecionada(s)
               </span>
             </div>
-            {selectedDates.length > 0 && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={clearAll} 
-                className="h-7 text-xs text-muted-foreground hover:text-destructive"
-              >
-                <X className="w-3 h-3 mr-1" />
-                Limpar
-              </Button>
-            )}
+            <div className="flex gap-1">
+              {rangeStart && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={resetSelection} 
+                  className="h-7 text-xs text-muted-foreground hover:text-primary"
+                >
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Cancelar
+                </Button>
+              )}
+              {selectedDates.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearAll} 
+                  className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Limpar
+                </Button>
+              )}
+            </div>
           </div>
           
           {/* Range selection hint */}
@@ -136,18 +157,29 @@ export function CalendarFilterPopover({
             </p>
           </div>
           
-          {selectedDates.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 p-3 border-b border-border bg-muted/30 max-w-[300px] max-h-[100px] overflow-y-auto">
-              {selectedDates.sort().map(date => (
-                <button
+          {selectedDates.length > 0 && selectedDates.length <= 10 && (
+            <div className="flex flex-wrap gap-1.5 p-3 border-b border-border bg-muted/30 max-w-[300px] max-h-[80px] overflow-y-auto">
+              {[...selectedDates].sort((a, b) => {
+                const dateA = parseDateStr(a);
+                const dateB = parseDateStr(b);
+                if (!dateA || !dateB) return 0;
+                return dateA.getTime() - dateB.getTime();
+              }).map(date => (
+                <span
                   key={date}
-                  onClick={() => onDatesChange(selectedDates.filter(d => d !== date))}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-accent/20 text-accent-foreground hover:bg-destructive/20 hover:text-destructive transition-colors"
+                  className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-accent/20 text-accent-foreground"
                 >
                   {date}
-                  <X className="w-3 h-3" />
-                </button>
+                </span>
               ))}
+            </div>
+          )}
+
+          {selectedDates.length > 10 && (
+            <div className="px-3 py-2 border-b border-border bg-muted/30">
+              <p className="text-xs text-muted-foreground text-center">
+                {selectedDates.length} datas selecionadas
+              </p>
             </div>
           )}
         </div>

@@ -3,7 +3,7 @@ import { DollarSign, ShoppingCart, Receipt } from "lucide-react";
 import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
-import { LeadsTable } from "@/components/Dashboard/LeadsTable";
+import { LeadsTable, type LeadsFilters } from "@/components/Dashboard/LeadsTable";
 import { GenericTable } from "@/components/Dashboard/GenericTable";
 import { DetalhadoTable } from "@/components/Dashboard/DetalhadoTable";
 import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
@@ -47,6 +47,15 @@ const MKT_COLUMNS = [
 const Index = () => {
   const [activeTab, setActiveTab] = useState(TABS[0]);
   const [showNewLeadDialog, setShowNewLeadDialog] = useState(false);
+  const [leadsFilters, setLeadsFilters] = useState<LeadsFilters>({
+    data_registro: [],
+    canal: "",
+    nome: "",
+    orcamento: "",
+    venda: "",
+    entrar_em_contato: [],
+    medico: "",
+  });
   
   const schedules = useSchedules("Escala");
   const leads = useLeads();
@@ -63,8 +72,16 @@ const Index = () => {
     activeTab === "Detalhado" ? detalhado.isLoading :
     mkt.isLoading;
 
-  // Stats for Leads tab - by channel
+  // Stats for Leads tab - by channel (filtered by date if filter is active)
   const leadsStatsByChannel = useMemo(() => {
+    // First filter by date if filter is active
+    let baseLeads = leads.leads;
+    if (leadsFilters.data_registro.length > 0) {
+      baseLeads = leads.leads.filter(l => 
+        leadsFilters.data_registro.includes(l.data_registro || "")
+      );
+    }
+
     const calcStats = (filteredLeads: typeof leads.leads) => {
       const total = filteredLeads.length;
       const orcamentos = filteredLeads.filter((l) => l.orcamento === "Sim").length;
@@ -73,9 +90,9 @@ const Index = () => {
       return { leads: total, orcamentos, vendas, conversao };
     };
 
-    const suaVisaoLeads = leads.leads.filter(l => l.canal?.toLowerCase() === "sua visão");
-    const lojaLeads = leads.leads.filter(l => l.canal?.toLowerCase() === "loja");
-    const internetLeads = leads.leads.filter(l => 
+    const suaVisaoLeads = baseLeads.filter(l => l.canal?.toLowerCase() === "sua visão");
+    const lojaLeads = baseLeads.filter(l => l.canal?.toLowerCase() === "loja");
+    const internetLeads = baseLeads.filter(l => 
       l.canal?.toLowerCase() === "internet" || 
       l.canal?.toLowerCase() === "google" || 
       l.canal?.toLowerCase() === "facebook"
@@ -85,9 +102,9 @@ const Index = () => {
       suaVisao: calcStats(suaVisaoLeads),
       loja: calcStats(lojaLeads),
       internet: calcStats(internetLeads),
-      todos: calcStats(leads.leads),
+      todos: calcStats(baseLeads),
     };
-  }, [leads.leads]);
+  }, [leads.leads, leadsFilters.data_registro]);
 
   // Stats for Metas tab - Vendas e Faturamento por período
   const metasStats = useMemo(() => {
@@ -194,6 +211,7 @@ const Index = () => {
             leads={leads.leads}
             onUpdate={leads.updateLead}
             onDelete={leads.deleteLead}
+            onFiltersChange={setLeadsFilters}
           />
         );
       case "Indicadores":
