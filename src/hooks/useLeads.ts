@@ -40,7 +40,7 @@ export function useLeads() {
       const { data, error } = await supabase
         .from("leads")
         .select("*")
-        .order("data_registro", { ascending: true });
+        .order("data_registro", { ascending: false });
 
       if (error) throw error;
       setLeads(data || []);
