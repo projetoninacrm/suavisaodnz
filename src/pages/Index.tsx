@@ -5,13 +5,14 @@ import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
 import { LeadsTable, type LeadsFilters } from "@/components/Dashboard/LeadsTable";
 import { GenericTable } from "@/components/Dashboard/GenericTable";
-import { DetalhadoTable } from "@/components/Dashboard/DetalhadoTable";
+import { DetalhadoAmigoTable } from "@/components/Dashboard/DetalhadoAmigoTable";
 import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
 import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { StatsCard } from "@/components/Dashboard/StatsCard";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
+import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, parse, isWithinInterval, isToday, isValid } from "date-fns";
 
 const TABS = ["Agenda", "Leads", "Indicadores", "Metas", "Detalhado", "MKT"];
@@ -61,15 +62,14 @@ const Index = () => {
   const leads = useLeads();
   const indicadores = useGenericTable("indicadores");
   const metas = useGenericTable("metas");
-  const detalhado = useGenericTable("detalhado");
+  const detalhadoAmigo = useDetalhadoAmigo();
   const mkt = useGenericTable("mkt");
-
   const isLoading = 
     activeTab === "Agenda" ? schedules.isLoading :
     activeTab === "Leads" ? leads.isLoading :
     activeTab === "Indicadores" ? indicadores.isLoading :
     activeTab === "Metas" ? metas.isLoading :
-    activeTab === "Detalhado" ? detalhado.isLoading :
+    activeTab === "Detalhado" ? detalhadoAmigo.isLoading :
     mkt.isLoading;
 
   // Stats for Leads tab - by channel (filtered by date if filter is active)
@@ -139,24 +139,13 @@ const Index = () => {
       return date && isWithinInterval(date, { start: monthStart, end: monthEnd });
     }).length;
 
-    // Calculate faturamento from detalhado table (assuming it has valor column)
-    const calcFaturamento = (records: any[], start: Date, end: Date, checkToday = false) => {
-      return records.reduce((sum, r) => {
-        const date = parseDateStr(r.data);
-        if (!date) return sum;
-        const inPeriod = checkToday ? isToday(date) : isWithinInterval(date, { start, end });
-        if (!inPeriod) return sum;
-        const valor = parseFloat(String(r.valor || "0").replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
-        return sum + valor;
-      }, 0);
-    };
-
-    const faturamentoHoje = calcFaturamento(detalhado.records, today, today, true);
-    const faturamentoSemana = calcFaturamento(detalhado.records, weekStart, weekEnd);
-    const faturamentoMes = calcFaturamento(detalhado.records, monthStart, monthEnd);
+    // Faturamento - zerado por enquanto (dados vêm da API Amigo)
+    const faturamentoHoje = 0;
+    const faturamentoSemana = 0;
+    const faturamentoMes = 0;
 
     // Ticket médio
-    const ticketMedio = vendasMes > 0 ? faturamentoMes / vendasMes : 0;
+    const ticketMedio = 0;
 
     return {
       vendasHoje,
@@ -167,7 +156,7 @@ const Index = () => {
       faturamentoMes,
       ticketMedio
     };
-  }, [leads.leads, detalhado.records]);
+  }, [leads.leads]);
 
   const handleRefresh = () => {
     switch (activeTab) {
@@ -175,7 +164,7 @@ const Index = () => {
       case "Leads": leads.fetchLeads(); break;
       case "Indicadores": indicadores.fetchRecords(); break;
       case "Metas": metas.fetchRecords(); break;
-      case "Detalhado": detalhado.fetchRecords(); break;
+      case "Detalhado": detalhadoAmigo.refresh(); break;
       case "MKT": mkt.fetchRecords(); break;
     }
   };
@@ -186,7 +175,7 @@ const Index = () => {
       case "Leads": setShowNewLeadDialog(true); break;
       case "Indicadores": indicadores.addRecord(); break;
       case "Metas": metas.addRecord(); break;
-      case "Detalhado": detalhado.addRecord(); break;
+      case "Detalhado": break; // Detalhado agora é somente leitura da API
       case "MKT": mkt.addRecord(); break;
     }
   };
@@ -230,10 +219,12 @@ const Index = () => {
         );
       case "Detalhado":
         return (
-          <DetalhadoTable
-            records={detalhado.records}
-            onUpdate={detalhado.updateRecord}
-            onDelete={detalhado.deleteRecord}
+          <DetalhadoAmigoTable
+            attendances={detalhadoAmigo.attendances}
+            isLoading={detalhadoAmigo.isLoading}
+            dateRange={detalhadoAmigo.dateRange}
+            onDateRangeChange={detalhadoAmigo.updateDateRange}
+            onRefresh={detalhadoAmigo.refresh}
           />
         );
       case "MKT":
