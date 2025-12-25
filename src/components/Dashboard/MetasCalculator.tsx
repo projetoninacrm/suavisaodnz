@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Calculator, Settings, Target, TrendingUp, Zap } from "lucide-react";
+import { Calculator, Settings, Target, TrendingUp, Zap, Calendar, CalendarDays, CalendarRange } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +45,14 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
     const metaVendas = pacientesComparecem * (config.percentualConversao / 100);
 
     const superMeta = metaVendas * 1.2;
+    
+    // Metas por período
+    const metaMensal = metaVendas;
+    const metaDiaria = periodosComMedico > 0 ? metaVendas / periodosComMedico : 0;
+    const metaSemanal = metaVendas / 4;
+    const superMetaMensal = superMeta;
+    const superMetaDiaria = periodosComMedico > 0 ? superMeta / periodosComMedico : 0;
+    const superMetaSemanal = superMeta / 4;
 
     return {
       totalPacientes,
@@ -52,8 +60,14 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
       pacientesComparecem,
       metaVendas,
       superMeta,
+      metaMensal,
+      metaDiaria,
+      metaSemanal,
+      superMetaMensal,
+      superMetaDiaria,
+      superMetaSemanal,
     };
-  }, [config]);
+  }, [config, periodosComMedico]);
 
   return (
     <div className="space-y-6">
@@ -257,6 +271,99 @@ export function MetasCalculator({ periodosComMedico }: MetasCalculatorProps) {
               <p className="text-xs opacity-80 mt-1">
                 Meta + 20%
               </p>
+            </div>
+          </div>
+
+          {/* Metas por Período */}
+          <div className="mt-6">
+            <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" />
+              Metas por Período ({periodosComMedico} dias com médico)
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* Meta Diária */}
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CalendarDays className="h-4 w-4 text-blue-500" />
+                  <span className="text-xs font-medium text-muted-foreground">Meta Diária</span>
+                </div>
+                <p className="text-2xl font-bold text-blue-500">
+                  {calculations.metaDiaria.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {calculations.metaMensal.toFixed(1)} ÷ {periodosComMedico} dias
+                </p>
+              </div>
+
+              {/* Meta Semanal */}
+              <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CalendarRange className="h-4 w-4 text-indigo-500" />
+                  <span className="text-xs font-medium text-muted-foreground">Meta Semanal</span>
+                </div>
+                <p className="text-2xl font-bold text-indigo-500">
+                  {calculations.metaSemanal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {calculations.metaMensal.toFixed(1)} ÷ 4 semanas
+                </p>
+              </div>
+
+              {/* Meta Mensal */}
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-medium text-muted-foreground">Meta Mensal</span>
+                </div>
+                <p className="text-2xl font-bold text-primary">
+                  {calculations.metaMensal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Total do mês
+                </p>
+              </div>
+
+              {/* Super Meta Diária */}
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-amber-500" />
+                  <span className="text-xs font-medium text-muted-foreground">Super Diária</span>
+                </div>
+                <p className="text-2xl font-bold text-amber-500">
+                  {calculations.superMetaDiaria.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {calculations.superMetaMensal.toFixed(1)} ÷ {periodosComMedico} dias
+                </p>
+              </div>
+
+              {/* Super Meta Semanal */}
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-orange-500" />
+                  <span className="text-xs font-medium text-muted-foreground">Super Semanal</span>
+                </div>
+                <p className="text-2xl font-bold text-orange-500">
+                  {calculations.superMetaSemanal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {calculations.superMetaMensal.toFixed(1)} ÷ 4 semanas
+                </p>
+              </div>
+
+              {/* Super Meta Mensal */}
+              <div className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-amber-600" />
+                  <span className="text-xs font-medium text-muted-foreground">Super Mensal</span>
+                </div>
+                <p className="text-2xl font-bold text-amber-600">
+                  {calculations.superMetaMensal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Meta + 20%
+                </p>
+              </div>
             </div>
           </div>
 
