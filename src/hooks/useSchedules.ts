@@ -25,7 +25,7 @@ export function useSchedules(sheetName: string) {
         .from("schedules")
         .select("*")
         .eq("sheet_name", sheetName)
-        .order("created_at", { ascending: true });
+        .order("date", { ascending: true });
 
       if (error) throw error;
       setSchedules(data || []);
