@@ -238,10 +238,10 @@ export function AcompanhamentoDiarioSection({
                           <td className="px-3 py-2">
                             <Input
                               type="number"
-                              step="0.01"
+                              step="1"
                               min="0"
                               value={vendasReal || ""}
-                              onChange={(e) => onUpdateRegistro(schedule.date, "vendas_realizadas", parseFloat(e.target.value) || 0)}
+                              onChange={(e) => onUpdateRegistro(schedule.date, "vendas_realizadas", parseInt(e.target.value) || 0)}
                               className="h-8 w-20 text-center mx-auto"
                               placeholder="0"
                             />
@@ -275,10 +275,10 @@ export function AcompanhamentoDiarioSection({
                           <td className="px-3 py-2">
                             <Input
                               type="number"
-                              step="0.01"
+                              step="1"
                               min="0"
                               value={faturamentoReal || ""}
-                              onChange={(e) => onUpdateRegistro(schedule.date, "faturamento_realizado", parseFloat(e.target.value) || 0)}
+                              onChange={(e) => onUpdateRegistro(schedule.date, "faturamento_realizado", parseInt(e.target.value) || 0)}
                               className="h-8 w-24 text-center mx-auto"
                               placeholder="0"
                             />
