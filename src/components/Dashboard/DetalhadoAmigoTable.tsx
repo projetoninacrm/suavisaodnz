@@ -38,6 +38,7 @@ interface CombinedRecord {
   patient_name: string;
   patient_phone: string | null;
   patient_know_by: string | null;
+  event_name: string; // Tipo de atendimento da API
   // Campos editáveis do banco
   como_conheceu: string;
   receita: string;
@@ -90,6 +91,8 @@ export function DetalhadoAmigoTable({
         patient_name: att.patient_name,
         patient_phone: att.patient_phone,
         patient_know_by: att.patient_know_by,
+        event_name: att.event_name || "",
+        // Prioriza o valor do banco, mas usa o da API como fallback
         como_conheceu: dbRecord?.como_conheceu || att.patient_know_by || "",
         receita: dbRecord?.receita || "",
         visitou_loja: dbRecord?.visitou_loja || "",
@@ -290,6 +293,7 @@ export function DetalhadoAmigoTable({
                 <tr className="bg-table-header border-b border-table-border">
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[200px]">Nome</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">Telefone</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Tipo</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[130px]">Como Conheceu</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Receita</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Data</th>
@@ -322,6 +326,7 @@ export function DetalhadoAmigoTable({
                           )}
                         </div>
                       </td>
+                      <td className="px-3 py-2 text-sm">{record.event_name || "-"}</td>
                       <td className="px-1 py-1">
                         {record.dbId ? (
                           <EditableCell 
