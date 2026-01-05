@@ -188,6 +188,7 @@ const Index = () => {
             onRefresh={detalhadoAmigo.refresh}
             dbRecords={detalhadoDb.records}
             onUpdateDb={detalhadoDb.updateRecord}
+            onCreateDb={detalhadoDb.createRecord}
             onRefreshDb={detalhadoDb.fetchRecords}
           />
         );

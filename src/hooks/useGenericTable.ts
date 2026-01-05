@@ -126,6 +126,35 @@ export function useGenericTable(tableName: TableName, defaultValues: Record<stri
     }
   };
 
+  // Cria um registro com valores específicos e retorna o ID
+  const createRecord = async (values: Partial<GenericRecord>): Promise<string | null> => {
+    try {
+      let data: GenericRecord | null = null;
+      let error: Error | null = null;
+
+      if (tableName === "detalhado") {
+        const result = await supabase.from("detalhado").insert(values as Tables<"detalhado">).select().single();
+        data = result.data as GenericRecord | null;
+        error = result.error;
+      }
+
+      if (error) throw error;
+      if (data) {
+        setRecords((prev) => [...prev, data]);
+        return data.id;
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error creating record in ${tableName}:`, error);
+      toast({
+        title: "Erro ao criar",
+        description: "Não foi possível criar o registro.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   const deleteRecord = async (id: string) => {
     try {
       let error: Error | null = null;
@@ -161,5 +190,5 @@ export function useGenericTable(tableName: TableName, defaultValues: Record<stri
     fetchRecords();
   }, [tableName]);
 
-  return { records, isLoading, fetchRecords, updateRecord, addRecord, deleteRecord };
+  return { records, isLoading, fetchRecords, updateRecord, addRecord, createRecord, deleteRecord };
 }
