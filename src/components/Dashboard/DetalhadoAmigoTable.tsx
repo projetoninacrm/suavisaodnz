@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
 import { EditableCell } from "./EditableCell";
+import { YesNoSelectCell } from "./YesNoSelectCell";
 import { MultiSelectFilter } from "./MultiSelectFilter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -580,25 +581,25 @@ export function DetalhadoAmigoTable({
                         />
                       </td>
                       <td className="px-1 py-1">
-                        <EditableCell 
+                        <YesNoSelectCell 
                           value={record.receita} 
                           onSave={(v) => handleDbUpdate(record, "receita", v)} 
                           placeholder="Receita" 
                         />
                       </td>
                       <td className="px-1 py-1">
-                        <EditableCell 
+                        <YesNoSelectCell 
                           value={record.venda} 
                           onSave={(v) => handleDbUpdate(record, "venda", v)} 
-                          placeholder="Sim/Não" 
+                          placeholder="Venda" 
                         />
                       </td>
                       <td className="px-3 py-2 text-sm">{record.date}</td>
                       <td className="px-1 py-1">
-                        <EditableCell 
+                        <YesNoSelectCell 
                           value={record.visitou_loja} 
                           onSave={(v) => handleDbUpdate(record, "visitou_loja", v)} 
-                          placeholder="Sim/Não" 
+                          placeholder="Visitou" 
                         />
                       </td>
                     </tr>
