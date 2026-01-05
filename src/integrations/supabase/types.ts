@@ -56,6 +56,7 @@ export type Database = {
           receita: string | null
           telefone: string | null
           updated_at: string
+          venda: string | null
           visitou_loja: string | null
         }
         Insert: {
@@ -69,6 +70,7 @@ export type Database = {
           receita?: string | null
           telefone?: string | null
           updated_at?: string
+          venda?: string | null
           visitou_loja?: string | null
         }
         Update: {
@@ -82,6 +84,7 @@ export type Database = {
           receita?: string | null
           telefone?: string | null
           updated_at?: string
+          venda?: string | null
           visitou_loja?: string | null
         }
         Relationships: []
