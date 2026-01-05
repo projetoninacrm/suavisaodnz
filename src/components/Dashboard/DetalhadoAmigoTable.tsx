@@ -3,6 +3,7 @@ import { Filter, X, MessageCircle, Calendar, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
 import { EditableCell } from "./EditableCell";
+import { MultiSelectFilter } from "./MultiSelectFilter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -29,6 +30,8 @@ interface Filters {
   patient_phone: string;
   patient_know_by: string;
   data: string[];
+  como_conheceu: string[];
+  receita: string[];
 }
 
 // Tipo combinado: dados da API + dados editáveis do banco
@@ -62,6 +65,8 @@ export function DetalhadoAmigoTable({
     patient_phone: "",
     patient_know_by: "",
     data: [],
+    como_conheceu: [],
+    receita: [],
   });
 
   const [calendarRange, setCalendarRange] = useState<DateRange | undefined>({
@@ -107,6 +112,8 @@ export function DetalhadoAmigoTable({
     patient_phone: [...new Set(combinedRecords.map(r => r.patient_phone).filter(Boolean))] as string[],
     patient_know_by: [...new Set(combinedRecords.map(r => r.patient_know_by).filter(Boolean))] as string[],
     data: [...new Set(combinedRecords.map(r => r.date).filter(Boolean))] as string[],
+    como_conheceu: [...new Set(combinedRecords.map(r => r.como_conheceu).filter(Boolean))].sort() as string[],
+    receita: [...new Set(combinedRecords.map(r => r.receita).filter(Boolean))].sort() as string[],
   }), [combinedRecords]);
 
   const filteredRecords = useMemo(() => {
@@ -115,6 +122,16 @@ export function DetalhadoAmigoTable({
       if (filters.patient_phone && record.patient_phone !== filters.patient_phone) return false;
       if (filters.patient_know_by && record.patient_know_by !== filters.patient_know_by) return false;
       if (filters.data.length > 0 && !filters.data.includes(record.date || "")) return false;
+      // Filtro multi-select para Como Conheceu
+      if (filters.como_conheceu.length > 0) {
+        const value = record.como_conheceu || "";
+        if (!filters.como_conheceu.includes(value)) return false;
+      }
+      // Filtro multi-select para Receita
+      if (filters.receita.length > 0) {
+        const value = record.receita || "";
+        if (!filters.receita.includes(value)) return false;
+      }
       return true;
     });
   }, [combinedRecords, filters]);
@@ -129,6 +146,8 @@ export function DetalhadoAmigoTable({
       patient_phone: "",
       patient_know_by: "",
       data: [],
+      como_conheceu: [],
+      receita: [],
     });
   };
 
@@ -254,7 +273,7 @@ export function DetalhadoAmigoTable({
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nome</label>
             <FilterSelect
@@ -274,12 +293,32 @@ export function DetalhadoAmigoTable({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Como Conheceu</label>
+            <label className="text-xs text-muted-foreground">Como Conheceu (API)</label>
             <FilterSelect
               value={filters.patient_know_by}
               onChange={(v) => setFilters(f => ({ ...f, patient_know_by: v === "all" ? "" : v }))}
               options={uniqueValues.patient_know_by}
               placeholder="Todos"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Como Conheceu</label>
+            <MultiSelectFilter
+              options={uniqueValues.como_conheceu}
+              selectedValues={filters.como_conheceu}
+              onSelectionChange={(values) => setFilters(f => ({ ...f, como_conheceu: values }))}
+              placeholder="Todos"
+              emptyText="Nenhum valor preenchido"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Receita</label>
+            <MultiSelectFilter
+              options={uniqueValues.receita}
+              selectedValues={filters.receita}
+              onSelectionChange={(values) => setFilters(f => ({ ...f, receita: values }))}
+              placeholder="Todos"
+              emptyText="Nenhum valor preenchido"
             />
           </div>
           <div className="space-y-1">
