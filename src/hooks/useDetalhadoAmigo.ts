@@ -107,6 +107,17 @@ export function useDetalhadoAmigo() {
 
       console.log(`[useDetalhadoAmigo] Filtered to ${filteredAttendances.length} attendances from target place`);
 
+      // Log para debug do campo know_by
+      filteredAttendances.forEach((att) => {
+        if (att.patient?.name?.toLowerCase().includes('antonio')) {
+          console.log('[useDetalhadoAmigo] Antonio raw data:', {
+            name: att.patient?.name,
+            know_by: att.patient?.know_by,
+            full_patient: att.patient
+          });
+        }
+      });
+
       // Mapear para o formato desejado (com validação)
       const mapped: AmigoAttendance[] = filteredAttendances
         .map((att) => {
