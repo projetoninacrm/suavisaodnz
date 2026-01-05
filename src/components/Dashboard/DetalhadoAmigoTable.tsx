@@ -39,6 +39,7 @@ interface CombinedRecord {
   patient_phone: string | null;
   patient_know_by: string | null;
   // Campos editáveis do banco
+  como_conheceu: string;
   receita: string;
   visitou_loja: string;
 }
@@ -89,6 +90,7 @@ export function DetalhadoAmigoTable({
         patient_name: att.patient_name,
         patient_phone: att.patient_phone,
         patient_know_by: att.patient_know_by,
+        como_conheceu: dbRecord?.como_conheceu || att.patient_know_by || "",
         receita: dbRecord?.receita || "",
         visitou_loja: dbRecord?.visitou_loja || "",
       };
@@ -320,7 +322,17 @@ export function DetalhadoAmigoTable({
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-sm">{record.patient_know_by || "-"}</td>
+                      <td className="px-1 py-1">
+                        {record.dbId ? (
+                          <EditableCell 
+                            value={record.como_conheceu} 
+                            onSave={(v) => handleDbUpdate(record, "como_conheceu", v)} 
+                            placeholder="Como Conheceu" 
+                          />
+                        ) : (
+                          <span className="px-3 text-sm text-muted-foreground">{record.patient_know_by || "-"}</span>
+                        )}
+                      </td>
                       <td className="px-1 py-1">
                         {record.dbId ? (
                           <EditableCell 
