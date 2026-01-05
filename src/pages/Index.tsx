@@ -4,13 +4,14 @@ import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
 import { LeadsTable, type LeadsFilters } from "@/components/Dashboard/LeadsTable";
 import { GenericTable } from "@/components/Dashboard/GenericTable";
-import { DetalhadoTable } from "@/components/Dashboard/DetalhadoTable";
+import { DetalhadoAmigoTable } from "@/components/Dashboard/DetalhadoAmigoTable";
 import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
 import { MetasCalculator } from "@/components/Dashboard/MetasCalculator";
 import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
+import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 
 const TABS = ["Agenda", "Leads", "Indicadores", "Metas", "Detalhado", "MKT"];
@@ -51,7 +52,8 @@ const Index = () => {
   const schedules = useSchedules("Escala");
   const leads = useLeads();
   const indicadores = useGenericTable("indicadores");
-  const detalhado = useGenericTable("detalhado");
+  const detalhadoAmigo = useDetalhadoAmigo();
+  const detalhadoDb = useGenericTable("detalhado");
   const mkt = useGenericTable("mkt");
   const acompanhamento = useAcompanhamentoDiario();
   const isLoading = 
@@ -59,7 +61,7 @@ const Index = () => {
     activeTab === "Leads" ? leads.isLoading :
     activeTab === "Indicadores" ? indicadores.isLoading :
     activeTab === "Metas" ? false :
-    activeTab === "Detalhado" ? detalhado.isLoading :
+    activeTab === "Detalhado" ? detalhadoAmigo.isLoading :
     mkt.isLoading;
 
   // Stats for Leads tab - by channel (filtered by date if filter is active)
@@ -123,7 +125,7 @@ const Index = () => {
       case "Leads": leads.fetchLeads(); break;
       case "Indicadores": indicadores.fetchRecords(); break;
       case "Metas": schedules.fetchSchedules(); break; // Refresh agenda para atualizar períodos
-      case "Detalhado": detalhado.fetchRecords(); break;
+      case "Detalhado": detalhadoAmigo.refresh(); break;
       case "MKT": mkt.fetchRecords(); break;
     }
   };
@@ -178,10 +180,15 @@ const Index = () => {
         );
       case "Detalhado":
         return (
-          <DetalhadoTable
-            records={detalhado.records}
-            onUpdate={detalhado.updateRecord}
-            onDelete={() => {}}
+          <DetalhadoAmigoTable
+            attendances={detalhadoAmigo.attendances}
+            isLoading={detalhadoAmigo.isLoading}
+            dateRange={detalhadoAmigo.dateRange}
+            onDateRangeChange={detalhadoAmigo.updateDateRange}
+            onRefresh={detalhadoAmigo.refresh}
+            dbRecords={detalhadoDb.records}
+            onUpdateDb={detalhadoDb.updateRecord}
+            onRefreshDb={detalhadoDb.fetchRecords}
           />
         );
       case "MKT":

@@ -1,13 +1,15 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Filter, X, MessageCircle, Calendar, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
+import { EditableCell } from "./EditableCell";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { AmigoAttendance } from "@/hooks/useDetalhadoAmigo";
+import type { GenericRecord } from "@/hooks/useGenericTable";
 import type { DateRange } from "react-day-picker";
 
 interface DetalhadoAmigoTableProps {
@@ -16,6 +18,9 @@ interface DetalhadoAmigoTableProps {
   dateRange: { start: Date; end: Date };
   onDateRangeChange: (start: Date, end: Date) => void;
   onRefresh: () => void;
+  dbRecords: GenericRecord[];
+  onUpdateDb: (id: string, field: string, value: string) => void;
+  onRefreshDb: () => void;
 }
 
 interface Filters {
@@ -25,12 +30,28 @@ interface Filters {
   data: string[];
 }
 
+// Tipo combinado: dados da API + dados editáveis do banco
+interface CombinedRecord {
+  apiId: string;
+  dbId: string | null;
+  date: string;
+  patient_name: string;
+  patient_phone: string | null;
+  patient_know_by: string | null;
+  // Campos editáveis do banco
+  receita: string;
+  visitou_loja: string;
+}
+
 export function DetalhadoAmigoTable({ 
   attendances, 
   isLoading, 
   dateRange,
   onDateRangeChange,
-  onRefresh 
+  onRefresh,
+  dbRecords,
+  onUpdateDb,
+  onRefreshDb
 }: DetalhadoAmigoTableProps) {
   const [filters, setFilters] = useState<Filters>({
     patient_name: "",
@@ -44,22 +65,52 @@ export function DetalhadoAmigoTable({
     to: dateRange.end,
   });
 
+  // Carregar dados do banco quando a API retornar
+  useEffect(() => {
+    if (attendances.length > 0) {
+      onRefreshDb();
+    }
+  }, [attendances.length]);
+
+  // Combinar dados da API com dados do banco
+  const combinedRecords = useMemo((): CombinedRecord[] => {
+    return attendances.map(att => {
+      // Procurar registro no banco pelo nome e data (ou telefone)
+      const dbRecord = dbRecords.find(db => 
+        db.nome === att.patient_name && db.data === att.date
+      ) || dbRecords.find(db =>
+        db.telefone === att.patient_phone && db.data === att.date
+      );
+
+      return {
+        apiId: att.id,
+        dbId: dbRecord?.id || null,
+        date: att.date,
+        patient_name: att.patient_name,
+        patient_phone: att.patient_phone,
+        patient_know_by: att.patient_know_by,
+        receita: dbRecord?.receita || "",
+        visitou_loja: dbRecord?.visitou_loja || "",
+      };
+    });
+  }, [attendances, dbRecords]);
+
   const uniqueValues = useMemo(() => ({
-    patient_name: [...new Set(attendances.map(r => r.patient_name).filter(Boolean))] as string[],
-    patient_phone: [...new Set(attendances.map(r => r.patient_phone).filter(Boolean))] as string[],
-    patient_know_by: [...new Set(attendances.map(r => r.patient_know_by).filter(Boolean))] as string[],
-    data: [...new Set(attendances.map(r => r.date).filter(Boolean))] as string[],
-  }), [attendances]);
+    patient_name: [...new Set(combinedRecords.map(r => r.patient_name).filter(Boolean))] as string[],
+    patient_phone: [...new Set(combinedRecords.map(r => r.patient_phone).filter(Boolean))] as string[],
+    patient_know_by: [...new Set(combinedRecords.map(r => r.patient_know_by).filter(Boolean))] as string[],
+    data: [...new Set(combinedRecords.map(r => r.date).filter(Boolean))] as string[],
+  }), [combinedRecords]);
 
   const filteredRecords = useMemo(() => {
-    return attendances.filter(record => {
+    return combinedRecords.filter(record => {
       if (filters.patient_name && record.patient_name !== filters.patient_name) return false;
       if (filters.patient_phone && record.patient_phone !== filters.patient_phone) return false;
       if (filters.patient_know_by && record.patient_know_by !== filters.patient_know_by) return false;
       if (filters.data.length > 0 && !filters.data.includes(record.date || "")) return false;
       return true;
     });
-  }, [attendances, filters]);
+  }, [combinedRecords, filters]);
 
   const hasActiveFilters = Object.entries(filters).some(([, value]) => 
     Array.isArray(value) ? value.length > 0 : value !== ""
@@ -91,6 +142,15 @@ export function DetalhadoAmigoTable({
     if (range?.from && range?.to) {
       onDateRangeChange(range.from, range.to);
     }
+  };
+
+  // Handler para editar campos do banco (receita e visitou_loja)
+  const handleDbUpdate = (record: CombinedRecord, field: string, value: string) => {
+    if (record.dbId) {
+      // Atualizar registro existente no banco
+      onUpdateDb(record.dbId, field, value);
+    }
+    // Se não existe no banco, o usuário precisa primeiro importar via import-attendances
   };
 
   const FilterSelect = ({ 
@@ -239,7 +299,7 @@ export function DetalhadoAmigoTable({
                   const whatsappNumber = formatPhoneForWhatsApp(record.patient_phone);
                   return (
                     <tr 
-                      key={record.id} 
+                      key={record.apiId} 
                       className="table-cell-hover animate-slide-in"
                       style={{ animationDelay: `${index * 15}ms` }}
                     >
@@ -261,9 +321,29 @@ export function DetalhadoAmigoTable({
                         </div>
                       </td>
                       <td className="px-3 py-2 text-sm">{record.patient_know_by || "-"}</td>
-                      <td className="px-3 py-2 text-sm">-</td>
+                      <td className="px-1 py-1">
+                        {record.dbId ? (
+                          <EditableCell 
+                            value={record.receita} 
+                            onSave={(v) => handleDbUpdate(record, "receita", v)} 
+                            placeholder="Receita" 
+                          />
+                        ) : (
+                          <span className="px-3 text-sm text-muted-foreground">-</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-sm">{record.date}</td>
-                      <td className="px-3 py-2 text-sm">-</td>
+                      <td className="px-1 py-1">
+                        {record.dbId ? (
+                          <EditableCell 
+                            value={record.visitou_loja} 
+                            onSave={(v) => handleDbUpdate(record, "visitou_loja", v)} 
+                            placeholder="Sim/Não" 
+                          />
+                        ) : (
+                          <span className="px-3 text-sm text-muted-foreground">-</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
