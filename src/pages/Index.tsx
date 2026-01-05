@@ -4,14 +4,13 @@ import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
 import { LeadsTable, type LeadsFilters } from "@/components/Dashboard/LeadsTable";
 import { GenericTable } from "@/components/Dashboard/GenericTable";
-import { DetalhadoAmigoTable } from "@/components/Dashboard/DetalhadoAmigoTable";
+import { DetalhadoTable } from "@/components/Dashboard/DetalhadoTable";
 import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
 import { MetasCalculator } from "@/components/Dashboard/MetasCalculator";
 import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
-import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 
 const TABS = ["Agenda", "Leads", "Indicadores", "Metas", "Detalhado", "MKT"];
@@ -52,7 +51,7 @@ const Index = () => {
   const schedules = useSchedules("Escala");
   const leads = useLeads();
   const indicadores = useGenericTable("indicadores");
-  const detalhadoAmigo = useDetalhadoAmigo();
+  const detalhado = useGenericTable("detalhado");
   const mkt = useGenericTable("mkt");
   const acompanhamento = useAcompanhamentoDiario();
   const isLoading = 
@@ -60,7 +59,7 @@ const Index = () => {
     activeTab === "Leads" ? leads.isLoading :
     activeTab === "Indicadores" ? indicadores.isLoading :
     activeTab === "Metas" ? false :
-    activeTab === "Detalhado" ? detalhadoAmigo.isLoading :
+    activeTab === "Detalhado" ? detalhado.isLoading :
     mkt.isLoading;
 
   // Stats for Leads tab - by channel (filtered by date if filter is active)
@@ -124,7 +123,7 @@ const Index = () => {
       case "Leads": leads.fetchLeads(); break;
       case "Indicadores": indicadores.fetchRecords(); break;
       case "Metas": schedules.fetchSchedules(); break; // Refresh agenda para atualizar períodos
-      case "Detalhado": detalhadoAmigo.refresh(); break;
+      case "Detalhado": detalhado.fetchRecords(); break;
       case "MKT": mkt.fetchRecords(); break;
     }
   };
@@ -135,7 +134,7 @@ const Index = () => {
       case "Leads": setShowNewLeadDialog(true); break;
       case "Indicadores": indicadores.addRecord(); break;
       case "Metas": break; // Metas não precisa adicionar linhas
-      case "Detalhado": break; // Detalhado agora é somente leitura da API
+      case "Detalhado": break; // Detalhado usa dados do banco
       case "MKT": mkt.addRecord(); break;
     }
   };
@@ -179,12 +178,10 @@ const Index = () => {
         );
       case "Detalhado":
         return (
-          <DetalhadoAmigoTable
-            attendances={detalhadoAmigo.attendances}
-            isLoading={detalhadoAmigo.isLoading}
-            dateRange={detalhadoAmigo.dateRange}
-            onDateRangeChange={detalhadoAmigo.updateDateRange}
-            onRefresh={detalhadoAmigo.refresh}
+          <DetalhadoTable
+            records={detalhado.records}
+            onUpdate={detalhado.updateRecord}
+            onDelete={() => {}}
           />
         );
       case "MKT":
