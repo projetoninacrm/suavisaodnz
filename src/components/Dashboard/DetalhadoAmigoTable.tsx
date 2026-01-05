@@ -264,7 +264,7 @@ export function DetalhadoAmigoTable({
   return (
     <div className="space-y-4">
       {/* Métricas / Kanbans */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 animate-fade-in">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
         {/* Total de Leads */}
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="p-4">
@@ -273,6 +273,74 @@ export function DetalhadoAmigoTable({
               <span className="text-xs font-medium text-muted-foreground">Total Leads</span>
             </div>
             <p className="text-2xl font-bold text-foreground">{metrics.uniqueLeads}</p>
+          </CardContent>
+        </Card>
+
+        {/* Como Conheceu - Filtro Clicável */}
+        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20 md:col-span-2">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4 text-purple-500" />
+                <span className="text-xs font-medium text-muted-foreground">Como Conheceu</span>
+              </div>
+              {filters.como_conheceu.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setFilters(f => ({ ...f, como_conheceu: [] }))}
+                  className="h-6 text-xs px-2"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Limpar
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+              {Object.entries(metrics.byComoConheceu)
+                .sort((a, b) => b[1] - a[1])
+                .map(([origem, count]) => {
+                  const isSelected = filters.como_conheceu.length === 0 || filters.como_conheceu.includes(origem);
+                  return (
+                    <button
+                      key={origem}
+                      onClick={() => {
+                        setFilters(f => {
+                          const current = f.como_conheceu;
+                          if (current.length === 0) {
+                            // Se nenhum selecionado, seleciona apenas este
+                            return { ...f, como_conheceu: [origem] };
+                          } else if (current.includes(origem)) {
+                            // Remove se já está selecionado
+                            const next = current.filter(v => v !== origem);
+                            return { ...f, como_conheceu: next };
+                          } else {
+                            // Adiciona ao filtro
+                            return { ...f, como_conheceu: [...current, origem] };
+                          }
+                        });
+                      }}
+                      className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-all border ${
+                        isSelected 
+                          ? "bg-purple-500/20 border-purple-500/40 text-foreground" 
+                          : "bg-muted/30 border-border text-muted-foreground opacity-50"
+                      }`}
+                    >
+                      <span className="truncate max-w-[100px]">{origem}</span>
+                      <span className={`font-semibold px-1.5 py-0.5 rounded text-[10px] ${
+                        isSelected ? "bg-purple-500/30 text-purple-700 dark:text-purple-300" : "bg-muted"
+                      }`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
+            {filters.como_conheceu.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {filters.como_conheceu.length} selecionado(s) • {filteredRecords.length} leads
+              </p>
+            )}
           </CardContent>
         </Card>
         
@@ -287,17 +355,6 @@ export function DetalhadoAmigoTable({
           </CardContent>
         </Card>
         
-        {/* Receita = Não */}
-        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-4 h-4 text-orange-500" />
-              <span className="text-xs font-medium text-muted-foreground">Receita Não</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.receitaNao}</p>
-          </CardContent>
-        </Card>
-        
         {/* Visitou DNZ */}
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
           <CardContent className="p-4">
@@ -309,31 +366,6 @@ export function DetalhadoAmigoTable({
           </CardContent>
         </Card>
       </div>
-
-      {/* Cards dinâmicos por Como Conheceu */}
-      {Object.keys(metrics.byComoConheceu).length > 0 && (
-        <div className="bg-card rounded-xl border border-border p-4 card-shadow animate-fade-in">
-          <div className="flex items-center gap-2 mb-3">
-            <Tag className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">Leads por Origem (Como Conheceu)</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(metrics.byComoConheceu)
-              .sort((a, b) => b[1] - a[1])
-              .map(([origem, count]) => (
-                <div 
-                  key={origem} 
-                  className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 border border-border"
-                >
-                  <span className="text-sm text-foreground">{origem}</span>
-                  <span className="bg-primary/20 text-primary text-xs font-semibold px-2 py-0.5 rounded-full">
-                    {count}
-                  </span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
 
       {/* Date Range Selector */}
       <div className="bg-card rounded-xl border border-border p-4 card-shadow animate-fade-in">
