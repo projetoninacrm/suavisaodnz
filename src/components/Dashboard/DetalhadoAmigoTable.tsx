@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Store, Tag } from "lucide-react";
+import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Store, Tag, ChevronDown, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
@@ -227,17 +227,33 @@ export function DetalhadoAmigoTable({
     </Select>
   );
 
+  // Registros filtrados SEM o filtro de como_conheceu (para calcular total do período)
+  const recordsWithoutComoConheceuFilter = useMemo(() => {
+    return combinedRecords.filter(record => {
+      if (filters.patient_name && record.patient_name !== filters.patient_name) return false;
+      if (filters.data.length > 0 && !filters.data.includes(record.date || "")) return false;
+      if (filters.receita.length > 0) {
+        const value = record.receita || "";
+        if (!filters.receita.includes(value)) return false;
+      }
+      return true;
+    });
+  }, [combinedRecords, filters.patient_name, filters.data, filters.receita]);
+
   // Métricas calculadas baseadas nos filtros ativos
   const metrics = useMemo(() => {
-    // Total de leads únicos (por nome)
-    const uniqueLeads = new Set(filteredRecords.map(r => r.patient_name)).size;
+    // Total de leads únicos DO PERÍODO (sem considerar filtro de como_conheceu)
+    const totalLeadsPeriodo = new Set(recordsWithoutComoConheceuFilter.map(r => r.patient_name)).size;
     
-    // Agrupamento por "como_conheceu"
+    // Agrupamento por "como_conheceu" (do período, sem filtro)
     const byComoConheceu: Record<string, number> = {};
-    filteredRecords.forEach(r => {
+    recordsWithoutComoConheceuFilter.forEach(r => {
       const key = r.como_conheceu || "Não informado";
       byComoConheceu[key] = (byComoConheceu[key] || 0) + 1;
     });
+    
+    // Leads filtrados (com filtro de como_conheceu aplicado)
+    const leadsFiltrados = new Set(filteredRecords.map(r => r.patient_name)).size;
     
     // Receita Sim / Não
     const receitaSim = filteredRecords.filter(r => 
@@ -253,92 +269,102 @@ export function DetalhadoAmigoTable({
     ).length;
     
     return {
-      uniqueLeads,
+      totalLeadsPeriodo,
+      leadsFiltrados,
       byComoConheceu,
       receitaSim,
       receitaNao,
       visitouDnz
     };
-  }, [filteredRecords]);
+  }, [recordsWithoutComoConheceuFilter, filteredRecords]);
 
   return (
     <div className="space-y-4">
       {/* Métricas / Kanbans */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
-        {/* Total de Leads */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 animate-fade-in">
+        {/* Total de Leads (do período, sem filtro como_conheceu) */}
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Users className="w-4 h-4 text-primary" />
               <span className="text-xs font-medium text-muted-foreground">Total Leads</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.uniqueLeads}</p>
+            <p className="text-2xl font-bold text-foreground">{metrics.totalLeadsPeriodo}</p>
           </CardContent>
         </Card>
 
-        {/* Como Conheceu - Filtro Clicável */}
-        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20 md:col-span-2">
+        {/* Como Conheceu - Dropdown com Checkboxes */}
+        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-purple-500" />
-                <span className="text-xs font-medium text-muted-foreground">Como Conheceu</span>
-              </div>
-              {filters.como_conheceu.length > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setFilters(f => ({ ...f, como_conheceu: [] }))}
-                  className="h-6 text-xs px-2"
-                >
-                  <X className="w-3 h-3 mr-1" />
-                  Limpar
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="w-4 h-4 text-purple-500" />
+              <span className="text-xs font-medium text-muted-foreground">Como Conheceu</span>
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full h-9 justify-between text-sm">
+                  <span className="truncate">
+                    {filters.como_conheceu.length === 0 
+                      ? "Todos" 
+                      : `${filters.como_conheceu.length} selecionado(s)`}
+                  </span>
+                  <ChevronDown className="w-4 h-4 ml-2 shrink-0" />
                 </Button>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-              {Object.entries(metrics.byComoConheceu)
-                .sort((a, b) => b[1] - a[1])
-                .map(([origem, count]) => {
-                  const isSelected = filters.como_conheceu.length === 0 || filters.como_conheceu.includes(origem);
-                  return (
-                    <button
-                      key={origem}
-                      onClick={() => {
-                        setFilters(f => {
-                          const current = f.como_conheceu;
-                          if (current.length === 0) {
-                            // Se nenhum selecionado, seleciona apenas este
-                            return { ...f, como_conheceu: [origem] };
-                          } else if (current.includes(origem)) {
-                            // Remove se já está selecionado
-                            const next = current.filter(v => v !== origem);
-                            return { ...f, como_conheceu: next };
-                          } else {
-                            // Adiciona ao filtro
-                            return { ...f, como_conheceu: [...current, origem] };
-                          }
-                        });
-                      }}
-                      className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-all border ${
-                        isSelected 
-                          ? "bg-purple-500/20 border-purple-500/40 text-foreground" 
-                          : "bg-muted/30 border-border text-muted-foreground opacity-50"
-                      }`}
-                    >
-                      <span className="truncate max-w-[100px]">{origem}</span>
-                      <span className={`font-semibold px-1.5 py-0.5 rounded text-[10px] ${
-                        isSelected ? "bg-purple-500/30 text-purple-700 dark:text-purple-300" : "bg-muted"
-                      }`}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-            </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0 bg-popover border-border" align="start">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                  <button
+                    className="text-sm text-foreground hover:underline"
+                    onClick={() => setFilters(f => ({ 
+                      ...f, 
+                      como_conheceu: Object.keys(metrics.byComoConheceu) 
+                    }))}
+                  >
+                    Marcar todos
+                  </button>
+                  <X className="w-4 h-4 text-muted-foreground" />
+                  <button
+                    className="text-sm text-foreground hover:underline"
+                    onClick={() => setFilters(f => ({ ...f, como_conheceu: [] }))}
+                  >
+                    Limpar
+                  </button>
+                </div>
+                <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                  {Object.entries(metrics.byComoConheceu)
+                    .sort((a, b) => a[0].localeCompare(b[0]))
+                    .map(([origem, count]) => {
+                      const isSelected = filters.como_conheceu.includes(origem);
+                      return (
+                        <button
+                          key={origem}
+                          onClick={() => {
+                            setFilters(f => {
+                              const current = f.como_conheceu;
+                              if (current.includes(origem)) {
+                                return { ...f, como_conheceu: current.filter(v => v !== origem) };
+                              } else {
+                                return { ...f, como_conheceu: [...current, origem] };
+                              }
+                            });
+                          }}
+                          className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-muted/50 text-left"
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            isSelected ? "bg-primary border-primary" : "border-border"
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                          </div>
+                          <span className="text-sm text-foreground truncate flex-1">{origem}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </PopoverContent>
+            </Popover>
             {filters.como_conheceu.length > 0 && (
               <p className="text-xs text-muted-foreground mt-2">
-                {filters.como_conheceu.length} selecionado(s) • {filteredRecords.length} leads
+                {metrics.leadsFiltrados} leads
               </p>
             )}
           </CardContent>
