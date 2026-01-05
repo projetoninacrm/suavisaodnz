@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { Filter, X, MessageCircle, Calendar, RefreshCw } from "lucide-react";
+import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Store, Tag } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
 import { EditableCell } from "./EditableCell";
@@ -226,8 +227,114 @@ export function DetalhadoAmigoTable({
     </Select>
   );
 
+  // Métricas calculadas baseadas nos filtros ativos
+  const metrics = useMemo(() => {
+    // Total de leads únicos (por nome)
+    const uniqueLeads = new Set(filteredRecords.map(r => r.patient_name)).size;
+    
+    // Agrupamento por "como_conheceu"
+    const byComoConheceu: Record<string, number> = {};
+    filteredRecords.forEach(r => {
+      const key = r.como_conheceu || "Não informado";
+      byComoConheceu[key] = (byComoConheceu[key] || 0) + 1;
+    });
+    
+    // Receita Sim / Não
+    const receitaSim = filteredRecords.filter(r => 
+      r.receita?.toLowerCase() === "sim"
+    ).length;
+    const receitaNao = filteredRecords.filter(r => 
+      r.receita?.toLowerCase() === "não" || r.receita?.toLowerCase() === "nao"
+    ).length;
+    
+    // Visitou DNZ
+    const visitouDnz = filteredRecords.filter(r => 
+      r.visitou_loja?.toLowerCase() === "sim"
+    ).length;
+    
+    return {
+      uniqueLeads,
+      byComoConheceu,
+      receitaSim,
+      receitaNao,
+      visitouDnz
+    };
+  }, [filteredRecords]);
+
   return (
     <div className="space-y-4">
+      {/* Métricas / Kanbans */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 animate-fade-in">
+        {/* Total de Leads */}
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-4 h-4 text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">Total Leads</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.uniqueLeads}</p>
+          </CardContent>
+        </Card>
+        
+        {/* Receita = Sim */}
+        <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-green-500" />
+              <span className="text-xs font-medium text-muted-foreground">Receita Sim</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.receitaSim}</p>
+          </CardContent>
+        </Card>
+        
+        {/* Receita = Não */}
+        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-orange-500" />
+              <span className="text-xs font-medium text-muted-foreground">Receita Não</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.receitaNao}</p>
+          </CardContent>
+        </Card>
+        
+        {/* Visitou DNZ */}
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Store className="w-4 h-4 text-blue-500" />
+              <span className="text-xs font-medium text-muted-foreground">Visitou DNZ</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.visitouDnz}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Cards dinâmicos por Como Conheceu */}
+      {Object.keys(metrics.byComoConheceu).length > 0 && (
+        <div className="bg-card rounded-xl border border-border p-4 card-shadow animate-fade-in">
+          <div className="flex items-center gap-2 mb-3">
+            <Tag className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">Leads por Origem (Como Conheceu)</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(metrics.byComoConheceu)
+              .sort((a, b) => b[1] - a[1])
+              .map(([origem, count]) => (
+                <div 
+                  key={origem} 
+                  className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 border border-border"
+                >
+                  <span className="text-sm text-foreground">{origem}</span>
+                  <span className="bg-primary/20 text-primary text-xs font-semibold px-2 py-0.5 rounded-full">
+                    {count}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Date Range Selector */}
       <div className="bg-card rounded-xl border border-border p-4 card-shadow animate-fade-in">
         <div className="flex items-center gap-4 flex-wrap">
