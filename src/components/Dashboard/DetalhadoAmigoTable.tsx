@@ -27,8 +27,6 @@ interface DetalhadoAmigoTableProps {
 
 interface Filters {
   patient_name: string;
-  patient_phone: string;
-  patient_know_by: string;
   data: string[];
   como_conheceu: string[];
   receita: string[];
@@ -62,8 +60,6 @@ export function DetalhadoAmigoTable({
 }: DetalhadoAmigoTableProps) {
   const [filters, setFilters] = useState<Filters>({
     patient_name: "",
-    patient_phone: "",
-    patient_know_by: "",
     data: [],
     como_conheceu: [],
     receita: [],
@@ -107,20 +103,36 @@ export function DetalhadoAmigoTable({
     });
   }, [attendances, dbRecords]);
 
-  const uniqueValues = useMemo(() => ({
-    patient_name: [...new Set(combinedRecords.map(r => r.patient_name).filter(Boolean))] as string[],
-    patient_phone: [...new Set(combinedRecords.map(r => r.patient_phone).filter(Boolean))] as string[],
-    patient_know_by: [...new Set(combinedRecords.map(r => r.patient_know_by).filter(Boolean))] as string[],
-    data: [...new Set(combinedRecords.map(r => r.date).filter(Boolean))] as string[],
-    como_conheceu: [...new Set(combinedRecords.map(r => r.como_conheceu).filter(Boolean))].sort() as string[],
-    receita: [...new Set(combinedRecords.map(r => r.receita).filter(Boolean))].sort() as string[],
-  }), [combinedRecords]);
+  // Buscar valores únicos do banco para os filtros (além da API)
+  const uniqueValuesFromDb = useMemo(() => {
+    const comoConheceuDb = dbRecords.map(r => r.como_conheceu).filter(Boolean) as string[];
+    const receitaDb = dbRecords.map(r => r.receita).filter(Boolean) as string[];
+    return { comoConheceuDb, receitaDb };
+  }, [dbRecords]);
+
+  const uniqueValues = useMemo(() => {
+    // Combinar valores da API + banco para os filtros
+    const allComoConheceu = [
+      ...combinedRecords.map(r => r.como_conheceu),
+      ...uniqueValuesFromDb.comoConheceuDb
+    ].filter(Boolean);
+    
+    const allReceita = [
+      ...combinedRecords.map(r => r.receita),
+      ...uniqueValuesFromDb.receitaDb
+    ].filter(Boolean);
+
+    return {
+      patient_name: [...new Set(combinedRecords.map(r => r.patient_name).filter(Boolean))] as string[],
+      data: [...new Set(combinedRecords.map(r => r.date).filter(Boolean))] as string[],
+      como_conheceu: [...new Set(allComoConheceu)].sort() as string[],
+      receita: [...new Set(allReceita)].sort() as string[],
+    };
+  }, [combinedRecords, uniqueValuesFromDb]);
 
   const filteredRecords = useMemo(() => {
     return combinedRecords.filter(record => {
       if (filters.patient_name && record.patient_name !== filters.patient_name) return false;
-      if (filters.patient_phone && record.patient_phone !== filters.patient_phone) return false;
-      if (filters.patient_know_by && record.patient_know_by !== filters.patient_know_by) return false;
       if (filters.data.length > 0 && !filters.data.includes(record.date || "")) return false;
       // Filtro multi-select para Como Conheceu
       if (filters.como_conheceu.length > 0) {
@@ -143,8 +155,6 @@ export function DetalhadoAmigoTable({
   const clearFilters = () => {
     setFilters({
       patient_name: "",
-      patient_phone: "",
-      patient_know_by: "",
       data: [],
       como_conheceu: [],
       receita: [],
@@ -273,31 +283,13 @@ export function DetalhadoAmigoTable({
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nome</label>
             <FilterSelect
               value={filters.patient_name}
               onChange={(v) => setFilters(f => ({ ...f, patient_name: v === "all" ? "" : v }))}
               options={uniqueValues.patient_name}
-              placeholder="Todos"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Telefone</label>
-            <FilterSelect
-              value={filters.patient_phone}
-              onChange={(v) => setFilters(f => ({ ...f, patient_phone: v === "all" ? "" : v }))}
-              options={uniqueValues.patient_phone}
-              placeholder="Todos"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Como Conheceu (API)</label>
-            <FilterSelect
-              value={filters.patient_know_by}
-              onChange={(v) => setFilters(f => ({ ...f, patient_know_by: v === "all" ? "" : v }))}
-              options={uniqueValues.patient_know_by}
               placeholder="Todos"
             />
           </div>
