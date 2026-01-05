@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Store, Tag, ChevronDown, Check } from "lucide-react";
+import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
@@ -42,10 +42,11 @@ interface CombinedRecord {
   patient_phone: string | null;
   patient_know_by: string | null;
   event_name: string; // Tipo de atendimento da API
-  // Campos editáveis do banco
+// Campos editáveis do banco
   como_conheceu: string;
   receita: string;
   visitou_loja: string;
+  venda: string;
 }
 
 export function DetalhadoAmigoTable({ 
@@ -100,6 +101,7 @@ export function DetalhadoAmigoTable({
         como_conheceu: dbRecord?.como_conheceu || att.patient_know_by || "",
         receita: dbRecord?.receita || "",
         visitou_loja: dbRecord?.visitou_loja || "",
+        venda: (dbRecord as any)?.venda || "",
       };
     });
   }, [attendances, dbRecords]);
@@ -242,71 +244,94 @@ export function DetalhadoAmigoTable({
 
   // Métricas calculadas baseadas nos filtros ativos
   const metrics = useMemo(() => {
-    // Total de leads únicos DO PERÍODO (sem considerar filtro de como_conheceu)
-    const totalLeadsPeriodo = new Set(recordsWithoutComoConheceuFilter.map(r => r.patient_name)).size;
+    // Consultas = Total de leads do período (sem filtro como_conheceu)
+    const consultas = recordsWithoutComoConheceuFilter.length;
     
-    // Agrupamento por "como_conheceu" (do período, sem filtro)
-    const byComoConheceu: Record<string, number> = {};
-    recordsWithoutComoConheceuFilter.forEach(r => {
-      const key = r.como_conheceu || "Não informado";
-      byComoConheceu[key] = (byComoConheceu[key] || 0) + 1;
-    });
-    
-    // Leads filtrados (com filtro de como_conheceu aplicado)
-    const leadsFiltrados = new Set(filteredRecords.map(r => r.patient_name)).size;
-    
-    // Receita Sim / Não
-    const receitaSim = filteredRecords.filter(r => 
+    // Receitas Totais = Todos com receita = sim (do período, sem filtro como_conheceu)
+    const receitasTotais = recordsWithoutComoConheceuFilter.filter(r => 
       r.receita?.toLowerCase() === "sim"
     ).length;
-    const receitaNao = filteredRecords.filter(r => 
-      r.receita?.toLowerCase() === "não" || r.receita?.toLowerCase() === "nao"
+    
+    // Agrupamento por "como_conheceu" para filtro interativo (apenas receita=sim)
+    const byComoConheceu: Record<string, number> = {};
+    recordsWithoutComoConheceuFilter.forEach(r => {
+      if (r.receita?.toLowerCase() === "sim") {
+        const key = r.como_conheceu || "Não informado";
+        byComoConheceu[key] = (byComoConheceu[key] || 0) + 1;
+      }
+    });
+    
+    // Receitas com potencial de venda = Receitas sim COM filtro de como_conheceu aplicado
+    const receitasPotencial = filteredRecords.filter(r => 
+      r.receita?.toLowerCase() === "sim"
     ).length;
     
-    // Visitou DNZ
-    const visitouDnz = filteredRecords.filter(r => 
-      r.visitou_loja?.toLowerCase() === "sim"
+    // Vendas = registros com venda preenchida (sim)
+    const vendas = filteredRecords.filter(r => 
+      r.venda?.toLowerCase() === "sim"
     ).length;
+    
+    // Conversão = Vendas / Receitas com potencial de venda
+    const conversao = receitasPotencial > 0 
+      ? ((vendas / receitasPotencial) * 100).toFixed(0) 
+      : "0";
+    
+    // Receitas x Consultas = Receitas totais / Consultas
+    const receitasXConsultas = consultas > 0 
+      ? ((receitasTotais / consultas) * 100).toFixed(0) 
+      : "0";
     
     return {
-      totalLeadsPeriodo,
-      leadsFiltrados,
+      consultas,
+      receitasTotais,
       byComoConheceu,
-      receitaSim,
-      receitaNao,
-      visitouDnz
+      receitasPotencial,
+      vendas,
+      conversao,
+      receitasXConsultas
     };
   }, [recordsWithoutComoConheceuFilter, filteredRecords]);
 
   return (
     <div className="space-y-4">
       {/* Métricas / Kanbans */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 animate-fade-in">
-        {/* Total de Leads (do período, sem filtro como_conheceu) */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 animate-fade-in">
+        {/* Consultas (Total de Leads) */}
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Users className="w-4 h-4 text-primary" />
-              <span className="text-xs font-medium text-muted-foreground">Total Leads</span>
+              <span className="text-xs font-medium text-muted-foreground">Consultas</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.totalLeadsPeriodo}</p>
+            <p className="text-2xl font-bold text-foreground">{metrics.consultas}</p>
           </CardContent>
         </Card>
 
-        {/* Como Conheceu - Dropdown com Checkboxes */}
+        {/* Receitas Totais */}
+        <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-green-500" />
+              <span className="text-xs font-medium text-muted-foreground">Receitas Totais</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.receitasTotais}</p>
+          </CardContent>
+        </Card>
+
+        {/* Receitas c/ Potencial (filtro como conheceu) */}
         <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Tag className="w-4 h-4 text-purple-500" />
-              <span className="text-xs font-medium text-muted-foreground">Como Conheceu</span>
+              <span className="text-xs font-medium text-muted-foreground">Receitas c/ Potencial</span>
             </div>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full h-9 justify-between text-sm">
                   <span className="truncate">
                     {filters.como_conheceu.length === 0 
-                      ? "Todos" 
-                      : `${filters.como_conheceu.length} selecionado(s)`}
+                      ? "Selecionar origens" 
+                      : `${filters.como_conheceu.length} origem(ns)`}
                   </span>
                   <ChevronDown className="w-4 h-4 ml-2 shrink-0" />
                 </Button>
@@ -356,39 +381,47 @@ export function DetalhadoAmigoTable({
                             {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
                           </div>
                           <span className="text-sm text-foreground truncate flex-1">{origem}</span>
+                          <span className="text-xs text-muted-foreground">({count})</span>
                         </button>
                       );
                     })}
                 </div>
               </PopoverContent>
             </Popover>
-            {filters.como_conheceu.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {metrics.leadsFiltrados} leads
-              </p>
-            )}
+            <p className="text-2xl font-bold text-foreground mt-2">{metrics.receitasPotencial}</p>
           </CardContent>
         </Card>
         
-        {/* Receita = Sim */}
-        <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-4 h-4 text-green-500" />
-              <span className="text-xs font-medium text-muted-foreground">Receita Sim</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.receitaSim}</p>
-          </CardContent>
-        </Card>
-        
-        {/* Visitou DNZ */}
+        {/* Vendas */}
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Store className="w-4 h-4 text-blue-500" />
-              <span className="text-xs font-medium text-muted-foreground">Visitou DNZ</span>
+              <ShoppingCart className="w-4 h-4 text-blue-500" />
+              <span className="text-xs font-medium text-muted-foreground">Vendas</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.visitouDnz}</p>
+            <p className="text-2xl font-bold text-foreground">{metrics.vendas}</p>
+          </CardContent>
+        </Card>
+
+        {/* Conversão */}
+        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-4 h-4 text-orange-500" />
+              <span className="text-xs font-medium text-muted-foreground">Conversão</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.conversao}%</p>
+          </CardContent>
+        </Card>
+
+        {/* Receitas x Consultas */}
+        <Card className="bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 border-cyan-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Percent className="w-4 h-4 text-cyan-500" />
+              <span className="text-xs font-medium text-muted-foreground">Receitas x Consultas</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.receitasXConsultas}%</p>
           </CardContent>
         </Card>
       </div>
@@ -507,6 +540,7 @@ export function DetalhadoAmigoTable({
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Tipo</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[130px]">Como Conheceu</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Receita</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Venda</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Data</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Visitou a Loja</th>
                 </tr>
@@ -550,6 +584,13 @@ export function DetalhadoAmigoTable({
                           value={record.receita} 
                           onSave={(v) => handleDbUpdate(record, "receita", v)} 
                           placeholder="Receita" 
+                        />
+                      </td>
+                      <td className="px-1 py-1">
+                        <EditableCell 
+                          value={record.venda} 
+                          onSave={(v) => handleDbUpdate(record, "venda", v)} 
+                          placeholder="Sim/Não" 
                         />
                       </td>
                       <td className="px-3 py-2 text-sm">{record.date}</td>
