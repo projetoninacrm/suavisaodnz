@@ -20,6 +20,7 @@ interface DetalhadoAmigoTableProps {
   onRefresh: () => void;
   dbRecords: GenericRecord[];
   onUpdateDb: (id: string, field: string, value: string) => void;
+  onCreateDb: (record: Partial<GenericRecord>) => Promise<string | null>;
   onRefreshDb: () => void;
 }
 
@@ -53,6 +54,7 @@ export function DetalhadoAmigoTable({
   onRefresh,
   dbRecords,
   onUpdateDb,
+  onCreateDb,
   onRefreshDb
 }: DetalhadoAmigoTableProps) {
   const [filters, setFilters] = useState<Filters>({
@@ -149,13 +151,26 @@ export function DetalhadoAmigoTable({
     }
   };
 
-  // Handler para editar campos do banco (receita e visitou_loja)
-  const handleDbUpdate = (record: CombinedRecord, field: string, value: string) => {
+  // Handler para editar campos do banco (receita, visitou_loja, como_conheceu)
+  const handleDbUpdate = async (record: CombinedRecord, field: string, value: string) => {
     if (record.dbId) {
       // Atualizar registro existente no banco
       onUpdateDb(record.dbId, field, value);
+    } else {
+      // Criar novo registro no banco com os dados da API
+      const newId = await onCreateDb({
+        nome: record.patient_name,
+        telefone: record.patient_phone || "",
+        data: record.date,
+        como_conheceu: field === "como_conheceu" ? value : record.patient_know_by || "",
+        receita: field === "receita" ? value : "",
+        visitou_loja: field === "visitou_loja" ? value : "",
+      });
+      if (newId) {
+        // Recarregar dados do banco para atualizar a UI
+        onRefreshDb();
+      }
     }
-    // Se não existe no banco, o usuário precisa primeiro importar via import-attendances
   };
 
   const FilterSelect = ({ 
@@ -328,38 +343,26 @@ export function DetalhadoAmigoTable({
                       </td>
                       <td className="px-3 py-2 text-sm">{record.event_name || "-"}</td>
                       <td className="px-1 py-1">
-                        {record.dbId ? (
-                          <EditableCell 
-                            value={record.como_conheceu} 
-                            onSave={(v) => handleDbUpdate(record, "como_conheceu", v)} 
-                            placeholder="Como Conheceu" 
-                          />
-                        ) : (
-                          <span className="px-3 text-sm text-muted-foreground">{record.patient_know_by || "-"}</span>
-                        )}
+                        <EditableCell 
+                          value={record.como_conheceu} 
+                          onSave={(v) => handleDbUpdate(record, "como_conheceu", v)} 
+                          placeholder="Como Conheceu" 
+                        />
                       </td>
                       <td className="px-1 py-1">
-                        {record.dbId ? (
-                          <EditableCell 
-                            value={record.receita} 
-                            onSave={(v) => handleDbUpdate(record, "receita", v)} 
-                            placeholder="Receita" 
-                          />
-                        ) : (
-                          <span className="px-3 text-sm text-muted-foreground">-</span>
-                        )}
+                        <EditableCell 
+                          value={record.receita} 
+                          onSave={(v) => handleDbUpdate(record, "receita", v)} 
+                          placeholder="Receita" 
+                        />
                       </td>
                       <td className="px-3 py-2 text-sm">{record.date}</td>
                       <td className="px-1 py-1">
-                        {record.dbId ? (
-                          <EditableCell 
-                            value={record.visitou_loja} 
-                            onSave={(v) => handleDbUpdate(record, "visitou_loja", v)} 
-                            placeholder="Sim/Não" 
-                          />
-                        ) : (
-                          <span className="px-3 text-sm text-muted-foreground">-</span>
-                        )}
+                        <EditableCell 
+                          value={record.visitou_loja} 
+                          onSave={(v) => handleDbUpdate(record, "visitou_loja", v)} 
+                          placeholder="Sim/Não" 
+                        />
                       </td>
                     </tr>
                   );
