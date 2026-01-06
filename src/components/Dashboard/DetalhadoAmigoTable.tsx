@@ -135,7 +135,7 @@ export function DetalhadoAmigoTable({
   }, [combinedRecords, uniqueValuesFromDb]);
 
   const filteredRecords = useMemo(() => {
-    return combinedRecords.filter(record => {
+    const filtered = combinedRecords.filter(record => {
       if (filters.patient_name && record.patient_name !== filters.patient_name) return false;
       if (filters.data.length > 0 && !filters.data.includes(record.date || "")) return false;
       // Filtro multi-select para Como Conheceu
@@ -149,6 +149,12 @@ export function DetalhadoAmigoTable({
         if (!filters.receita.includes(value)) return false;
       }
       return true;
+    });
+    // Ordenar por data decrescente (mais recentes primeiro)
+    return filtered.sort((a, b) => {
+      const dateA = a.date ? new Date(a.date.split('/').reverse().join('-')) : new Date(0);
+      const dateB = b.date ? new Date(b.date.split('/').reverse().join('-')) : new Date(0);
+      return dateB.getTime() - dateA.getTime();
     });
   }, [combinedRecords, filters]);
 
