@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart } from "lucide-react";
+import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
@@ -272,6 +272,16 @@ export function DetalhadoAmigoTable({
       r.venda?.toLowerCase() === "sim"
     ).length;
     
+    // Visitou a Loja = registros com visitou_loja = sim (com filtro como_conheceu)
+    const visitouLoja = filteredRecords.filter(r => 
+      r.visitou_loja?.toLowerCase() === "sim"
+    ).length;
+    
+    // Taxa de Presença = Visitou a Loja / Receitas com potencial
+    const taxaPresenca = receitasPotencial > 0 
+      ? ((visitouLoja / receitasPotencial) * 100).toFixed(0) 
+      : "0";
+    
     // Conversão = Vendas / Receitas com potencial de venda
     const conversao = receitasPotencial > 0 
       ? ((vendas / receitasPotencial) * 100).toFixed(0) 
@@ -287,6 +297,8 @@ export function DetalhadoAmigoTable({
       receitasTotais,
       byComoConheceu,
       receitasPotencial,
+      visitouLoja,
+      taxaPresenca,
       vendas,
       conversao,
       receitasXConsultas
@@ -296,7 +308,7 @@ export function DetalhadoAmigoTable({
   return (
     <div className="space-y-4">
       {/* Métricas / Kanbans */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 animate-fade-in">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 animate-fade-in">
         {/* Consultas (Total de Leads) */}
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="p-4">
@@ -393,6 +405,29 @@ export function DetalhadoAmigoTable({
           </CardContent>
         </Card>
         
+        {/* Visitou a Loja */}
+        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Store className="w-4 h-4 text-amber-500" />
+              <span className="text-xs font-medium text-muted-foreground">Visitou a Loja</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.visitouLoja}</p>
+          </CardContent>
+        </Card>
+
+        {/* Taxa de Presença */}
+        <Card className="bg-gradient-to-br from-rose-500/10 to-rose-500/5 border-rose-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <UserCheck className="w-4 h-4 text-rose-500" />
+              <span className="text-xs font-medium text-muted-foreground">Taxa de Presença</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.taxaPresenca}%</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Visitou ÷ Potencial</p>
+          </CardContent>
+        </Card>
+
         {/* Vendas */}
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
           <CardContent className="p-4">
@@ -412,6 +447,7 @@ export function DetalhadoAmigoTable({
               <span className="text-xs font-medium text-muted-foreground">Conversão</span>
             </div>
             <p className="text-2xl font-bold text-foreground">{metrics.conversao}%</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Vendas ÷ Potencial</p>
           </CardContent>
         </Card>
 
@@ -423,6 +459,7 @@ export function DetalhadoAmigoTable({
               <span className="text-xs font-medium text-muted-foreground">Receitas x Consultas</span>
             </div>
             <p className="text-2xl font-bold text-foreground">{metrics.receitasXConsultas}%</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Receitas ÷ Consultas</p>
           </CardContent>
         </Card>
       </div>
