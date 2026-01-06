@@ -216,6 +216,15 @@ const Index = () => {
       />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Tab Navigation - Always at top */}
+        <div className="mb-6">
+          <TabNavigation
+            tabs={TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
+        </div>
+
         {/* Stats for Leads tab - table format by channel */}
         {activeTab === "Leads" && (
           <div className="mb-8 overflow-hidden rounded-lg border border-border bg-card">
@@ -262,15 +271,6 @@ const Index = () => {
             </table>
           </div>
         )}
-
-
-        <div className="mb-6">
-          <TabNavigation
-            tabs={TABS}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-        </div>
 
         {renderTable()}
       </main>
