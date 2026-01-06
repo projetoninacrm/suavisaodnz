@@ -14,7 +14,7 @@ export function YesNoSelectCell({ value, onSave, placeholder = "Selecione" }: Ye
   return (
     <Select value={normalizedValue} onValueChange={onSave}>
       <SelectTrigger className="h-8 text-xs bg-background border-border min-w-[80px]">
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder="" />
       </SelectTrigger>
       <SelectContent className="bg-popover border-border z-50">
         <SelectItem value="Sim">Sim</SelectItem>
