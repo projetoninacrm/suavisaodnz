@@ -96,6 +96,25 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-muted text-muted-foreground">Não</span>;
   };
 
+  const isContactDateOverdue = (lead: Lead) => {
+    if (!lead.entrar_em_contato) return false;
+    if (lead.status === "Perdido") return false;
+    
+    const [day, month, year] = lead.entrar_em_contato.split('/').map(Number);
+    const contactDate = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return contactDate < today;
+  };
+
+  const statusClienteBadge = (value: string | null) => {
+    if (value === "Perdido") {
+      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-destructive/20 text-destructive">Perdido</span>;
+    }
+    return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-accent/20 text-accent">Ativo</span>;
+  };
+
   const formatPhoneForWhatsApp = (phone: string | null) => {
     if (!phone) return null;
     const cleaned = phone.replace(/\D/g, "");
@@ -286,6 +305,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[70px]">Venda</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Entrar em Contato</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Médico</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Status</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[50px]"></th>
               </tr>
@@ -294,7 +314,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
               {filteredLeads.map((lead, index) => (
                 <tr 
                   key={lead.id} 
-                  className="table-cell-hover animate-slide-in"
+                  className={`table-cell-hover animate-slide-in ${isContactDateOverdue(lead) ? 'bg-yellow-100 dark:bg-yellow-900/30' : ''}`}
                   style={{ animationDelay: `${index * 15}ms` }}
                 >
                   <td className="px-1 py-1">
@@ -324,6 +344,11 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={lead.medico || ""} onSave={(v) => onUpdate(lead.id, "medico", v)} placeholder="Médico" />
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <button onClick={() => onUpdate(lead.id, "status", lead.status === "Perdido" ? "Ativo" : "Perdido")}>
+                      {statusClienteBadge(lead.status)}
+                    </button>
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={lead.obs || ""} onSave={(v) => onUpdate(lead.id, "obs", v)} placeholder="Observação" />
