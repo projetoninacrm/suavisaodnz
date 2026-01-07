@@ -134,6 +134,7 @@ export type Database = {
           numero: string | null
           obs: string | null
           orcamento: string | null
+          status: string | null
           updated_at: string
           venda: string | null
         }
@@ -148,6 +149,7 @@ export type Database = {
           numero?: string | null
           obs?: string | null
           orcamento?: string | null
+          status?: string | null
           updated_at?: string
           venda?: string | null
         }
@@ -162,6 +164,7 @@ export type Database = {
           numero?: string | null
           obs?: string | null
           orcamento?: string | null
+          status?: string | null
           updated_at?: string
           venda?: string | null
         }

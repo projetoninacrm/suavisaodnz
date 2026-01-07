@@ -13,6 +13,7 @@ export interface Lead {
   entrar_em_contato: string | null;
   medico: string | null;
   obs: string | null;
+  status: string | null;
   created_at: string;
   updated_at: string;
 }
