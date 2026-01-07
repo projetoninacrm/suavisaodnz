@@ -47,6 +47,8 @@ const Index = () => {
     venda: "",
     entrar_em_contato: [],
     medico: "",
+    status: "",
+    pendente: false,
   });
   
   const schedules = useSchedules("Escala");
