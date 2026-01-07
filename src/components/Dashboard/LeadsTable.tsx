@@ -19,6 +19,8 @@ export interface LeadsFilters {
   venda: string;
   entrar_em_contato: string[];
   medico: string;
+  status: string;
+  pendente: boolean;
 }
 
 interface LeadsTableProps {
@@ -37,6 +39,8 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     venda: "",
     entrar_em_contato: [],
     medico: "",
+    status: "",
+    pendente: false,
   });
 
   const updateFilters = (newFilters: LeadsFilters) => {
@@ -52,7 +56,20 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     venda: ["Sim", "Não"],
     entrar_em_contato: [...new Set(leads.map(l => l.entrar_em_contato).filter(Boolean))] as string[],
     medico: [...new Set(leads.map(l => l.medico).filter(Boolean))] as string[],
+    status: ["Ativo", "Pós Venda", "Perdido"],
   }), [leads]);
+
+  const isContactDateOverdue = (lead: Lead) => {
+    if (!lead.entrar_em_contato) return false;
+    if (lead.status === "Perdido" || lead.status === "Pós Venda") return false;
+    
+    const [day, month, year] = lead.entrar_em_contato.split('/').map(Number);
+    const contactDate = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return contactDate < today;
+  };
 
   const filteredLeads = useMemo(() => {
     const filtered = leads.filter(lead => {
@@ -63,6 +80,8 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
       if (filters.venda && lead.venda !== filters.venda) return false;
       if (filters.entrar_em_contato.length > 0 && !filters.entrar_em_contato.includes(lead.entrar_em_contato || "")) return false;
       if (filters.medico && lead.medico !== filters.medico) return false;
+      if (filters.status && lead.status !== filters.status) return false;
+      if (filters.pendente && !isContactDateOverdue(lead)) return false;
       return true;
     });
     // Ordenar por data decrescente (mais recentes primeiro)
@@ -73,7 +92,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     });
   }, [leads, filters]);
 
-  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.nome !== "" || filters.orcamento !== "" || filters.venda !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "";
+  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.nome !== "" || filters.orcamento !== "" || filters.venda !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "" || filters.status !== "" || filters.pendente;
 
   const clearFilters = () => {
     const newFilters = {
@@ -84,6 +103,8 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
       venda: "",
       entrar_em_contato: [],
       medico: "",
+      status: "",
+      pendente: false,
     };
     setFilters(newFilters);
     onFiltersChange?.(newFilters);
@@ -96,23 +117,20 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-muted text-muted-foreground">Não</span>;
   };
 
-  const isContactDateOverdue = (lead: Lead) => {
-    if (!lead.entrar_em_contato) return false;
-    if (lead.status === "Perdido") return false;
-    
-    const [day, month, year] = lead.entrar_em_contato.split('/').map(Number);
-    const contactDate = new Date(year, month - 1, day);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    return contactDate < today;
-  };
-
   const statusClienteBadge = (value: string | null) => {
     if (value === "Perdido") {
       return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-destructive/20 text-destructive">Perdido</span>;
     }
+    if (value === "Pós Venda") {
+      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400">Pós Venda</span>;
+    }
     return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-accent/20 text-accent">Ativo</span>;
+  };
+
+  const cycleStatus = (currentStatus: string | null) => {
+    if (currentStatus === "Ativo" || !currentStatus) return "Pós Venda";
+    if (currentStatus === "Pós Venda") return "Perdido";
+    return "Ativo";
   };
 
   const formatPhoneForWhatsApp = (phone: string | null) => {
@@ -221,7 +239,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Data</label>
             <CalendarFilterPopover
@@ -288,6 +306,26 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
               placeholder="Todos"
             />
           </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Status</label>
+            <FilterSelect
+              value={filters.status}
+              onChange={(v) => updateFilters({ ...filters, status: v === "all" ? "" : v })}
+              options={uniqueValues.status}
+              placeholder="Todos"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Pendente</label>
+            <Button
+              variant={filters.pendente ? "default" : "outline"}
+              size="sm"
+              onClick={() => updateFilters({ ...filters, pendente: !filters.pendente })}
+              className={`h-8 w-full text-xs ${filters.pendente ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : ''}`}
+            >
+              {filters.pendente ? "Filtrando" : "Filtrar"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -346,7 +384,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                     <EditableCell value={lead.medico || ""} onSave={(v) => onUpdate(lead.id, "medico", v)} placeholder="Médico" />
                   </td>
                   <td className="px-3 py-2 text-center">
-                    <button onClick={() => onUpdate(lead.id, "status", lead.status === "Perdido" ? "Ativo" : "Perdido")}>
+                    <button onClick={() => onUpdate(lead.id, "status", cycleStatus(lead.status))}>
                       {statusClienteBadge(lead.status)}
                     </button>
                   </td>
