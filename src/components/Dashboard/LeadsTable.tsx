@@ -56,7 +56,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     venda: ["Sim", "Não"],
     entrar_em_contato: [...new Set(leads.map(l => l.entrar_em_contato).filter(Boolean))] as string[],
     medico: [...new Set(leads.map(l => l.medico).filter(Boolean))] as string[],
-    status: ["Ativo", "Pós Venda", "Perdido"],
+    status: ["Ativo", "Perdido", "Pós Venda"],
   }), [leads]);
 
   const isContactDateOverdue = (lead: Lead) => {
@@ -128,8 +128,8 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
   };
 
   const cycleStatus = (currentStatus: string | null) => {
-    if (currentStatus === "Ativo" || !currentStatus) return "Pós Venda";
-    if (currentStatus === "Pós Venda") return "Perdido";
+    if (currentStatus === "Ativo" || !currentStatus) return "Perdido";
+    if (currentStatus === "Perdido") return "Pós Venda";
     return "Ativo";
   };
 
