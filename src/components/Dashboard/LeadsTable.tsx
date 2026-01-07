@@ -55,7 +55,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
   }), [leads]);
 
   const filteredLeads = useMemo(() => {
-    return leads.filter(lead => {
+    const filtered = leads.filter(lead => {
       if (filters.data_registro.length > 0 && !filters.data_registro.includes(lead.data_registro || "")) return false;
       if (filters.canal && lead.canal !== filters.canal) return false;
       if (filters.nome && !(lead.nome || "").toLowerCase().includes(filters.nome.toLowerCase())) return false;
@@ -64,6 +64,12 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
       if (filters.entrar_em_contato.length > 0 && !filters.entrar_em_contato.includes(lead.entrar_em_contato || "")) return false;
       if (filters.medico && lead.medico !== filters.medico) return false;
       return true;
+    });
+    // Ordenar por data decrescente (mais recentes primeiro)
+    return filtered.sort((a, b) => {
+      const dateA = a.data_registro ? new Date(a.data_registro.split('/').reverse().join('-')) : new Date(0);
+      const dateB = b.data_registro ? new Date(b.data_registro.split('/').reverse().join('-')) : new Date(0);
+      return dateB.getTime() - dateA.getTime();
     });
   }, [leads, filters]);
 
