@@ -35,6 +35,7 @@ interface Filters {
   receita: string[];
   venda: string[];
   visitou_loja: string[];
+  tipo: string[];
 }
 
 // Tipo combinado: dados da API + dados editáveis do banco
@@ -71,6 +72,7 @@ export function DetalhadoAmigoTable({
     receita: [],
     venda: [],
     visitou_loja: [],
+    tipo: [],
   });
 
   const [calendarRange, setCalendarRange] = useState<DateRange | undefined>({
@@ -136,6 +138,7 @@ export function DetalhadoAmigoTable({
       data: [...new Set(combinedRecords.map(r => r.date).filter(Boolean))] as string[],
       como_conheceu: [...new Set(allComoConheceu)].sort() as string[],
       receita: [...new Set(allReceita)].sort() as string[],
+      tipo: [...new Set(combinedRecords.map(r => r.event_name).filter(Boolean))].sort() as string[],
     };
   }, [combinedRecords, uniqueValuesFromDb]);
 
@@ -164,6 +167,11 @@ export function DetalhadoAmigoTable({
         const value = record.visitou_loja || "";
         if (!filters.visitou_loja.includes(value)) return false;
       }
+      // Filtro multi-select para Tipo
+      if (filters.tipo.length > 0) {
+        const value = record.event_name || "";
+        if (!filters.tipo.includes(value)) return false;
+      }
       return true;
     });
     // Ordenar por data decrescente (mais recentes primeiro)
@@ -186,6 +194,7 @@ export function DetalhadoAmigoTable({
       receita: [],
       venda: [],
       visitou_loja: [],
+      tipo: [],
     });
   };
 
@@ -543,7 +552,7 @@ export function DetalhadoAmigoTable({
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nome</label>
             <div className="relative">
@@ -556,6 +565,16 @@ export function DetalhadoAmigoTable({
                 className="h-8 text-xs pl-7 bg-background border-border"
               />
             </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Tipo</label>
+            <MultiSelectFilter
+              options={uniqueValues.tipo}
+              selectedValues={filters.tipo}
+              onSelectionChange={(values) => setFilters(f => ({ ...f, tipo: values }))}
+              placeholder="Todos"
+              emptyText="Nenhum tipo"
+            />
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Como Conheceu</label>
