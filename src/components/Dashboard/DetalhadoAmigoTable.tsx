@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck } from "lucide-react";
+import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
@@ -32,6 +33,8 @@ interface Filters {
   data: string[];
   como_conheceu: string[];
   receita: string[];
+  venda: string[];
+  visitou_loja: string[];
 }
 
 // Tipo combinado: dados da API + dados editáveis do banco
@@ -66,6 +69,8 @@ export function DetalhadoAmigoTable({
     data: [],
     como_conheceu: [],
     receita: [],
+    venda: [],
+    visitou_loja: [],
   });
 
   const [calendarRange, setCalendarRange] = useState<DateRange | undefined>({
@@ -136,7 +141,8 @@ export function DetalhadoAmigoTable({
 
   const filteredRecords = useMemo(() => {
     const filtered = combinedRecords.filter(record => {
-      if (filters.patient_name && record.patient_name !== filters.patient_name) return false;
+      // Filtro de busca por nome (case-insensitive)
+      if (filters.patient_name && !record.patient_name?.toLowerCase().includes(filters.patient_name.toLowerCase())) return false;
       if (filters.data.length > 0 && !filters.data.includes(record.date || "")) return false;
       // Filtro multi-select para Como Conheceu
       if (filters.como_conheceu.length > 0) {
@@ -147,6 +153,16 @@ export function DetalhadoAmigoTable({
       if (filters.receita.length > 0) {
         const value = record.receita || "";
         if (!filters.receita.includes(value)) return false;
+      }
+      // Filtro multi-select para Venda
+      if (filters.venda.length > 0) {
+        const value = record.venda || "";
+        if (!filters.venda.includes(value)) return false;
+      }
+      // Filtro multi-select para Visitou a Loja
+      if (filters.visitou_loja.length > 0) {
+        const value = record.visitou_loja || "";
+        if (!filters.visitou_loja.includes(value)) return false;
       }
       return true;
     });
@@ -168,6 +184,8 @@ export function DetalhadoAmigoTable({
       data: [],
       como_conheceu: [],
       receita: [],
+      venda: [],
+      visitou_loja: [],
     });
   };
 
@@ -525,15 +543,19 @@ export function DetalhadoAmigoTable({
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nome</label>
-            <FilterSelect
-              value={filters.patient_name}
-              onChange={(v) => setFilters(f => ({ ...f, patient_name: v === "all" ? "" : v }))}
-              options={uniqueValues.patient_name}
-              placeholder="Todos"
-            />
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+              <Input
+                type="text"
+                value={filters.patient_name}
+                onChange={(e) => setFilters(f => ({ ...f, patient_name: e.target.value }))}
+                placeholder="Buscar nome..."
+                className="h-8 text-xs pl-7 bg-background border-border"
+              />
+            </div>
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Como Conheceu</label>
@@ -553,6 +575,26 @@ export function DetalhadoAmigoTable({
               onSelectionChange={(values) => setFilters(f => ({ ...f, receita: values }))}
               placeholder="Todos"
               emptyText="Nenhum valor preenchido"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Venda</label>
+            <MultiSelectFilter
+              options={["Sim", "Não"]}
+              selectedValues={filters.venda}
+              onSelectionChange={(values) => setFilters(f => ({ ...f, venda: values }))}
+              placeholder="Todos"
+              emptyText="Nenhum valor"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Visitou a Loja</label>
+            <MultiSelectFilter
+              options={["Sim", "Não"]}
+              selectedValues={filters.visitou_loja}
+              onSelectionChange={(values) => setFilters(f => ({ ...f, visitou_loja: values }))}
+              placeholder="Todos"
+              emptyText="Nenhum valor"
             />
           </div>
           <div className="space-y-1">
