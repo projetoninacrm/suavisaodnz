@@ -14,6 +14,7 @@ export interface Lead {
   medico: string | null;
   obs: string | null;
   status: string | null;
+  vendedor: string | null;
   created_at: string;
   updated_at: string;
 }

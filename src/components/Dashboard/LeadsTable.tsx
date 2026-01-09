@@ -57,6 +57,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     entrar_em_contato: [...new Set(leads.map(l => l.entrar_em_contato).filter(Boolean))] as string[],
     medico: [...new Set(leads.map(l => l.medico).filter(Boolean))] as string[],
     status: ["Ativo", "Perdido", "Pós Venda"],
+    vendedor: ["Bernardo", "Thayssa"],
   }), [leads]);
 
   const isContactDateOverdue = (lead: Lead) => {
@@ -127,11 +128,6 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-accent/20 text-accent">Ativo</span>;
   };
 
-  const cycleStatus = (currentStatus: string | null) => {
-    if (currentStatus === "Ativo" || !currentStatus) return "Perdido";
-    if (currentStatus === "Perdido") return "Pós Venda";
-    return "Ativo";
-  };
 
   const formatPhoneForWhatsApp = (phone: string | null) => {
     if (!phone) return null;
@@ -343,7 +339,8 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[70px]">Venda</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Entrar em Contato</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Médico</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Status</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Vendedor</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Status</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[50px]"></th>
               </tr>
@@ -383,10 +380,29 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                   <td className="px-1 py-1">
                     <EditableCell value={lead.medico || ""} onSave={(v) => onUpdate(lead.id, "medico", v)} placeholder="Médico" />
                   </td>
-                  <td className="px-3 py-2 text-center">
-                    <button onClick={() => onUpdate(lead.id, "status", cycleStatus(lead.status))}>
-                      {statusClienteBadge(lead.status)}
-                    </button>
+                  <td className="px-1 py-1">
+                    <SelectCell
+                      value={lead.vendedor || ""}
+                      onSave={(v) => onUpdate(lead.id, "vendedor", v)}
+                      options={uniqueValues.vendedor}
+                      placeholder="Vendedor"
+                    />
+                  </td>
+                  <td className="px-1 py-1">
+                    <Select value={lead.status || "Ativo"} onValueChange={(v) => onUpdate(lead.id, "status", v)}>
+                      <SelectTrigger className="h-8 text-xs border-0 bg-transparent hover:bg-muted/50 focus:ring-0">
+                        <SelectValue>
+                          {statusClienteBadge(lead.status)}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border-border z-50">
+                        {uniqueValues.status.map(status => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={lead.obs || ""} onSave={(v) => onUpdate(lead.id, "obs", v)} placeholder="Observação" />
