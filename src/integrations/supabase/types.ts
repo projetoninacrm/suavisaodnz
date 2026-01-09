@@ -137,6 +137,7 @@ export type Database = {
           status: string | null
           updated_at: string
           venda: string | null
+          vendedor: string | null
         }
         Insert: {
           canal?: string | null
@@ -152,6 +153,7 @@ export type Database = {
           status?: string | null
           updated_at?: string
           venda?: string | null
+          vendedor?: string | null
         }
         Update: {
           canal?: string | null
@@ -167,6 +169,7 @@ export type Database = {
           status?: string | null
           updated_at?: string
           venda?: string | null
+          vendedor?: string | null
         }
         Relationships: []
       }
