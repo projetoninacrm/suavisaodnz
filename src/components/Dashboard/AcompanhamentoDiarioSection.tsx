@@ -48,30 +48,34 @@ export function AcompanhamentoDiarioSection({
     return map;
   }, [registros]);
 
-  // Calcula meta diária dinâmica por dia (falta/dias restantes)
-  const metasDinamicosFaturamento = useMemo(() => {
-    const metas: Record<string, number> = {};
-    let faturamentoAcumulado = 0;
+  // Calcula faturamento acumulado total e dias não preenchidos
+  const { faturamentoAcumulado, diasNaoPreenchidos } = useMemo(() => {
+    let acumulado = 0;
+    let naoPreenchidos = 0;
     
-    diasComMedico.forEach((schedule, index) => {
-      const diasRestantes = diasComMedico.length - index;
-      const faltaParaMeta = metaMensalFaturamento - faturamentoAcumulado;
-      const metaDiaria = faltaParaMeta / diasRestantes;
-      
-      metas[schedule.date] = Math.max(0, metaDiaria); // Não pode ser negativa
-      
-      // Adiciona o faturamento real deste dia para os próximos cálculos
+    diasComMedico.forEach((schedule) => {
       const registro = registrosMap[schedule.date];
       if (registro && registro.faturamento_realizado !== null) {
-        faturamentoAcumulado += registro.faturamento_realizado || 0;
+        acumulado += registro.faturamento_realizado || 0;
+      } else {
+        naoPreenchidos++;
       }
     });
     
-    return metas;
-  }, [diasComMedico, registrosMap, metaMensalFaturamento]);
+    return { faturamentoAcumulado: acumulado, diasNaoPreenchidos: naoPreenchidos };
+  }, [diasComMedico, registrosMap]);
 
   // Meta diária base (para dias sem dados anteriores)
-  const metaDiariaFaturamentoBase = metaMensalFaturamento / diasComMedico.length;
+  const metaDiariaFaturamentoBase = diasComMedico.length > 0 
+    ? metaMensalFaturamento / diasComMedico.length 
+    : 0;
+
+  // Meta dinâmica para dias não preenchidos: (Meta - Faturamento real) / Dias restantes
+  const metaDinamicaParaDiasRestantes = useMemo(() => {
+    if (diasNaoPreenchidos <= 0) return 0;
+    const faltaParaMeta = metaMensalFaturamento - faturamentoAcumulado;
+    return Math.max(0, faltaParaMeta / diasNaoPreenchidos);
+  }, [metaMensalFaturamento, faturamentoAcumulado, diasNaoPreenchidos]);
 
   // Cálculo do consolidado baseado nos dias preenchidos
   const consolidado = useMemo(() => {
@@ -239,8 +243,11 @@ export function AcompanhamentoDiarioSection({
                       const vendasReal = registro?.vendas_realizadas || 0;
                       const faturamentoReal = registro?.faturamento_realizado || 0;
                       
-                      // Meta dinâmica de faturamento para este dia
-                      const metaDiariaFatDia = metasDinamicosFaturamento[schedule.date] || metaDiariaFaturamentoBase;
+                      // Verifica se o dia já foi preenchido
+                      const diaPreenchido = registro !== undefined && registro.faturamento_realizado !== null;
+                      
+                      // Meta para dias preenchidos usa a base, para dias não preenchidos usa a dinâmica
+                      const metaDiariaFatDia = diaPreenchido ? metaDiariaFaturamentoBase : metaDinamicaParaDiasRestantes;
                       
                       const diferencaVendas = vendasReal - metaDiariaVendas;
                       const statusVendas = diferencaVendas >= 0 ? "ok" : "atras";
