@@ -552,7 +552,7 @@ export function MetasCalculator({
         registros={acompanhamentoRegistros}
         onUpdateRegistro={onUpdateAcompanhamento}
         metaDiariaVendas={calculations.metaDiaria}
-        metaDiariaFaturamento={calculations.faturamentoDiario}
+        metaMensalFaturamento={calculations.faturamentoMensal}
       />
     </div>
   );
