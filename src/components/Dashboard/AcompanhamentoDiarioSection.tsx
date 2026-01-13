@@ -58,8 +58,8 @@ export function AcompanhamentoDiarioSection({
 
     diasComMedico.forEach((schedule) => {
       const registro = registrosMap[schedule.date];
-      // Conta como preenchido se tem vendas OU faturamento
-      if (registro && (registro.vendas_realizadas > 0 || registro.faturamento_realizado > 0)) {
+      // Conta como preenchido se existe registro (mesmo com valores 0)
+      if (registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null)) {
         diasPreenchidos++;
         realAcumuladoVendas += registro.vendas_realizadas || 0;
         realAcumuladoFaturamento += registro.faturamento_realizado || 0;
@@ -220,8 +220,8 @@ export function AcompanhamentoDiarioSection({
                       const diferencaFaturamento = faturamentoReal - metaDiariaFaturamento;
                       const statusFaturamento = diferencaFaturamento >= 0 ? "ok" : "atras";
                       
-                      // Calcula consolidado progressivo
-                      const temDados = vendasReal > 0 || faturamentoReal > 0;
+                      // Calcula consolidado progressivo - considera preenchido se existe registro (mesmo com 0)
+                      const temDados = registro !== undefined && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null);
                       if (temDados) {
                         diasContados++;
                         acumuladoFaturamento += faturamentoReal;
