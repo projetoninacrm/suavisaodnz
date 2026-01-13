@@ -12,7 +12,7 @@ interface AcompanhamentoDiarioSectionProps {
   registros: AcompanhamentoDiario[];
   onUpdateRegistro: (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number | null) => void;
   metaDiariaVendas: number;
-  metaDiariaFaturamento: number;
+  metaMensalFaturamento: number; // Meta mensal total
 }
 
 export function AcompanhamentoDiarioSection({
@@ -20,7 +20,7 @@ export function AcompanhamentoDiarioSection({
   registros,
   onUpdateRegistro,
   metaDiariaVendas,
-  metaDiariaFaturamento,
+  metaMensalFaturamento,
 }: AcompanhamentoDiarioSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -48,6 +48,31 @@ export function AcompanhamentoDiarioSection({
     return map;
   }, [registros]);
 
+  // Calcula meta diária dinâmica por dia (falta/dias restantes)
+  const metasDinamicosFaturamento = useMemo(() => {
+    const metas: Record<string, number> = {};
+    let faturamentoAcumulado = 0;
+    
+    diasComMedico.forEach((schedule, index) => {
+      const diasRestantes = diasComMedico.length - index;
+      const faltaParaMeta = metaMensalFaturamento - faturamentoAcumulado;
+      const metaDiaria = faltaParaMeta / diasRestantes;
+      
+      metas[schedule.date] = Math.max(0, metaDiaria); // Não pode ser negativa
+      
+      // Adiciona o faturamento real deste dia para os próximos cálculos
+      const registro = registrosMap[schedule.date];
+      if (registro && registro.faturamento_realizado !== null) {
+        faturamentoAcumulado += registro.faturamento_realizado || 0;
+      }
+    });
+    
+    return metas;
+  }, [diasComMedico, registrosMap, metaMensalFaturamento]);
+
+  // Meta diária base (para dias sem dados anteriores)
+  const metaDiariaFaturamentoBase = metaMensalFaturamento / diasComMedico.length;
+
   // Cálculo do consolidado baseado nos dias preenchidos
   const consolidado = useMemo(() => {
     let diasPreenchidos = 0;
@@ -66,9 +91,9 @@ export function AcompanhamentoDiarioSection({
       }
     });
 
-    // Meta acumulada é baseada nos dias preenchidos
+    // Meta acumulada é baseada nos dias preenchidos (usando meta base para consistência)
     metaAcumuladaVendas = diasPreenchidos * metaDiariaVendas;
-    metaAcumuladaFaturamento = diasPreenchidos * metaDiariaFaturamento;
+    metaAcumuladaFaturamento = diasPreenchidos * metaDiariaFaturamentoBase;
 
     const diferencaVendas = realAcumuladoVendas - metaAcumuladaVendas;
     const diferencaFaturamento = realAcumuladoFaturamento - metaAcumuladaFaturamento;
@@ -82,7 +107,7 @@ export function AcompanhamentoDiarioSection({
       diferencaVendas,
       diferencaFaturamento,
     };
-  }, [diasComMedico, registrosMap, metaDiariaVendas, metaDiariaFaturamento]);
+  }, [diasComMedico, registrosMap, metaDiariaVendas, metaDiariaFaturamentoBase]);
 
   const StatusBadge = ({ diferenca, tipo }: { diferenca: number; tipo: "vendas" | "faturamento" }) => {
     const isPositivo = diferenca >= 0;
@@ -214,10 +239,13 @@ export function AcompanhamentoDiarioSection({
                       const vendasReal = registro?.vendas_realizadas || 0;
                       const faturamentoReal = registro?.faturamento_realizado || 0;
                       
+                      // Meta dinâmica de faturamento para este dia
+                      const metaDiariaFatDia = metasDinamicosFaturamento[schedule.date] || metaDiariaFaturamentoBase;
+                      
                       const diferencaVendas = vendasReal - metaDiariaVendas;
                       const statusVendas = diferencaVendas >= 0 ? "ok" : "atras";
                       
-                      const diferencaFaturamento = faturamentoReal - metaDiariaFaturamento;
+                      const diferencaFaturamento = faturamentoReal - metaDiariaFatDia;
                       const statusFaturamento = diferencaFaturamento >= 0 ? "ok" : "atras";
                       
                       // Calcula consolidado progressivo - considera preenchido se existe registro (mesmo com 0)
@@ -226,7 +254,7 @@ export function AcompanhamentoDiarioSection({
                         diasContados++;
                         acumuladoFaturamento += faturamentoReal;
                       }
-                      const metaAcumuladaFat = diasContados * metaDiariaFaturamento;
+                      const metaAcumuladaFat = diasContados * metaDiariaFaturamentoBase;
                       const diferencaConsolidada = acumuladoFaturamento - metaAcumuladaFat;
 
                       return (
@@ -273,7 +301,7 @@ export function AcompanhamentoDiarioSection({
                             )}
                           </td>
                           <td className="px-3 py-2 text-center text-green-500 font-medium">
-                            R$ {metaDiariaFaturamento.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                            R$ {metaDiariaFatDia.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                           </td>
                           <td className="px-3 py-2">
                             <Input
