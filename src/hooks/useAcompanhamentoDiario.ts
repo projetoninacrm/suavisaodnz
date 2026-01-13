@@ -5,8 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 export interface AcompanhamentoDiario {
   id: string;
   data: string;
-  vendas_realizadas: number;
-  faturamento_realizado: number;
+  vendas_realizadas: number | null;
+  faturamento_realizado: number | null;
   obs: string | null;
   created_at: string;
   updated_at: string;
@@ -27,11 +27,11 @@ export function useAcompanhamentoDiario() {
 
       if (error) throw error;
       
-      // Cast the data to the correct type
+      // Cast the data to the correct type, preserving null values
       const typedData = (data || []).map(item => ({
         ...item,
-        vendas_realizadas: Number(item.vendas_realizadas) || 0,
-        faturamento_realizado: Number(item.faturamento_realizado) || 0,
+        vendas_realizadas: item.vendas_realizadas !== null ? Number(item.vendas_realizadas) : null,
+        faturamento_realizado: item.faturamento_realizado !== null ? Number(item.faturamento_realizado) : null,
       })) as AcompanhamentoDiario[];
       
       setRegistros(typedData);
@@ -47,14 +47,14 @@ export function useAcompanhamentoDiario() {
     }
   }, [toast]);
 
-  const upsertRegistro = useCallback(async (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number) => {
+  const upsertRegistro = useCallback(async (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number | null) => {
     try {
       // Check if record exists
       const { data: existing } = await supabase
         .from("acompanhamento_diario")
         .select("*")
         .eq("data", data)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         // Update existing
@@ -65,17 +65,31 @@ export function useAcompanhamentoDiario() {
 
         if (error) throw error;
 
-        setRegistros(prev =>
-          prev.map(r =>
-            r.data === data ? { ...r, [field]: value } : r
-          )
-        );
-      } else {
-        // Insert new
+        // Check if both fields are null - if so, delete the record
+        const otherField = field === "vendas_realizadas" ? "faturamento_realizado" : "vendas_realizadas";
+        const otherValue = existing[otherField];
+        
+        if (value === null && otherValue === null) {
+          // Delete the record if both are null
+          await supabase
+            .from("acompanhamento_diario")
+            .delete()
+            .eq("data", data);
+          
+          setRegistros(prev => prev.filter(r => r.data !== data));
+        } else {
+          setRegistros(prev =>
+            prev.map(r =>
+              r.data === data ? { ...r, [field]: value } : r
+            )
+          );
+        }
+      } else if (value !== null) {
+        // Only insert new if value is not null
         const newRecord = {
           data,
-          vendas_realizadas: field === "vendas_realizadas" ? value : 0,
-          faturamento_realizado: field === "faturamento_realizado" ? value : 0,
+          vendas_realizadas: field === "vendas_realizadas" ? value : null,
+          faturamento_realizado: field === "faturamento_realizado" ? value : null,
         };
 
         const { data: inserted, error } = await supabase
@@ -88,8 +102,8 @@ export function useAcompanhamentoDiario() {
 
         const typedInserted = {
           ...inserted,
-          vendas_realizadas: Number(inserted.vendas_realizadas) || 0,
-          faturamento_realizado: Number(inserted.faturamento_realizado) || 0,
+          vendas_realizadas: inserted.vendas_realizadas !== null ? Number(inserted.vendas_realizadas) : null,
+          faturamento_realizado: inserted.faturamento_realizado !== null ? Number(inserted.faturamento_realizado) : null,
         } as AcompanhamentoDiario;
 
         setRegistros(prev => [...prev, typedInserted].sort((a, b) => a.data.localeCompare(b.data)));
