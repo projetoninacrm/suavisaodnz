@@ -353,7 +353,14 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                   style={{ animationDelay: `${index * 15}ms` }}
                 >
                   <td className="px-1 py-1">
-                    <DatePickerCell value={lead.data_registro || ""} onSave={(v) => onUpdate(lead.id, "data_registro", v)} placeholder="Selecionar" />
+                    <div className="flex flex-col">
+                      <DatePickerCell value={lead.data_registro || ""} onSave={(v) => onUpdate(lead.id, "data_registro", v)} placeholder="Selecionar" />
+                      {lead.created_at && (
+                        <span className="text-[10px] text-muted-foreground px-3 -mt-1">
+                          {new Date(lead.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={lead.canal || ""} onSave={(v) => onUpdate(lead.id, "canal", v)} placeholder="Canal" />
