@@ -202,22 +202,20 @@ export function PerdasSection({ leads }: PerdasSectionProps) {
         </CardHeader>
         <CardContent>
           {dadosGrafico.length > 0 ? (
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-8">
               {/* Gráfico */}
-              <div className="h-[400px]">
+              <div className="h-[350px] flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={dadosGrafico}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
-                      outerRadius={140}
+                      outerRadius={120}
+                      innerRadius={40}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => 
-                        `${(percent * 100).toFixed(0)}%`
-                      }
+                      paddingAngle={2}
                     >
                       {dadosGrafico.map((_, index) => (
                         <Cell 
@@ -228,8 +226,12 @@ export function PerdasSection({ leads }: PerdasSectionProps) {
                     </Pie>
                     <Tooltip 
                       formatter={(value: number) => [`${value} leads`, "Quantidade"]}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
                     />
-                    <Legend />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
