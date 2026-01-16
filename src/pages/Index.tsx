@@ -8,13 +8,14 @@ import { DetalhadoAmigoTable } from "@/components/Dashboard/DetalhadoAmigoTable"
 import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
 import { MetasCalculator } from "@/components/Dashboard/MetasCalculator";
 import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
+import { PerdasSection } from "@/components/Dashboard/PerdasSection";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
 import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 
-const TABS = ["Agenda", "Leads", "Indicadores", "Metas", "Detalhado", "MKT"];
+const TABS = ["Agenda", "Leads", "Indicadores", "Metas", "Detalhado", "MKT", "Perdas"];
 
 const INDICADORES_COLUMNS = [
   { key: "indicador", label: "Indicador", width: "200px" },
@@ -64,7 +65,9 @@ const Index = () => {
     activeTab === "Indicadores" ? indicadores.isLoading :
     activeTab === "Metas" ? false :
     activeTab === "Detalhado" ? detalhadoAmigo.isLoading :
-    mkt.isLoading;
+    activeTab === "MKT" ? mkt.isLoading :
+    activeTab === "Perdas" ? leads.isLoading :
+    false;
 
   // Stats for Leads tab - by channel (filtered by date if filter is active)
   const leadsStatsByChannel = useMemo(() => {
@@ -129,6 +132,7 @@ const Index = () => {
       case "Metas": schedules.fetchSchedules(); break; // Refresh agenda para atualizar períodos
       case "Detalhado": detalhadoAmigo.refresh(); break;
       case "MKT": mkt.fetchRecords(); break;
+      case "Perdas": leads.fetchLeads(); break;
     }
   };
 
@@ -140,6 +144,7 @@ const Index = () => {
       case "Metas": break; // Metas não precisa adicionar linhas
       case "Detalhado": break; // Detalhado usa dados do banco
       case "MKT": mkt.addRecord(); break;
+      case "Perdas": break; // Perdas é apenas visualização
     }
   };
 
@@ -203,6 +208,10 @@ const Index = () => {
             onDelete={mkt.deleteRecord}
             emptyMessage="Nenhuma campanha cadastrada."
           />
+        );
+      case "Perdas":
+        return (
+          <PerdasSection leads={leads.leads} />
         );
       default:
         return null;
