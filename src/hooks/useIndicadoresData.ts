@@ -54,14 +54,8 @@ export interface DayMetrics {
   ticket: number;
 }
 
-// Tipos de eventos a excluir para contagem de consultas (atendimentos)
-const EXCLUDE_CONSULTAS = [
-  "cirurgia",
-  "exames complementares",
-  "mapeamento de retina",
-  "ishihara",
-  "teste ortóptico",
-];
+// Não excluímos mais nenhum tipo de evento - contamos todos os atendimentos
+// igual à aba Detalhado para manter consistência
 
 const MONTH_NAMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
@@ -214,12 +208,9 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
     return null;
   }, []);
 
-  // Função para verificar se um atendimento deve ser excluído
-  const shouldExcludeFromConsultas = useCallback((eventName: string): boolean => {
-    const normalizedName = eventName.toLowerCase().trim();
-    return EXCLUDE_CONSULTAS.some(exclude => 
-      normalizedName.includes(exclude.toLowerCase())
-    );
+  // Contamos todos os atendimentos (sem exclusão) para manter consistência com aba Detalhado
+  const getAtendimentosCount = useCallback((attendancesList: AmigoAttendance[]): number => {
+    return attendancesList.length;
   }, []);
 
   // Helper: criar chave de data no formato usado pela aba Metas (ex: "05/jan", "15/jan")
@@ -241,8 +232,8 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
              attDate.getFullYear() === year;
     });
     
-    const eventName = (att: AmigoAttendance) => att.agenda_event?.name || "";
-    const atendimentos = dayAttendances.filter(att => !shouldExcludeFromConsultas(eventName(att))).length;
+    // Contamos todos os atendimentos (sem exclusão) para manter consistência com aba Detalhado
+    const atendimentos = dayAttendances.length;
 
     // RECEITAS - da aba DETALHADO (banco de dados), onde receita = "sim"
     const dayDetalhados = detalhados.filter((det) => {
@@ -292,7 +283,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
       faturamento,
       ticket,
     };
-  }, [attendances, detalhados, acompanhamentos, year, parseDate, shouldExcludeFromConsultas, getAcompanhamentoDateKey]);
+  }, [attendances, detalhados, acompanhamentos, year, parseDate, getAcompanhamentoDateKey]);
 
   return {
     isLoading,
