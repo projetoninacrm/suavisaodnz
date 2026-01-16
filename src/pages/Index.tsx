@@ -91,11 +91,23 @@ const Index = () => {
       l.canal?.toLowerCase() === "google" || 
       l.canal?.toLowerCase() === "facebook"
     );
+    // Leads com canal vazio ou não reconhecido
+    const outrosLeads = baseLeads.filter(l => {
+      const canal = l.canal?.toLowerCase() || "";
+      return canal === "" || (
+        canal !== "sua visão" && 
+        canal !== "loja" && 
+        canal !== "internet" && 
+        canal !== "google" && 
+        canal !== "facebook"
+      );
+    });
 
     return {
       suaVisao: calcStats(suaVisaoLeads),
       loja: calcStats(lojaLeads),
       internet: calcStats(internetLeads),
+      outros: calcStats(outrosLeads),
       todos: calcStats(baseLeads),
     };
   }, [leads.leads, leadsFilters.data_registro]);
@@ -262,6 +274,15 @@ const Index = () => {
                   <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.vendas}</td>
                   <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.conversao}%</td>
                 </tr>
+                {leadsStatsByChannel.outros.leads > 0 && (
+                  <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors text-muted-foreground">
+                    <td className="px-4 py-3 font-medium italic">Outros / Sem Canal</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.outros.leads}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.outros.orcamentos}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.outros.vendas}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.outros.conversao}%</td>
+                  </tr>
+                )}
                 <tr className="hover:bg-muted/30 transition-colors font-semibold bg-muted/20">
                   <td className="px-4 py-3">Todos</td>
                   <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.leads}</td>
