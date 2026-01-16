@@ -11,6 +11,7 @@ interface Detalhado {
   como_conheceu: string | null;
   receita: string | null;
   visitou_loja: string | null;
+  venda: string | null;
   obs: string | null;
 }
 
@@ -31,28 +32,31 @@ interface AmigoAttendance {
     id: number;
     name: string;
   };
+  unit?: {
+    id: number;
+    name: string;
+  };
+}
+
+interface AcompanhamentoDiario {
+  id: string;
+  data: string;
+  vendas_realizadas: number | null;
+  faturamento_realizado: number | null;
 }
 
 interface DayMetrics {
   atendimentos: number;
-  consultas: number;
   receitas: number;
   potencial: number;
   visitou_dnz: number;
-  comparecimento: number;
   vendas: number;
   conversao: number;
   faturamento: number;
   ticket: number;
 }
 
-// Tipos de eventos a excluir para ATENDIMENTOS
-const EXCLUDE_ATENDIMENTOS = [
-  "cirurgia",
-  "exames complementares",
-];
-
-// Tipos de eventos a excluir para CONSULTAS (além dos de atendimentos)
+// Tipos de eventos a excluir para contagem de consultas (atendimentos)
 const EXCLUDE_CONSULTAS = [
   "cirurgia",
   "exames complementares",
@@ -64,6 +68,7 @@ const EXCLUDE_CONSULTAS = [
 export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: number) {
   const [detalhados, setDetalhados] = useState<Detalhado[]>([]);
   const [attendances, setAttendances] = useState<AmigoAttendance[]>([]);
+  const [acompanhamentos, setAcompanhamentos] = useState<AcompanhamentoDiario[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Buscar dados da tabela detalhado
@@ -83,6 +88,25 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     };
 
     fetchDetalhado();
+  }, []);
+
+  // Buscar dados de acompanhamento diário (faturamento)
+  useEffect(() => {
+    const fetchAcompanhamento = async () => {
+      const { data, error } = await supabase
+        .from("acompanhamento_diario")
+        .select("*")
+        .order("data", { ascending: true });
+
+      if (error) {
+        console.error("Erro ao buscar acompanhamento:", error);
+        return;
+      }
+
+      setAcompanhamentos(data || []);
+    };
+
+    fetchAcompanhamento();
   }, []);
 
   // Buscar atendimentos da API do Amigo para o mês selecionado
@@ -111,12 +135,21 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
         }
 
         if (data?.success && data.data?.data && Array.isArray(data.data.data)) {
-          // Filtrar apenas atendimentos não cancelados
-          const validAttendances = data.data.data.filter((att: AmigoAttendance) => !att.canceled);
-          console.log(`Atendimentos carregados: ${validAttendances.length}`);
+          // Filtrar apenas atendimentos não cancelados e da unidade SUA VISAO
+          const validAttendances = data.data.data.filter((att: AmigoAttendance) => {
+            if (att.canceled) return false;
+            const unitName = att.unit?.name?.toUpperCase() || "";
+            return unitName.includes("SUA VISAO") || unitName.includes("SUA VISÃO");
+          });
+          console.log(`Atendimentos SUA VISAO carregados: ${validAttendances.length}`);
           setAttendances(validAttendances);
         } else if (data?.success && Array.isArray(data.data)) {
-          setAttendances(data.data.filter((att: AmigoAttendance) => !att.canceled));
+          const validAttendances = data.data.filter((att: AmigoAttendance) => {
+            if (att.canceled) return false;
+            const unitName = att.unit?.name?.toUpperCase() || "";
+            return unitName.includes("SUA VISAO") || unitName.includes("SUA VISÃO");
+          });
+          setAttendances(validAttendances);
         } else {
           console.log("Resposta da API:", data);
           setAttendances([]);
@@ -160,13 +193,6 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
   };
 
   // Função para verificar se um atendimento deve ser excluído
-  const shouldExcludeFromAtendimentos = (eventName: string): boolean => {
-    const normalizedName = eventName.toLowerCase().trim();
-    return EXCLUDE_ATENDIMENTOS.some(exclude => 
-      normalizedName.includes(exclude.toLowerCase())
-    );
-  };
-
   const shouldExcludeFromConsultas = (eventName: string): boolean => {
     const normalizedName = eventName.toLowerCase().trim();
     return EXCLUDE_CONSULTAS.some(exclude => 
@@ -174,11 +200,15 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     );
   };
 
+  // Helper: criar chave de data para comparação (formato YYYY-MM-DD)
+  const getDateKey = (day: number): string => {
+    return `${year}-${String(selectedMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  };
+
   // Calcular métricas para um dia específico
   const getMetricsForDay = (day: number): DayMetrics => {
-    // ATENDIMENTOS - da API do Amigo, excluindo cirurgias e exames complementares
+    // ATENDIMENTOS (Consultas) - da API do Amigo (Detalhado), excluindo eventos específicos
     const dayAttendances = attendances.filter((att) => {
-      // Parsear start_date no formato ISO
       const attDate = new Date(att.start_date);
       if (isNaN(attDate.getTime())) return false;
       return attDate.getDate() === day && 
@@ -187,12 +217,9 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     });
     
     const eventName = (att: AmigoAttendance) => att.agenda_event?.name || "";
-    const atendimentos = dayAttendances.filter(att => !shouldExcludeFromAtendimentos(eventName(att))).length;
+    const atendimentos = dayAttendances.filter(att => !shouldExcludeFromConsultas(eventName(att))).length;
 
-    // CONSULTAS - da API do Amigo, excluindo cirurgias, exames, mapeamento, ishihara, teste ortóptico
-    const consultas = dayAttendances.filter(att => !shouldExcludeFromConsultas(eventName(att))).length;
-
-    // RECEITAS - da aba DETALHADO, onde receita = "sim"
+    // RECEITAS - da aba DETALHADO (banco de dados), onde receita = "sim"
     const dayDetalhados = detalhados.filter((det) => {
       const detDate = parseDate(det.data);
       if (!detDate) return false;
@@ -202,42 +229,35 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
       det.receita?.toLowerCase().trim() === "sim"
     ).length;
 
-    // POTENCIAL (%) = Receitas / Consultas
-    const potencial = consultas > 0 ? (receitas / consultas) * 100 : 0;
+    // POTENCIAL (%) = Receitas / Atendimentos
+    const potencial = atendimentos > 0 ? (receitas / atendimentos) * 100 : 0;
 
-    // VISITOU DNZ - da aba LEADS, canal "Sua Visão", onde orcamento = "sim"
-    const dayLeadsSuaVisao = leads.filter((lead) => {
-      const leadDate = parseDate(lead.data_registro);
-      if (!leadDate) return false;
-      const isSuaVisao = lead.canal?.toLowerCase().trim() === "sua visão";
-      return leadDate.day === day && leadDate.month === selectedMonth && leadDate.year === year && isSuaVisao;
-    });
-    const visitou_dnz = dayLeadsSuaVisao.filter(lead => 
-      lead.orcamento?.toLowerCase().trim() === "sim"
+    // VISITOU DNZ - da aba DETALHADO, onde visitou_loja = "sim"
+    const visitou_dnz = dayDetalhados.filter(det => 
+      det.visitou_loja?.toLowerCase().trim() === "sim"
     ).length;
 
-    // COMPARECIMENTO (%) = Visitou DNZ / Receitas
-    const comparecimento = receitas > 0 ? (visitou_dnz / receitas) * 100 : 0;
-
-    // VENDAS - da aba LEADS, canal "Sua Visão", onde venda = "Sim"
-    const vendas = dayLeadsSuaVisao.filter(lead => 
-      lead.venda?.toLowerCase().trim() === "sim"
+    // VENDAS - da aba DETALHADO, onde venda = "sim"
+    const vendas = dayDetalhados.filter(det => 
+      det.venda?.toLowerCase().trim() === "sim"
     ).length;
 
-    // CONVERSÃO (%) = Vendas / Comparecimento (usando visitou_dnz como comparecimento)
+    // CONVERSÃO (%) = Vendas / Visitou DNZ
     const conversao = visitou_dnz > 0 ? (vendas / visitou_dnz) * 100 : 0;
 
-    // FATURAMENTO e TICKET MÉDIO - deixar em branco
-    const faturamento = 0;
-    const ticket = 0;
+    // FATURAMENTO - da aba METAS (acompanhamento_diario)
+    const dateKey = getDateKey(day);
+    const acompanhamento = acompanhamentos.find(a => a.data === dateKey);
+    const faturamento = acompanhamento?.faturamento_realizado ?? 0;
+
+    // TICKET MÉDIO = Faturamento / Vendas
+    const ticket = vendas > 0 ? faturamento / vendas : 0;
 
     return {
       atendimentos,
-      consultas,
       receitas,
       potencial,
       visitou_dnz,
-      comparecimento,
       vendas,
       conversao,
       faturamento,

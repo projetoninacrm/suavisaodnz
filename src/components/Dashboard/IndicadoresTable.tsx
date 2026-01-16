@@ -48,11 +48,9 @@ const YEARS = [
 // Métricas para cada bloco
 const SUA_VISAO_METRICS = [
   { key: "atendimentos", label: "Atendimentos" },
-  { key: "consultas", label: "Consultas" },
   { key: "receitas", label: "Receitas" },
   { key: "potencial", label: "Potencial (%)" },
   { key: "visitou_dnz", label: "Visitou DNZ" },
-  { key: "comparecimento", label: "Comparecimento (%)" },
   { key: "vendas", label: "Vendas" },
   { key: "conversao", label: "Conversão (%)" },
   { key: "faturamento", label: "Faturamento (R$)" },
