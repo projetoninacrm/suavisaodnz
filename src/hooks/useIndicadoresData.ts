@@ -269,50 +269,11 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     };
   };
 
-  // Métricas para LOJA
-  const getLojaMetricsForDay = (day: number) => {
-    const dayLeads = leads.filter((lead) => {
-      const leadDate = parseDate(lead.data_registro);
-      if (!leadDate) return false;
-      const isLoja = lead.canal?.toLowerCase().trim() === "loja";
-      return leadDate.day === day && leadDate.month === selectedMonth && leadDate.year === year && isLoja;
-    });
-
-    const visitas = dayLeads.length;
-    const vendas = dayLeads.filter(lead => lead.venda?.toLowerCase().trim() === "sim").length;
-    const conversao = visitas > 0 ? (vendas / visitas) * 100 : 0;
-    const faturamento = 0;
-    const ticket = 0;
-
-    return { visitas, vendas, conversao, faturamento, ticket };
-  };
-
-  // Métricas para MKT (Internet)
-  const getMktMetricsForDay = (day: number) => {
-    const dayLeads = leads.filter((lead) => {
-      const leadDate = parseDate(lead.data_registro);
-      if (!leadDate) return false;
-      const isMkt = lead.canal?.toLowerCase().trim() === "internet";
-      return leadDate.day === day && leadDate.month === selectedMonth && leadDate.year === year && isMkt;
-    });
-
-    const leadsCount = dayLeads.length;
-    const vendas = dayLeads.filter(lead => lead.venda?.toLowerCase().trim() === "sim").length;
-    const conversao = leadsCount > 0 ? (vendas / leadsCount) * 100 : 0;
-    const faturamento = 0;
-    const ticket = 0;
-    const investimento = 0;
-    const cac = 0;
-
-    return { leads: leadsCount, vendas, conversao, faturamento, ticket, investimento, cac };
-  };
-
   return {
     isLoading,
     attendances,
     detalhados,
+    acompanhamentos,
     getMetricsForDay,
-    getLojaMetricsForDay,
-    getMktMetricsForDay,
   };
 }
