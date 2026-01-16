@@ -204,15 +204,15 @@ export function PerdasSection({ leads }: PerdasSectionProps) {
           {dadosGrafico.length > 0 ? (
             <div className="grid md:grid-cols-2 gap-8">
               {/* Gráfico */}
-              <div className="h-[350px] flex items-center justify-center">
+              <div className="h-[420px] flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={dadosGrafico}
                       cx="50%"
-                      cy="50%"
-                      outerRadius={120}
-                      innerRadius={40}
+                      cy="40%"
+                      outerRadius={100}
+                      innerRadius={35}
                       fill="#8884d8"
                       dataKey="value"
                       paddingAngle={2}
@@ -230,6 +230,15 @@ export function PerdasSection({ leads }: PerdasSectionProps) {
                         backgroundColor: 'hsl(var(--card))', 
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px'
+                      }}
+                    />
+                    <Legend 
+                      layout="horizontal"
+                      verticalAlign="bottom"
+                      align="center"
+                      wrapperStyle={{ 
+                        paddingTop: '20px',
+                        fontSize: '12px'
                       }}
                     />
                   </PieChart>
