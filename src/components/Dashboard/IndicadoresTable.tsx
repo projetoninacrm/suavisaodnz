@@ -50,6 +50,7 @@ const SUA_VISAO_METRICS = [
   { key: "receitas", label: "Receitas" },
   { key: "potencial", label: "Potencial (%)" },
   { key: "visitou_dnz", label: "Visitou DNZ" },
+  { key: "taxa_presenca", label: "Taxa de Presença (%)" },
   { key: "vendas", label: "Vendas" },
   { key: "conversao", label: "Conversão (%)" },
   { key: "faturamento", label: "Faturamento (R$)" },

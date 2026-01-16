@@ -47,6 +47,7 @@ interface DayMetrics {
   receitas: number;
   potencial: number;
   visitou_dnz: number;
+  taxa_presenca: number;
   vendas: number;
   conversao: number;
   faturamento: number;
@@ -257,11 +258,15 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     // TICKET MÉDIO = Faturamento / Vendas
     const ticket = vendas > 0 ? faturamento / vendas : 0;
 
+    // TAXA DE PRESENÇA (%) = Visitou DNZ / Receitas
+    const taxa_presenca = receitas > 0 ? (visitou_dnz / receitas) * 100 : 0;
+
     return {
       atendimentos,
       receitas,
       potencial,
       visitou_dnz,
+      taxa_presenca,
       vendas,
       conversao,
       faturamento,
