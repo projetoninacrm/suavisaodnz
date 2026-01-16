@@ -17,8 +17,9 @@ interface Detalhado {
 
 interface AmigoAttendance {
   id: number;
-  start_date: string;
-  canceled: boolean;
+  start_date?: string;
+  date?: string;
+  canceled?: boolean;
   status: string;
   agenda_event?: {
     id: number;
@@ -28,11 +29,7 @@ interface AmigoAttendance {
     id: number;
     name: string;
   };
-  user?: {
-    id: number;
-    name: string;
-  };
-  unit?: {
+  place?: {
     id: number;
     name: string;
   };
@@ -84,6 +81,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
         return;
       }
 
+      console.log(`[useIndicadoresData] Detalhados carregados: ${data?.length || 0}`);
       setDetalhados(data || []);
     };
 
@@ -99,17 +97,18 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
         .order("data", { ascending: true });
 
       if (error) {
-        console.error("Erro ao buscar acompanhamento:", error);
+        console.error("[useIndicadoresData] Erro ao buscar acompanhamento:", error);
         return;
       }
 
+      console.log(`[useIndicadoresData] Acompanhamentos carregados: ${data?.length || 0}`);
       setAcompanhamentos(data || []);
     };
 
     fetchAcompanhamento();
   }, []);
 
-  // Buscar atendimentos da API do Amigo para o mês selecionado
+  // Buscar atendimentos da API do Amigo para o mês selecionado (igual à aba Detalhado)
   useEffect(() => {
     const fetchAttendances = async () => {
       setIsLoading(true);
@@ -119,43 +118,44 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
         const lastDay = new Date(year, selectedMonth, 0).getDate();
         const endDate = `${year}-${String(selectedMonth).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
+        console.log(`[useIndicadoresData] Fetching attendances from ${startDate} to ${endDate}`);
+
         const { data, error } = await supabase.functions.invoke("amigo-api", {
           body: {
             action: "attendances",
             params: {
               start_date: startDate,
               end_date: endDate,
+              status: "DONE", // Apenas atendimentos finalizados (igual à aba Detalhado)
             },
           },
         });
 
         if (error) {
-          console.error("Erro ao buscar atendimentos:", error);
+          console.error("[useIndicadoresData] Erro ao buscar atendimentos:", error);
           return;
         }
 
         if (data?.success && data.data?.data && Array.isArray(data.data.data)) {
-          // Filtrar apenas atendimentos não cancelados e da unidade SUA VISAO
-          const validAttendances = data.data.data.filter((att: AmigoAttendance) => {
-            if (att.canceled) return false;
-            const unitName = att.unit?.name?.toUpperCase() || "";
-            return unitName.includes("SUA VISAO") || unitName.includes("SUA VISÃO");
+          // Filtrar apenas atendimentos da unidade SUA VISAO (igual à aba Detalhado)
+          const validAttendances = data.data.data.filter((att: any) => {
+            const placeName = (att.place?.name || "").toLowerCase();
+            return placeName.includes("sua visao") && placeName.includes("padre pedro pinto");
           });
-          console.log(`Atendimentos SUA VISAO carregados: ${validAttendances.length}`);
+          console.log(`[useIndicadoresData] Atendimentos SUA VISAO filtrados: ${validAttendances.length}`);
           setAttendances(validAttendances);
         } else if (data?.success && Array.isArray(data.data)) {
-          const validAttendances = data.data.filter((att: AmigoAttendance) => {
-            if (att.canceled) return false;
-            const unitName = att.unit?.name?.toUpperCase() || "";
-            return unitName.includes("SUA VISAO") || unitName.includes("SUA VISÃO");
+          const validAttendances = data.data.filter((att: any) => {
+            const placeName = (att.place?.name || "").toLowerCase();
+            return placeName.includes("sua visao") && placeName.includes("padre pedro pinto");
           });
           setAttendances(validAttendances);
         } else {
-          console.log("Resposta da API:", data);
+          console.log("[useIndicadoresData] Resposta da API:", data);
           setAttendances([]);
         }
       } catch (error) {
-        console.error("Erro ao chamar API:", error);
+        console.error("[useIndicadoresData] Erro ao chamar API:", error);
         setAttendances([]);
       } finally {
         setIsLoading(false);
@@ -209,7 +209,9 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
   const getMetricsForDay = (day: number): DayMetrics => {
     // ATENDIMENTOS (Consultas) - da API do Amigo (Detalhado), excluindo eventos específicos
     const dayAttendances = attendances.filter((att) => {
-      const attDate = new Date(att.start_date);
+      const dateStr = att.start_date || att.date;
+      if (!dateStr) return false;
+      const attDate = new Date(dateStr);
       if (isNaN(attDate.getTime())) return false;
       return attDate.getDate() === day && 
              (attDate.getMonth() + 1) === selectedMonth && 
