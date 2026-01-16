@@ -3,7 +3,7 @@ import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
 import { LeadsTable, type LeadsFilters } from "@/components/Dashboard/LeadsTable";
-import { GenericTable } from "@/components/Dashboard/GenericTable";
+
 import { DetalhadoAmigoTable } from "@/components/Dashboard/DetalhadoAmigoTable";
 import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
 import { MetasCalculator } from "@/components/Dashboard/MetasCalculator";
@@ -15,7 +15,7 @@ import { useGenericTable } from "@/hooks/useGenericTable";
 import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 
-const TABS = ["Agenda", "Leads", "Indicadores", "Metas", "Detalhado", "MKT", "Perdas"];
+const TABS = ["Agenda", "Leads", "Perdas", "Indicadores", "Metas", "Detalhado"];
 
 const INDICADORES_COLUMNS = [
   { key: "indicador", label: "Indicador", width: "200px" },
@@ -27,15 +27,6 @@ const INDICADORES_COLUMNS = [
 
 
 
-const MKT_COLUMNS = [
-  { key: "campanha", label: "Campanha", width: "200px" },
-  { key: "canal", label: "Canal", width: "120px" },
-  { key: "investimento", label: "Investimento", width: "120px" },
-  { key: "retorno", label: "Retorno", width: "120px" },
-  { key: "leads_gerados", label: "Leads", width: "80px" },
-  { key: "conversoes", label: "Conversões", width: "100px" },
-  { key: "obs", label: "Observações" },
-];
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState(TABS[0]);
@@ -57,7 +48,7 @@ const Index = () => {
   const indicadores = useGenericTable("indicadores");
   const detalhadoAmigo = useDetalhadoAmigo();
   const detalhadoDb = useGenericTable("detalhado");
-  const mkt = useGenericTable("mkt");
+  
   const acompanhamento = useAcompanhamentoDiario();
   const isLoading = 
     activeTab === "Agenda" ? schedules.isLoading :
@@ -65,7 +56,6 @@ const Index = () => {
     activeTab === "Indicadores" ? indicadores.isLoading :
     activeTab === "Metas" ? false :
     activeTab === "Detalhado" ? detalhadoAmigo.isLoading :
-    activeTab === "MKT" ? mkt.isLoading :
     activeTab === "Perdas" ? leads.isLoading :
     false;
 
@@ -129,9 +119,8 @@ const Index = () => {
       case "Agenda": schedules.fetchSchedules(); break;
       case "Leads": leads.fetchLeads(); break;
       case "Indicadores": indicadores.fetchRecords(); break;
-      case "Metas": schedules.fetchSchedules(); break; // Refresh agenda para atualizar períodos
+      case "Metas": schedules.fetchSchedules(); break;
       case "Detalhado": detalhadoAmigo.refresh(); break;
-      case "MKT": mkt.fetchRecords(); break;
       case "Perdas": leads.fetchLeads(); break;
     }
   };
@@ -141,10 +130,9 @@ const Index = () => {
       case "Agenda": schedules.addSchedule(); break;
       case "Leads": setShowNewLeadDialog(true); break;
       case "Indicadores": indicadores.addRecord(); break;
-      case "Metas": break; // Metas não precisa adicionar linhas
-      case "Detalhado": break; // Detalhado usa dados do banco
-      case "MKT": mkt.addRecord(); break;
-      case "Perdas": break; // Perdas é apenas visualização
+      case "Metas": break;
+      case "Detalhado": break;
+      case "Perdas": break;
     }
   };
 
@@ -197,16 +185,6 @@ const Index = () => {
             onUpdateDb={detalhadoDb.updateRecord}
             onCreateDb={detalhadoDb.createRecord}
             onRefreshDb={detalhadoDb.fetchRecords}
-          />
-        );
-      case "MKT":
-        return (
-          <GenericTable
-            records={mkt.records}
-            columns={MKT_COLUMNS}
-            onUpdate={mkt.updateRecord}
-            onDelete={mkt.deleteRecord}
-            emptyMessage="Nenhuma campanha cadastrada."
           />
         );
       case "Perdas":
