@@ -91,9 +91,16 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
 
   const hasDuplicates = duplicateInfo.byName.length > 0 || duplicateInfo.byPhone.length > 0;
 
+  const isCanalEmpty = !formData.canal.trim();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Block submission if canal is not filled
+    if (isCanalEmpty) {
+      return;
+    }
+
     // If there are duplicates and user hasn't confirmed, show confirmation
     if (hasDuplicates && !showConfirmation) {
       setShowConfirmation(true);
@@ -176,9 +183,11 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="canal">Canal</Label>
+              <Label htmlFor="canal" className="flex items-center gap-1">
+                Canal <span className="text-destructive">*</span>
+              </Label>
               <Select value={formData.canal} onValueChange={(v) => updateField("canal", v)}>
-                <SelectTrigger>
+                <SelectTrigger className={cn(isCanalEmpty && "border-destructive")}>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -188,6 +197,9 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
                   <SelectItem value="Outro">Outro</SelectItem>
                 </SelectContent>
               </Select>
+              {isCanalEmpty && (
+                <p className="text-xs text-destructive">Campo obrigatório</p>
+              )}
             </div>
           </div>
 
