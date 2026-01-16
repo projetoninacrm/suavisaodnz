@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "./useLeads";
 
@@ -42,7 +42,7 @@ interface AcompanhamentoDiario {
   faturamento_realizado: number | null;
 }
 
-interface DayMetrics {
+export interface DayMetrics {
   atendimentos: number;
   receitas: number;
   potencial: number;
@@ -63,7 +63,9 @@ const EXCLUDE_CONSULTAS = [
   "teste ortóptico",
 ];
 
-export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: number) {
+const MONTH_NAMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year: number) {
   const [detalhados, setDetalhados] = useState<Detalhado[]>([]);
   const [attendances, setAttendances] = useState<AmigoAttendance[]>([]);
   const [acompanhamentos, setAcompanhamentos] = useState<AcompanhamentoDiario[]>([]);
@@ -109,15 +111,24 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     fetchAcompanhamento();
   }, []);
 
-  // Buscar atendimentos da API do Amigo para o mês selecionado (igual à aba Detalhado)
+  // Buscar atendimentos da API do Amigo para os meses selecionados
   useEffect(() => {
     const fetchAttendances = async () => {
+      if (selectedMonths.length === 0) {
+        setAttendances([]);
+        return;
+      }
+
       setIsLoading(true);
       try {
-        // Primeiro e último dia do mês
-        const startDate = `${year}-${String(selectedMonth).padStart(2, "0")}-01`;
-        const lastDay = new Date(year, selectedMonth, 0).getDate();
-        const endDate = `${year}-${String(selectedMonth).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+        // Calcular range de datas baseado nos meses selecionados
+        const sortedMonths = [...selectedMonths].sort((a, b) => a - b);
+        const firstMonth = sortedMonths[0];
+        const lastMonth = sortedMonths[sortedMonths.length - 1];
+        
+        const startDate = `${year}-${String(firstMonth).padStart(2, "0")}-01`;
+        const lastDay = new Date(year, lastMonth, 0).getDate();
+        const endDate = `${year}-${String(lastMonth).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
         console.log(`[useIndicadoresData] Fetching attendances from ${startDate} to ${endDate}`);
 
@@ -127,7 +138,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
             params: {
               start_date: startDate,
               end_date: endDate,
-              status: "DONE", // Apenas atendimentos finalizados (igual à aba Detalhado)
+              status: "DONE",
             },
           },
         });
@@ -137,19 +148,29 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
           return;
         }
 
-        if (data?.success && data.data?.data && Array.isArray(data.data.data)) {
-          // Filtrar apenas atendimentos da unidade SUA VISAO (igual à aba Detalhado)
-          const validAttendances = data.data.data.filter((att: any) => {
+        const processAttendances = (attendanceList: any[]) => {
+          // Filtrar apenas atendimentos da unidade SUA VISAO e dos meses selecionados
+          return attendanceList.filter((att: any) => {
             const placeName = (att.place?.name || "").toLowerCase();
-            return placeName.includes("sua visao") && placeName.includes("padre pedro pinto");
+            const isValidPlace = placeName.includes("sua visao") && placeName.includes("padre pedro pinto");
+            
+            // Verificar se está em um dos meses selecionados
+            const dateStr = att.start_date || att.date;
+            if (!dateStr) return false;
+            const attDate = new Date(dateStr);
+            if (isNaN(attDate.getTime())) return false;
+            const attMonth = attDate.getMonth() + 1;
+            
+            return isValidPlace && selectedMonths.includes(attMonth) && attDate.getFullYear() === year;
           });
+        };
+
+        if (data?.success && data.data?.data && Array.isArray(data.data.data)) {
+          const validAttendances = processAttendances(data.data.data);
           console.log(`[useIndicadoresData] Atendimentos SUA VISAO filtrados: ${validAttendances.length}`);
           setAttendances(validAttendances);
         } else if (data?.success && Array.isArray(data.data)) {
-          const validAttendances = data.data.filter((att: any) => {
-            const placeName = (att.place?.name || "").toLowerCase();
-            return placeName.includes("sua visao") && placeName.includes("padre pedro pinto");
-          });
+          const validAttendances = processAttendances(data.data);
           setAttendances(validAttendances);
         } else {
           console.log("[useIndicadoresData] Resposta da API:", data);
@@ -164,10 +185,10 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     };
 
     fetchAttendances();
-  }, [selectedMonth, year]);
+  }, [selectedMonths, year]);
 
   // Função auxiliar para normalizar data no formato DD/MM/YYYY
-  const parseDate = (dateStr: string | null): { day: number; month: number; year: number } | null => {
+  const parseDate = useCallback((dateStr: string | null): { day: number; month: number; year: number } | null => {
     if (!dateStr) return null;
     
     // Tenta parsear DD/MM/YYYY
@@ -191,25 +212,24 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     }
     
     return null;
-  };
+  }, []);
 
   // Função para verificar se um atendimento deve ser excluído
-  const shouldExcludeFromConsultas = (eventName: string): boolean => {
+  const shouldExcludeFromConsultas = useCallback((eventName: string): boolean => {
     const normalizedName = eventName.toLowerCase().trim();
     return EXCLUDE_CONSULTAS.some(exclude => 
       normalizedName.includes(exclude.toLowerCase())
     );
-  };
+  }, []);
 
   // Helper: criar chave de data no formato usado pela aba Metas (ex: "05/jan", "15/jan")
-  const getAcompanhamentoDateKey = (day: number): string => {
-    const monthNames = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-    const monthAbbrev = monthNames[selectedMonth - 1];
+  const getAcompanhamentoDateKey = useCallback((day: number, month: number): string => {
+    const monthAbbrev = MONTH_NAMES[month - 1];
     return `${String(day).padStart(2, "0")}/${monthAbbrev}`;
-  };
+  }, []);
 
-  // Calcular métricas para um dia específico
-  const getMetricsForDay = (day: number): DayMetrics => {
+  // Calcular métricas para um dia específico de um mês específico
+  const getMetricsForDay = useCallback((day: number, month: number): DayMetrics => {
     // ATENDIMENTOS (Consultas) - da API do Amigo (Detalhado), excluindo eventos específicos
     const dayAttendances = attendances.filter((att) => {
       const dateStr = att.start_date || att.date;
@@ -217,7 +237,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
       const attDate = new Date(dateStr);
       if (isNaN(attDate.getTime())) return false;
       return attDate.getDate() === day && 
-             (attDate.getMonth() + 1) === selectedMonth && 
+             (attDate.getMonth() + 1) === month && 
              attDate.getFullYear() === year;
     });
     
@@ -228,7 +248,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     const dayDetalhados = detalhados.filter((det) => {
       const detDate = parseDate(det.data);
       if (!detDate) return false;
-      return detDate.day === day && detDate.month === selectedMonth && detDate.year === year;
+      return detDate.day === day && detDate.month === month && detDate.year === year;
     });
     const receitas = dayDetalhados.filter(det => 
       det.receita?.toLowerCase().trim() === "sim"
@@ -251,7 +271,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     const conversao = visitou_dnz > 0 ? (vendas / visitou_dnz) * 100 : 0;
 
     // FATURAMENTO - da aba METAS (acompanhamento_diario)
-    const dateKey = getAcompanhamentoDateKey(day);
+    const dateKey = getAcompanhamentoDateKey(day, month);
     const acompanhamento = acompanhamentos.find(a => a.data === dateKey);
     const faturamento = acompanhamento?.faturamento_realizado ?? 0;
 
@@ -272,7 +292,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
       faturamento,
       ticket,
     };
-  };
+  }, [attendances, detalhados, acompanhamentos, year, parseDate, shouldExcludeFromConsultas, getAcompanhamentoDateKey]);
 
   return {
     isLoading,
