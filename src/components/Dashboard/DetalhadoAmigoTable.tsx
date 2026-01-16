@@ -315,14 +315,14 @@ export function DetalhadoAmigoTable({
       ? ((visitouLoja / receitasPotencial) * 100).toFixed(0) 
       : "0";
     
-    // Conversão = Vendas / Receitas com potencial de venda
-    const conversao = receitasPotencial > 0 
-      ? ((vendas / receitasPotencial) * 100).toFixed(0) 
+    // Conversão = Vendas / Visitou a Loja
+    const conversao = visitouLoja > 0 
+      ? ((vendas / visitouLoja) * 100).toFixed(0) 
       : "0";
     
-    // Receitas x Consultas = Receitas totais / Consultas
+    // Receitas x Consultas = Receitas c/ Potencial / Consultas
     const receitasXConsultas = consultas > 0 
-      ? ((receitasTotais / consultas) * 100).toFixed(0) 
+      ? ((receitasPotencial / consultas) * 100).toFixed(0) 
       : "0";
     
     return {
@@ -480,7 +480,7 @@ export function DetalhadoAmigoTable({
               <span className="text-xs font-medium text-muted-foreground">Conversão</span>
             </div>
             <p className="text-2xl font-bold text-foreground">{metrics.conversao}%</p>
-            <p className="text-[10px] text-muted-foreground mt-1">Vendas ÷ Potencial</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Vendas ÷ Visitou Loja</p>
           </CardContent>
         </Card>
 
@@ -492,7 +492,7 @@ export function DetalhadoAmigoTable({
               <span className="text-xs font-medium text-muted-foreground">Receitas x Consultas</span>
             </div>
             <p className="text-2xl font-bold text-foreground">{metrics.receitasXConsultas}%</p>
-            <p className="text-[10px] text-muted-foreground mt-1">Receitas ÷ Consultas</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Potencial ÷ Consultas</p>
           </CardContent>
         </Card>
       </div>
