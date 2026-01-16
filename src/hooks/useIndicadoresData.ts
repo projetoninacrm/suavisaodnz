@@ -200,9 +200,11 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     );
   };
 
-  // Helper: criar chave de data para comparação (formato YYYY-MM-DD)
-  const getDateKey = (day: number): string => {
-    return `${year}-${String(selectedMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  // Helper: criar chave de data no formato usado pela aba Metas (ex: "05/jan", "15/jan")
+  const getAcompanhamentoDateKey = (day: number): string => {
+    const monthNames = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+    const monthAbbrev = monthNames[selectedMonth - 1];
+    return `${String(day).padStart(2, "0")}/${monthAbbrev}`;
   };
 
   // Calcular métricas para um dia específico
@@ -248,7 +250,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonth: number, year: n
     const conversao = visitou_dnz > 0 ? (vendas / visitou_dnz) * 100 : 0;
 
     // FATURAMENTO - da aba METAS (acompanhamento_diario)
-    const dateKey = getDateKey(day);
+    const dateKey = getAcompanhamentoDateKey(day);
     const acompanhamento = acompanhamentos.find(a => a.data === dateKey);
     const faturamento = acompanhamento?.faturamento_realizado ?? 0;
 
