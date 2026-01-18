@@ -11,25 +11,38 @@ interface AcompanhamentoDiarioSectionProps {
   schedules: Schedule[];
   registros: AcompanhamentoDiario[];
   onUpdateRegistro: (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number | null) => void;
-  metaDiariaVendas: number;
+  metaDiariaVendasCompleta: number; // Meta para dias com 2 períodos
+  metaDiariaVendasMeio: number; // Meta para dias com 1 período
+  metaFaturamentoDiarioCompleto: number; // Meta faturamento para dias com 2 períodos
+  metaFaturamentoDiarioMeio: number; // Meta faturamento para dias com 1 período
   metaMensalFaturamento: number; // Meta mensal total
+  pesoTotalDias: number; // Peso total dos dias (completos + meios*0.5)
 }
 
 export function AcompanhamentoDiarioSection({
   schedules,
   registros,
   onUpdateRegistro,
-  metaDiariaVendas,
+  metaDiariaVendasCompleta,
+  metaDiariaVendasMeio,
+  metaFaturamentoDiarioCompleto,
+  metaFaturamentoDiarioMeio,
   metaMensalFaturamento,
+  pesoTotalDias,
 }: AcompanhamentoDiarioSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  // Filtra apenas dias com médico
+  // Filtra apenas dias com médico e adiciona info se é dia completo ou meio
   const diasComMedico = useMemo(() => {
     return schedules.filter(s => 
       (s.morning_shift && s.morning_shift.trim() !== "") || 
       (s.afternoon_shift && s.afternoon_shift.trim() !== "")
-    ).sort((a, b) => {
+    ).map(s => {
+      const temManha = s.morning_shift && s.morning_shift.trim() !== "";
+      const temTarde = s.afternoon_shift && s.afternoon_shift.trim() !== "";
+      const isDiaCompleto = temManha && temTarde;
+      return { ...s, isDiaCompleto };
+    }).sort((a, b) => {
       // Ordena por data (DD/MM/YYYY)
       const [diaA, mesA, anoA] = a.date.split("/").map(Number);
       const [diaB, mesB, anoB] = b.date.split("/").map(Number);
@@ -48,38 +61,35 @@ export function AcompanhamentoDiarioSection({
     return map;
   }, [registros]);
 
-  // Calcula faturamento acumulado total e dias não preenchidos
-  const { faturamentoAcumulado, diasNaoPreenchidos } = useMemo(() => {
+  // Calcula faturamento acumulado total e peso dos dias não preenchidos
+  const { faturamentoAcumulado, pesoNaoPreenchido } = useMemo(() => {
     let acumulado = 0;
-    let naoPreenchidos = 0;
+    let pesoRestante = 0;
     
     diasComMedico.forEach((schedule) => {
       const registro = registrosMap[schedule.date];
       if (registro && registro.faturamento_realizado !== null) {
         acumulado += registro.faturamento_realizado || 0;
       } else {
-        naoPreenchidos++;
+        // Dia não preenchido - adiciona peso correspondente
+        pesoRestante += schedule.isDiaCompleto ? 1 : 0.5;
       }
     });
     
-    return { faturamentoAcumulado: acumulado, diasNaoPreenchidos: naoPreenchidos };
+    return { faturamentoAcumulado: acumulado, pesoNaoPreenchido: pesoRestante };
   }, [diasComMedico, registrosMap]);
 
-  // Meta diária base (para dias sem dados anteriores)
-  const metaDiariaFaturamentoBase = diasComMedico.length > 0 
-    ? metaMensalFaturamento / diasComMedico.length 
-    : 0;
-
-  // Meta dinâmica para dias não preenchidos: (Meta - Faturamento real) / Dias restantes
-  const metaDinamicaParaDiasRestantes = useMemo(() => {
-    if (diasNaoPreenchidos <= 0) return 0;
+  // Meta dinâmica para dias não preenchidos: (Meta - Faturamento real) / Peso restante
+  // Retorna meta por unidade de peso (dia completo = 1, meio = 0.5)
+  const metaDinamicaBaseParaRestantes = useMemo(() => {
+    if (pesoNaoPreenchido <= 0) return 0;
     const faltaParaMeta = metaMensalFaturamento - faturamentoAcumulado;
-    return Math.max(0, faltaParaMeta / diasNaoPreenchidos);
-  }, [metaMensalFaturamento, faturamentoAcumulado, diasNaoPreenchidos]);
+    return Math.max(0, faltaParaMeta / pesoNaoPreenchido);
+  }, [metaMensalFaturamento, faturamentoAcumulado, pesoNaoPreenchido]);
 
   // Cálculo do consolidado baseado nos dias preenchidos
   const consolidado = useMemo(() => {
-    let diasPreenchidos = 0;
+    let pesoPreenchido = 0;
     let metaAcumuladaVendas = 0;
     let metaAcumuladaFaturamento = 0;
     let realAcumuladoVendas = 0;
@@ -87,23 +97,25 @@ export function AcompanhamentoDiarioSection({
 
     diasComMedico.forEach((schedule) => {
       const registro = registrosMap[schedule.date];
+      const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
+      const metaVendasDia = schedule.isDiaCompleto ? metaDiariaVendasCompleta : metaDiariaVendasMeio;
+      const metaFatDia = schedule.isDiaCompleto ? metaFaturamentoDiarioCompleto : metaFaturamentoDiarioMeio;
+      
       // Conta como preenchido se existe registro (mesmo com valores 0)
       if (registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null)) {
-        diasPreenchidos++;
+        pesoPreenchido += pesoDia;
+        metaAcumuladaVendas += metaVendasDia;
+        metaAcumuladaFaturamento += metaFatDia;
         realAcumuladoVendas += registro.vendas_realizadas || 0;
         realAcumuladoFaturamento += registro.faturamento_realizado || 0;
       }
     });
 
-    // Meta acumulada é baseada nos dias preenchidos (usando meta base para consistência)
-    metaAcumuladaVendas = diasPreenchidos * metaDiariaVendas;
-    metaAcumuladaFaturamento = diasPreenchidos * metaDiariaFaturamentoBase;
-
     const diferencaVendas = realAcumuladoVendas - metaAcumuladaVendas;
     const diferencaFaturamento = realAcumuladoFaturamento - metaAcumuladaFaturamento;
 
     return {
-      diasPreenchidos,
+      pesoPreenchido,
       metaAcumuladaVendas,
       metaAcumuladaFaturamento,
       realAcumuladoVendas,
@@ -111,7 +123,7 @@ export function AcompanhamentoDiarioSection({
       diferencaVendas,
       diferencaFaturamento,
     };
-  }, [diasComMedico, registrosMap, metaDiariaVendas, metaDiariaFaturamentoBase]);
+  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaDiariaVendasMeio, metaFaturamentoDiarioCompleto, metaFaturamentoDiarioMeio]);
 
   const StatusBadge = ({ diferenca, tipo }: { diferenca: number; tipo: "vendas" | "faturamento" }) => {
     const isPositivo = diferenca >= 0;
@@ -163,7 +175,7 @@ export function AcompanhamentoDiarioSection({
             {/* Kanban de Consolidado */}
             <div className="mb-6">
               <h4 className="text-sm font-semibold mb-3 text-muted-foreground">
-                Consolidado ({consolidado.diasPreenchidos} dias preenchidos)
+                Consolidado (peso {consolidado.pesoPreenchido.toFixed(1)} preenchido)
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Meta Acumulada Vendas */}
@@ -236,20 +248,25 @@ export function AcompanhamentoDiarioSection({
                 <tbody>
                   {(() => {
                     let acumuladoFaturamento = 0;
-                    let diasContados = 0;
+                    let acumuladoMetaFat = 0;
                     
                     return diasComMedico.map((schedule) => {
                       const registro = registrosMap[schedule.date];
                       const vendasReal = registro?.vendas_realizadas || 0;
                       const faturamentoReal = registro?.faturamento_realizado || 0;
                       
+                      // Determina a meta baseada no tipo do dia (completo ou meio)
+                      const metaVendasDia = schedule.isDiaCompleto ? metaDiariaVendasCompleta : metaDiariaVendasMeio;
+                      const metaFatDiaBase = schedule.isDiaCompleto ? metaFaturamentoDiarioCompleto : metaFaturamentoDiarioMeio;
+                      
                       // Verifica se o dia já foi preenchido
                       const diaPreenchido = registro !== undefined && registro.faturamento_realizado !== null;
                       
-                      // Meta para dias preenchidos usa a base, para dias não preenchidos usa a dinâmica
-                      const metaDiariaFatDia = diaPreenchido ? metaDiariaFaturamentoBase : metaDinamicaParaDiasRestantes;
+                      // Meta para dias não preenchidos usa a dinâmica (proporcional ao peso)
+                      const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
+                      const metaDiariaFatDia = diaPreenchido ? metaFatDiaBase : metaDinamicaBaseParaRestantes * pesoDia;
                       
-                      const diferencaVendas = vendasReal - metaDiariaVendas;
+                      const diferencaVendas = vendasReal - metaVendasDia;
                       const statusVendas = diferencaVendas >= 0 ? "ok" : "atras";
                       
                       const diferencaFaturamento = faturamentoReal - metaDiariaFatDia;
@@ -258,17 +275,19 @@ export function AcompanhamentoDiarioSection({
                       // Calcula consolidado progressivo - considera preenchido se existe registro (mesmo com 0)
                       const temDados = registro !== undefined && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null);
                       if (temDados) {
-                        diasContados++;
                         acumuladoFaturamento += faturamentoReal;
+                        acumuladoMetaFat += metaFatDiaBase; // Usa meta base para o consolidado
                       }
-                      const metaAcumuladaFat = diasContados * metaDiariaFaturamentoBase;
-                      const diferencaConsolidada = acumuladoFaturamento - metaAcumuladaFat;
+                      const diferencaConsolidada = acumuladoFaturamento - acumuladoMetaFat;
 
                       return (
                         <tr key={schedule.id} className="border-b border-border/50 hover:bg-muted/30">
                           <td className="px-3 py-2 font-medium">{schedule.date}</td>
                           <td className="px-3 py-2 text-center text-blue-500 font-medium">
-                            {metaDiariaVendas.toFixed(2)}
+                            {metaVendasDia.toFixed(2)}
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({schedule.isDiaCompleto ? "2P" : "1P"})
+                            </span>
                           </td>
                           <td className="px-3 py-2">
                             <Input
