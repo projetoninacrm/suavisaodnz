@@ -45,14 +45,25 @@ interface ConfigValues {
   metaFaturamentoMensal: number;
 }
 
-// Helper: extrai o mês de uma data no formato DD/MM/YYYY
+// Helper: extrai o mês de uma data (suporta DD/MM/YYYY e DD/mes)
 function getMonthFromDate(dateStr: string): string | null {
   if (!dateStr) return null;
+  
+  // Tenta formato DD/mes (ex: 05/jan)
   const parts = dateStr.split("/");
-  if (parts.length < 2) return null;
-  const monthNum = parseInt(parts[1], 10);
-  if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) return null;
-  return MONTH_NAMES[monthNum - 1];
+  if (parts.length >= 2) {
+    const monthPart = parts[1].toLowerCase().trim();
+    // Verifica se é um nome de mês abreviado
+    if (MONTH_NAMES.includes(monthPart)) {
+      return monthPart;
+    }
+    // Tenta formato numérico DD/MM/YYYY ou DD/MM
+    const monthNum = parseInt(monthPart, 10);
+    if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+      return MONTH_NAMES[monthNum - 1];
+    }
+  }
+  return null;
 }
 
 export function MetasCalculator({ 
