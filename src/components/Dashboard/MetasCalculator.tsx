@@ -1,15 +1,36 @@
 import { useState, useMemo } from "react";
-import { Calculator, Settings, Target, TrendingUp, Zap, Calendar, CalendarDays, CalendarRange, DollarSign } from "lucide-react";
+import { Calculator, Settings, Target, TrendingUp, Zap, Calendar, CalendarDays, CalendarRange, DollarSign, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AcompanhamentoDiarioSection } from "./AcompanhamentoDiarioSection";
 import { Schedule } from "@/hooks/useSchedules";
 import { AcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+
+const MONTH_NAMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const MONTH_LABELS: Record<string, string> = {
+  jan: "Janeiro",
+  fev: "Fevereiro",
+  mar: "Março",
+  abr: "Abril",
+  mai: "Maio",
+  jun: "Junho",
+  jul: "Julho",
+  ago: "Agosto",
+  set: "Setembro",
+  out: "Outubro",
+  nov: "Novembro",
+  dez: "Dezembro",
+};
 
 interface MetasCalculatorProps {
-  diasComMedico: number;
-  periodosComMedico: number;
   schedules: Schedule[];
   acompanhamentoRegistros: AcompanhamentoDiario[];
   onUpdateAcompanhamento: (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number) => void;
@@ -24,13 +45,72 @@ interface ConfigValues {
   metaFaturamentoMensal: number;
 }
 
+// Helper: extrai o mês de uma data no formato DD/MM/YYYY
+function getMonthFromDate(dateStr: string): string | null {
+  if (!dateStr) return null;
+  const parts = dateStr.split("/");
+  if (parts.length < 2) return null;
+  const monthNum = parseInt(parts[1], 10);
+  if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) return null;
+  return MONTH_NAMES[monthNum - 1];
+}
+
 export function MetasCalculator({ 
-  diasComMedico, 
-  periodosComMedico, 
   schedules, 
   acompanhamentoRegistros, 
   onUpdateAcompanhamento 
 }: MetasCalculatorProps) {
+  // Detecta meses disponíveis nos schedules
+  const availableMonths = useMemo(() => {
+    const monthsSet = new Set<string>();
+    schedules.forEach(s => {
+      const month = getMonthFromDate(s.date);
+      if (month) monthsSet.add(month);
+    });
+    return MONTH_NAMES.filter(m => monthsSet.has(m));
+  }, [schedules]);
+
+  // Estado do filtro de mês - por padrão seleciona o primeiro mês disponível ou janeiro
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    const currentMonth = MONTH_NAMES[now.getMonth()];
+    return availableMonths.includes(currentMonth) ? currentMonth : (availableMonths[0] || "jan");
+  });
+
+  // Filtra schedules pelo mês selecionado
+  const filteredSchedules = useMemo(() => {
+    return schedules.filter(s => {
+      const month = getMonthFromDate(s.date);
+      return month === selectedMonth;
+    });
+  }, [schedules, selectedMonth]);
+
+  // Filtra registros de acompanhamento pelo mês selecionado
+  const filteredAcompanhamento = useMemo(() => {
+    return acompanhamentoRegistros.filter(r => {
+      const month = getMonthFromDate(r.data);
+      return month === selectedMonth;
+    });
+  }, [acompanhamentoRegistros, selectedMonth]);
+
+  // Calcula diasComMedico e periodosComMedico baseados no mês filtrado
+  const { diasComMedico, periodosComMedico } = useMemo(() => {
+    let dias = 0;
+    let periodos = 0;
+    
+    filteredSchedules.forEach((schedule) => {
+      const temManha = schedule.morning_shift && schedule.morning_shift.trim() !== "";
+      const temTarde = schedule.afternoon_shift && schedule.afternoon_shift.trim() !== "";
+      
+      if (temManha) periodos += 1;
+      if (temTarde) periodos += 1;
+      
+      if (temManha || temTarde) dias += 1;
+    });
+    
+    return { diasComMedico: dias, periodosComMedico: periodos };
+  }, [filteredSchedules]);
+
   const [config, setConfig] = useState<ConfigValues>({
     periodos: periodosComMedico,
     mediaAtendimentos: 8,
@@ -40,12 +120,12 @@ export function MetasCalculator({
     metaFaturamentoMensal: 60000,
   });
 
-  // Atualiza períodos quando vem da Agenda
+  // Atualiza períodos quando muda o mês ou recalcula
   useMemo(() => {
-    if (periodosComMedico > 0 && config.periodos !== periodosComMedico) {
+    if (periodosComMedico > 0) {
       setConfig(prev => ({ ...prev, periodos: periodosComMedico }));
     }
-  }, [periodosComMedico]);
+  }, [periodosComMedico, selectedMonth]);
 
   const handleConfigChange = (field: keyof ConfigValues, value: string) => {
     const numValue = parseFloat(value) || 0;
@@ -102,6 +182,46 @@ export function MetasCalculator({
 
   return (
     <div className="space-y-6">
+      {/* Filtro de Mês */}
+      <Card className="border-border">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center gap-4">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" />
+              Mês:
+            </Label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="min-w-[180px] justify-between">
+                  {MONTH_LABELS[selectedMonth] || selectedMonth}
+                  <ChevronDown className="h-4 w-4 ml-2 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[200px] p-2" align="start">
+                <div className="space-y-1">
+                  {availableMonths.map((month) => (
+                    <div
+                      key={month}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors ${
+                        selectedMonth === month 
+                          ? "bg-primary text-primary-foreground" 
+                          : "hover:bg-muted"
+                      }`}
+                      onClick={() => setSelectedMonth(month)}
+                    >
+                      <span className="text-sm font-medium">{MONTH_LABELS[month]}</span>
+                    </div>
+                  ))}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="text-sm text-muted-foreground">
+              ({diasComMedico} dias com médico / {periodosComMedico} períodos)
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Bloco 1: Configurações Gerais */}
       <Card className="border-border">
         <CardHeader className="pb-4">
@@ -548,8 +668,8 @@ export function MetasCalculator({
 
       {/* Seção de Acompanhamento Diário */}
       <AcompanhamentoDiarioSection
-        schedules={schedules}
-        registros={acompanhamentoRegistros}
+        schedules={filteredSchedules}
+        registros={filteredAcompanhamento}
         onUpdateRegistro={onUpdateAcompanhamento}
         metaDiariaVendas={calculations.metaDiaria}
         metaMensalFaturamento={calculations.faturamentoMensal}
