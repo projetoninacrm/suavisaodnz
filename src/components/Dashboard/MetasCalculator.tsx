@@ -100,10 +100,13 @@ export function MetasCalculator({
     });
   }, [acompanhamentoRegistros, selectedMonth]);
 
-  // Calcula diasComMedico e periodosComMedico baseados no mês filtrado
-  const { diasComMedico, periodosComMedico } = useMemo(() => {
+  // Calcula diasComMedico, periodosComMedico e peso dos dias baseados no mês filtrado
+  // Dias com 2 períodos = peso 1, dias com 1 período = peso 0.5
+  const { diasComMedico, periodosComMedico, diasCompletos, diasMeios, pesoTotalDias } = useMemo(() => {
     let dias = 0;
     let periodos = 0;
+    let completos = 0; // dias com 2 períodos
+    let meios = 0; // dias com apenas 1 período
     
     filteredSchedules.forEach((schedule) => {
       const temManha = schedule.morning_shift && schedule.morning_shift.trim() !== "";
@@ -112,10 +115,25 @@ export function MetasCalculator({
       if (temManha) periodos += 1;
       if (temTarde) periodos += 1;
       
-      if (temManha || temTarde) dias += 1;
+      if (temManha && temTarde) {
+        dias += 1;
+        completos += 1;
+      } else if (temManha || temTarde) {
+        dias += 1;
+        meios += 1;
+      }
     });
     
-    return { diasComMedico: dias, periodosComMedico: periodos };
+    // Peso total: dias completos contam 1, meios contam 0.5
+    const pesoTotal = completos + (meios * 0.5);
+    
+    return { 
+      diasComMedico: dias, 
+      periodosComMedico: periodos,
+      diasCompletos: completos,
+      diasMeios: meios,
+      pesoTotalDias: pesoTotal
+    };
   }, [filteredSchedules]);
 
   // Estado local das configurações
@@ -185,21 +203,37 @@ export function MetasCalculator({
 
     const superMeta = metaVendas * 1.2;
     
-    // Metas por período - agora usa diasComMedico para dividir
+    // Metas por período - agora usa pesoTotalDias para distribuição justa
+    // Dias com 2 períodos = peso 1, dias com 1 período = peso 0.5
     const metaMensal = metaVendas;
-    const metaDiaria = diasComMedico > 0 ? metaVendas / diasComMedico : 0;
+    
+    // Meta diária base: dividida pelo peso total (considera dias meio período)
+    // Ex: 22 dias completos + 4 meios = peso 24 (22 + 4*0.5)
+    // Meta diária completa = mensal / 24, meta dia meio = (mensal / 24) / 2
+    const metaDiariaBase = pesoTotalDias > 0 ? metaVendas / pesoTotalDias : 0;
+    const metaDiariaCompleta = metaDiariaBase; // para dias com 2 períodos
+    const metaDiariaMeio = metaDiariaBase * 0.5; // para dias com 1 período
+    
+    const metaDiaria = metaDiariaCompleta; // valor de referência (dia completo)
     const metaSemanal = metaVendas / 4;
     const superMetaMensal = superMeta;
-    const superMetaDiaria = diasComMedico > 0 ? superMeta / diasComMedico : 0;
+    const superMetaDiariaCompleta = pesoTotalDias > 0 ? superMeta / pesoTotalDias : 0;
+    const superMetaDiariaMeio = superMetaDiariaCompleta * 0.5;
+    const superMetaDiaria = superMetaDiariaCompleta;
     const superMetaSemanal = superMeta / 4;
 
-    // Faturamento
+    // Faturamento com mesma lógica de distribuição
     const ticketMedio = metaVendas > 0 ? config.metaFaturamentoMensal / metaVendas : 0;
     const faturamentoMensal = config.metaFaturamentoMensal;
-    const faturamentoDiario = diasComMedico > 0 ? faturamentoMensal / diasComMedico : 0;
+    const faturamentoDiarioBase = pesoTotalDias > 0 ? faturamentoMensal / pesoTotalDias : 0;
+    const faturamentoDiarioCompleto = faturamentoDiarioBase;
+    const faturamentoDiarioMeio = faturamentoDiarioBase * 0.5;
+    const faturamentoDiario = faturamentoDiarioCompleto; // referência
     const faturamentoSemanal = faturamentoMensal / 4;
     const superFaturamentoMensal = faturamentoMensal * 1.2;
-    const superFaturamentoDiario = diasComMedico > 0 ? superFaturamentoMensal / diasComMedico : 0;
+    const superFaturamentoDiarioCompleto = pesoTotalDias > 0 ? superFaturamentoMensal / pesoTotalDias : 0;
+    const superFaturamentoDiarioMeio = superFaturamentoDiarioCompleto * 0.5;
+    const superFaturamentoDiario = superFaturamentoDiarioCompleto;
     const superFaturamentoSemanal = superFaturamentoMensal / 4;
 
     return {
@@ -210,19 +244,27 @@ export function MetasCalculator({
       superMeta,
       metaMensal,
       metaDiaria,
+      metaDiariaCompleta,
+      metaDiariaMeio,
       metaSemanal,
       superMetaMensal,
       superMetaDiaria,
+      superMetaDiariaCompleta,
+      superMetaDiariaMeio,
       superMetaSemanal,
       ticketMedio,
       faturamentoMensal,
       faturamentoDiario,
+      faturamentoDiarioCompleto,
+      faturamentoDiarioMeio,
       faturamentoSemanal,
       superFaturamentoMensal,
       superFaturamentoDiario,
+      superFaturamentoDiarioCompleto,
+      superFaturamentoDiarioMeio,
       superFaturamentoSemanal,
     };
-  }, [config, diasComMedico]);
+  }, [config, pesoTotalDias]);
 
   return (
     <div className="space-y-6">
@@ -268,7 +310,7 @@ export function MetasCalculator({
               </DropdownMenuContent>
             </DropdownMenu>
             <span className="text-sm text-muted-foreground">
-              ({diasComMedico} dias com médico / {periodosComMedico} períodos)
+              ({diasCompletos} dias completos + {diasMeios} meio período = peso {pesoTotalDias.toFixed(1)} / {periodosComMedico} períodos)
             </span>
           </div>
         </CardContent>
@@ -518,20 +560,34 @@ export function MetasCalculator({
           <div className="mt-6">
             <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <Calendar className="h-4 w-4 text-primary" />
-              Metas por Período ({diasComMedico} dias com médico / {periodosComMedico} períodos)
+              Metas por Período ({diasCompletos} dias completos + {diasMeios} meio período = peso {pesoTotalDias.toFixed(1)})
             </h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {/* Meta Diária */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+              {/* Meta Diária Completa */}
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <CalendarDays className="h-4 w-4 text-blue-500" />
-                  <span className="text-xs font-medium text-muted-foreground">Meta Diária</span>
+                  <span className="text-xs font-medium text-muted-foreground">Meta Dia Completo</span>
                 </div>
                 <p className="text-2xl font-bold text-blue-500">
-                  {calculations.metaDiaria.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {calculations.metaDiariaCompleta.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {calculations.metaMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ÷ {diasComMedico} dias
+                  {calculations.metaMensal.toFixed(2)} ÷ {pesoTotalDias.toFixed(1)}
+                </p>
+              </div>
+
+              {/* Meta Dia Meio Período */}
+              <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CalendarDays className="h-4 w-4 text-sky-500" />
+                  <span className="text-xs font-medium text-muted-foreground">Meta Meio Período</span>
+                </div>
+                <p className="text-2xl font-bold text-sky-500">
+                  {calculations.metaDiariaMeio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  50% da meta diária
                 </p>
               </div>
 
@@ -563,17 +619,31 @@ export function MetasCalculator({
                 </p>
               </div>
 
-              {/* Super Meta Diária */}
+              {/* Super Meta Dia Completo */}
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Zap className="h-4 w-4 text-amber-500" />
-                  <span className="text-xs font-medium text-muted-foreground">Super Diária</span>
+                  <span className="text-xs font-medium text-muted-foreground">Super Dia Completo</span>
                 </div>
                 <p className="text-2xl font-bold text-amber-500">
-                  {calculations.superMetaDiaria.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {calculations.superMetaDiariaCompleta.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {calculations.superMetaMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ÷ {diasComMedico} dias
+                  {calculations.superMetaMensal.toFixed(2)} ÷ {pesoTotalDias.toFixed(1)}
+                </p>
+              </div>
+
+              {/* Super Meta Meio Período */}
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-orange-500" />
+                  <span className="text-xs font-medium text-muted-foreground">Super Meio Período</span>
+                </div>
+                <p className="text-2xl font-bold text-orange-500">
+                  {calculations.superMetaDiariaMeio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  50% da super diária
                 </p>
               </div>
 
@@ -631,18 +701,32 @@ export function MetasCalculator({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {/* Faturamento Diário */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+              {/* Faturamento Dia Completo */}
               <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <CalendarDays className="h-4 w-4 text-green-500" />
-                  <span className="text-xs font-medium text-muted-foreground">Fat. Diário</span>
+                  <span className="text-xs font-medium text-muted-foreground">Fat. Dia Completo</span>
                 </div>
                 <p className="text-2xl font-bold text-green-500">
-                  R$ {Math.round(calculations.faturamentoDiario).toLocaleString("pt-BR")}
+                  R$ {Math.round(calculations.faturamentoDiarioCompleto).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  R$ {Math.round(calculations.faturamentoMensal).toLocaleString("pt-BR")} ÷ {diasComMedico} dias
+                  R$ {Math.round(calculations.faturamentoMensal).toLocaleString("pt-BR")} ÷ {pesoTotalDias.toFixed(1)}
+                </p>
+              </div>
+
+              {/* Faturamento Meio Período */}
+              <div className="bg-teal-500/10 border border-teal-500/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CalendarDays className="h-4 w-4 text-teal-500" />
+                  <span className="text-xs font-medium text-muted-foreground">Fat. Meio Período</span>
+                </div>
+                <p className="text-2xl font-bold text-teal-500">
+                  R$ {Math.round(calculations.faturamentoDiarioMeio).toLocaleString("pt-BR")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  50% do fat. dia completo
                 </p>
               </div>
 
@@ -674,17 +758,31 @@ export function MetasCalculator({
                 </p>
               </div>
 
-              {/* Super Faturamento Diário */}
+              {/* Super Fat. Dia Completo */}
               <div className="bg-lime-500/10 border border-lime-500/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Zap className="h-4 w-4 text-lime-600" />
-                  <span className="text-xs font-medium text-muted-foreground">Super Diário</span>
+                  <span className="text-xs font-medium text-muted-foreground">Super Dia Completo</span>
                 </div>
                 <p className="text-2xl font-bold text-lime-600">
-                  R$ {Math.round(calculations.superFaturamentoDiario).toLocaleString("pt-BR")}
+                  R$ {Math.round(calculations.superFaturamentoDiarioCompleto).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  R$ {Math.round(calculations.superFaturamentoMensal).toLocaleString("pt-BR")} ÷ {diasComMedico} dias
+                  R$ {Math.round(calculations.superFaturamentoMensal).toLocaleString("pt-BR")} ÷ {pesoTotalDias.toFixed(1)}
+                </p>
+              </div>
+
+              {/* Super Fat. Meio Período */}
+              <div className="bg-green-600/10 border border-green-600/20 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-green-600" />
+                  <span className="text-xs font-medium text-muted-foreground">Super Meio Período</span>
+                </div>
+                <p className="text-2xl font-bold text-green-600">
+                  R$ {Math.round(calculations.superFaturamentoDiarioMeio).toLocaleString("pt-BR")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  50% do super dia completo
                 </p>
               </div>
 
@@ -739,8 +837,12 @@ export function MetasCalculator({
         schedules={filteredSchedules}
         registros={filteredAcompanhamento}
         onUpdateRegistro={onUpdateAcompanhamento}
-        metaDiariaVendas={calculations.metaDiaria}
+        metaDiariaVendasCompleta={calculations.metaDiariaCompleta}
+        metaDiariaVendasMeio={calculations.metaDiariaMeio}
+        metaFaturamentoDiarioCompleto={calculations.faturamentoDiarioCompleto}
+        metaFaturamentoDiarioMeio={calculations.faturamentoDiarioMeio}
         metaMensalFaturamento={calculations.faturamentoMensal}
+        pesoTotalDias={pesoTotalDias}
       />
     </div>
   );
