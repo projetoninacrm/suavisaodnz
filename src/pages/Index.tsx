@@ -166,8 +166,6 @@ const Index = () => {
       case "Metas":
         return (
           <MetasCalculator 
-            diasComMedico={diasComMedico} 
-            periodosComMedico={periodosComMedico}
             schedules={schedules.schedules}
             acompanhamentoRegistros={acompanhamento.registros}
             onUpdateAcompanhamento={acompanhamento.upsertRegistro}
