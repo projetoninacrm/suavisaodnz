@@ -209,6 +209,45 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_config: {
+        Row: {
+          created_at: string
+          id: string
+          media_atendimentos: number | null
+          mes: string
+          meta_faturamento_mensal: number | null
+          percentual_comparecimento: number | null
+          percentual_conversao: number | null
+          percentual_receita: number | null
+          periodos: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          media_atendimentos?: number | null
+          mes: string
+          meta_faturamento_mensal?: number | null
+          percentual_comparecimento?: number | null
+          percentual_conversao?: number | null
+          percentual_receita?: number | null
+          periodos?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          media_atendimentos?: number | null
+          mes?: string
+          meta_faturamento_mensal?: number | null
+          percentual_comparecimento?: number | null
+          percentual_conversao?: number | null
+          percentual_receita?: number | null
+          periodos?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mkt: {
         Row: {
           campanha: string | null
