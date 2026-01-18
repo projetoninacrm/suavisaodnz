@@ -1,11 +1,12 @@
-import { useState, useMemo } from "react";
-import { Calculator, Settings, Target, TrendingUp, Zap, Calendar, CalendarDays, CalendarRange, DollarSign, ChevronDown } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { Calculator, Settings, Target, TrendingUp, Zap, Calendar, CalendarDays, CalendarRange, DollarSign, ChevronDown, Save } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AcompanhamentoDiarioSection } from "./AcompanhamentoDiarioSection";
 import { Schedule } from "@/hooks/useSchedules";
 import { AcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
+import { useMetasConfig } from "@/hooks/useMetasConfig";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,15 +49,12 @@ interface ConfigValues {
 function getMonthFromDate(dateStr: string): string | null {
   if (!dateStr) return null;
   
-  // Tenta formato DD/mes (ex: 05/jan)
   const parts = dateStr.split("/");
   if (parts.length >= 2) {
     const monthPart = parts[1].toLowerCase().trim();
-    // Verifica se é um nome de mês abreviado
     if (MONTH_NAMES.includes(monthPart)) {
       return monthPart;
     }
-    // Tenta formato numérico DD/MM/YYYY ou DD/MM
     const monthNum = parseInt(monthPart, 10);
     if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
       return MONTH_NAMES[monthNum - 1];
@@ -70,6 +68,8 @@ export function MetasCalculator({
   acompanhamentoRegistros, 
   onUpdateAcompanhamento 
 }: MetasCalculatorProps) {
+  const { getConfigForMonth, saveConfig, isLoading: isLoadingConfig } = useMetasConfig();
+
   // Detecta meses disponíveis nos schedules
   const availableMonths = useMemo(() => {
     const monthsSet = new Set<string>();
@@ -80,10 +80,9 @@ export function MetasCalculator({
     return MONTH_NAMES.filter(m => monthsSet.has(m));
   }, [schedules]);
 
-  // Estado do filtro de mês - por padrão começa em janeiro (para manter o histórico)
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    return "jan";
-  });
+  // Estado do filtro de mês
+  const [selectedMonth, setSelectedMonth] = useState<string>("jan");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Filtra schedules pelo mês selecionado
   const filteredSchedules = useMemo(() => {
@@ -119,8 +118,9 @@ export function MetasCalculator({
     return { diasComMedico: dias, periodosComMedico: periodos };
   }, [filteredSchedules]);
 
+  // Estado local das configurações
   const [config, setConfig] = useState<ConfigValues>({
-    periodos: periodosComMedico,
+    periodos: 0,
     mediaAtendimentos: 8,
     percentualReceita: 60,
     percentualComparecimento: 50,
@@ -128,17 +128,53 @@ export function MetasCalculator({
     metaFaturamentoMensal: 60000,
   });
 
-  // Atualiza períodos quando muda o mês ou recalcula
-  useMemo(() => {
-    if (periodosComMedico > 0) {
-      setConfig(prev => ({ ...prev, periodos: periodosComMedico }));
+  // Carrega configuração do mês selecionado
+  useEffect(() => {
+    if (!isLoadingConfig) {
+      const monthConfig = getConfigForMonth(selectedMonth);
+      setConfig({
+        periodos: monthConfig.periodos || periodosComMedico,
+        mediaAtendimentos: monthConfig.media_atendimentos,
+        percentualReceita: monthConfig.percentual_receita,
+        percentualComparecimento: monthConfig.percentual_comparecimento,
+        percentualConversao: monthConfig.percentual_conversao,
+        metaFaturamentoMensal: monthConfig.meta_faturamento_mensal,
+      });
+      setHasUnsavedChanges(false);
     }
-  }, [periodosComMedico, selectedMonth]);
+  }, [selectedMonth, isLoadingConfig, getConfigForMonth, periodosComMedico]);
+
+  // Atualiza períodos quando muda a escala
+  useEffect(() => {
+    if (periodosComMedico > 0) {
+      setConfig(prev => {
+        if (prev.periodos !== periodosComMedico) {
+          setHasUnsavedChanges(true);
+          return { ...prev, periodos: periodosComMedico };
+        }
+        return prev;
+      });
+    }
+  }, [periodosComMedico]);
 
   const handleConfigChange = (field: keyof ConfigValues, value: string) => {
     const numValue = parseFloat(value) || 0;
     setConfig(prev => ({ ...prev, [field]: numValue }));
+    setHasUnsavedChanges(true);
   };
+
+  const handleSaveConfig = useCallback(() => {
+    saveConfig({
+      mes: selectedMonth,
+      periodos: config.periodos,
+      media_atendimentos: config.mediaAtendimentos,
+      percentual_receita: config.percentualReceita,
+      percentual_comparecimento: config.percentualComparecimento,
+      percentual_conversao: config.percentualConversao,
+      meta_faturamento_mensal: config.metaFaturamentoMensal,
+    });
+    setHasUnsavedChanges(false);
+  }, [saveConfig, selectedMonth, config]);
 
   // Cálculos da meta
   const calculations = useMemo(() => {
@@ -239,12 +275,28 @@ export function MetasCalculator({
       </Card>
 
       {/* Bloco 1: Configurações Gerais */}
-      <Card className="border-border">
+      <Card className={`border-border ${hasUnsavedChanges ? "ring-2 ring-amber-500/50" : ""}`}>
         <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Settings className="h-5 w-5 text-primary" />
-            Configurações Gerais
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Settings className="h-5 w-5 text-primary" />
+              Configurações Gerais - {MONTH_LABELS[selectedMonth]}
+            </CardTitle>
+            <Button 
+              onClick={handleSaveConfig}
+              variant={hasUnsavedChanges ? "default" : "outline"}
+              size="sm"
+              className="gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {hasUnsavedChanges ? "Salvar Alterações" : "Salvo"}
+            </Button>
+          </div>
+          {hasUnsavedChanges && (
+            <p className="text-xs text-amber-600 mt-2">
+              Você tem alterações não salvas. Clique em "Salvar Alterações" para guardar.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
