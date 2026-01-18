@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Trash2, Calendar, ChevronDown } from "lucide-react";
+import { Trash2, Calendar, ChevronDown, Wand2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableCell } from "./EditableCell";
 import { DayBadge } from "./DayBadge";
@@ -10,7 +10,20 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import type { Schedule } from "@/hooks/useSchedules";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const MONTH_NAMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const MONTH_LABELS: Record<string, string> = {
@@ -26,6 +39,27 @@ const MONTH_LABELS: Record<string, string> = {
   out: "Outubro",
   nov: "Novembro",
   dez: "Dezembro",
+};
+
+const DAY_OF_WEEK_MAP: Record<number, string> = {
+  0: "DOM",
+  1: "SEG",
+  2: "TER",
+  3: "QUA",
+  4: "QUI",
+  5: "SEX",
+  6: "SAB",
+};
+
+// Padrão fixo baseado em Janeiro (dia da semana -> médicos)
+const WEEKLY_PATTERN: Record<string, { morning: string; afternoon: string }> = {
+  SEG: { morning: "ANA", afternoon: "ANA" },
+  TER: { morning: "THABATA", afternoon: "THABATA" },
+  QUA: { morning: "CAROL", afternoon: "ANA" },
+  QUI: { morning: "LARISSA", afternoon: "CASSIO" },
+  SEX: { morning: "AMANDA", afternoon: "AMANDA" },
+  SAB: { morning: "ALICE", afternoon: "" },
+  DOM: { morning: "", afternoon: "" },
 };
 
 // Helper: extrai o mês de uma data (suporta DD/MM/YYYY e DD/mes)
@@ -46,15 +80,44 @@ function getMonthFromDate(dateStr: string): string | null {
   return null;
 }
 
+// Gera todos os dias de um mês (exceto domingos)
+function generateMonthDays(monthIndex: number, year: number): { date: string; dayOfWeek: string }[] {
+  const days: { date: string; dayOfWeek: string }[] = [];
+  const monthName = MONTH_NAMES[monthIndex];
+  
+  // Primeiro dia do mês
+  const firstDay = new Date(year, monthIndex, 1);
+  // Último dia do mês
+  const lastDay = new Date(year, monthIndex + 1, 0);
+  
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const date = new Date(year, monthIndex, day);
+    const dayOfWeek = DAY_OF_WEEK_MAP[date.getDay()];
+    
+    // Exclui domingos
+    if (dayOfWeek !== "DOM") {
+      const dayStr = day.toString().padStart(2, "0");
+      days.push({
+        date: `${dayStr}/${monthName}`,
+        dayOfWeek,
+      });
+    }
+  }
+  
+  return days;
+}
+
 interface ScheduleTableProps {
   schedules: Schedule[];
   onUpdate: (id: string, field: keyof Schedule, value: string) => void;
   onDelete: (id: string) => void;
+  onRefresh?: () => void;
 }
 
-export function ScheduleTable({ schedules, onUpdate, onDelete }: ScheduleTableProps) {
-  // Estado do filtro de mês - começa em janeiro
+export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: ScheduleTableProps) {
+  const { toast } = useToast();
   const [selectedMonth, setSelectedMonth] = useState<string>("jan");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Detecta meses disponíveis nos schedules
   const availableMonths = useMemo(() => {
@@ -74,15 +137,62 @@ export function ScheduleTable({ schedules, onUpdate, onDelete }: ScheduleTablePr
     });
   }, [schedules, selectedMonth]);
 
-  // Contagem de registros no mês
   const scheduleCount = filteredSchedules.length;
+  const hasDataInMonth = availableMonths.includes(selectedMonth);
+
+  // Gera escala para o mês selecionado baseado no padrão
+  const handleGenerateSchedule = async () => {
+    setIsGenerating(true);
+    
+    try {
+      const monthIndex = MONTH_NAMES.indexOf(selectedMonth);
+      // Usa 2026 como ano padrão (baseado no contexto do projeto)
+      const year = 2026;
+      
+      const days = generateMonthDays(monthIndex, year);
+      
+      // Cria os registros para inserir
+      const newSchedules = days.map(day => ({
+        sheet_name: "Escala",
+        date: day.date,
+        day_of_week: day.dayOfWeek,
+        morning_shift: WEEKLY_PATTERN[day.dayOfWeek]?.morning || "",
+        afternoon_shift: WEEKLY_PATTERN[day.dayOfWeek]?.afternoon || "",
+      }));
+      
+      // Insere no banco
+      const { error } = await supabase
+        .from("schedules")
+        .insert(newSchedules);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Escala gerada!",
+        description: `${newSchedules.length} dias criados para ${MONTH_LABELS[selectedMonth]}.`,
+      });
+      
+      // Atualiza a lista
+      if (onRefresh) onRefresh();
+      
+    } catch (error) {
+      console.error("Error generating schedule:", error);
+      toast({
+        title: "Erro ao gerar escala",
+        description: "Não foi possível criar a escala. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
       {/* Filtro de Mês */}
       <Card className="border-border">
         <CardContent className="pt-4 pb-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <Label className="text-sm font-medium flex items-center gap-2">
               <Calendar className="h-4 w-4 text-primary" />
               Mês:
@@ -123,6 +233,49 @@ export function ScheduleTable({ schedules, onUpdate, onDelete }: ScheduleTablePr
             <span className="text-sm text-muted-foreground">
               ({scheduleCount} registros)
             </span>
+
+            {/* Botão para gerar escala */}
+            {!hasDataInMonth && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="default" className="gap-2" disabled={isGenerating}>
+                    {isGenerating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-4 w-4" />
+                    )}
+                    Gerar Escala de {MONTH_LABELS[selectedMonth]}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Gerar Escala Automática</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2">
+                      <p>
+                        Isso criará a escala de <strong>{MONTH_LABELS[selectedMonth]}</strong> seguindo o padrão semanal:
+                      </p>
+                      <div className="mt-3 p-3 bg-muted rounded-lg text-sm space-y-1">
+                        <p><strong>SEG:</strong> ANA (manhã e tarde)</p>
+                        <p><strong>TER:</strong> THABATA (manhã e tarde)</p>
+                        <p><strong>QUA:</strong> CAROL (manhã) / ANA (tarde)</p>
+                        <p><strong>QUI:</strong> LARISSA (manhã) / CASSIO (tarde)</p>
+                        <p><strong>SEX:</strong> AMANDA (manhã e tarde)</p>
+                        <p><strong>SAB:</strong> ALICE (manhã)</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Domingos são automaticamente excluídos.
+                      </p>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleGenerateSchedule}>
+                      Gerar Escala
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -199,7 +352,12 @@ export function ScheduleTable({ schedules, onUpdate, onDelete }: ScheduleTablePr
         {filteredSchedules.length === 0 && (
           <div className="px-6 py-12 text-center text-muted-foreground">
             <p>Nenhum registro encontrado para {MONTH_LABELS[selectedMonth]}.</p>
-            <p className="text-sm mt-1">Clique em "Nova Linha" para adicionar.</p>
+            <p className="text-sm mt-1">
+              {hasDataInMonth 
+                ? 'Clique em "Nova Linha" para adicionar.' 
+                : `Clique em "Gerar Escala de ${MONTH_LABELS[selectedMonth]}" para criar automaticamente.`
+              }
+            </p>
           </div>
         )}
       </div>
