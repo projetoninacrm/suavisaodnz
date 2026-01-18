@@ -148,6 +148,7 @@ const Index = () => {
             schedules={schedules.schedules}
             onUpdate={schedules.updateSchedule}
             onDelete={schedules.deleteSchedule}
+            onRefresh={schedules.fetchSchedules}
           />
         );
       case "Leads":
