@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AcompanhamentoDiarioSection } from "./AcompanhamentoDiarioSection";
 import { Schedule } from "@/hooks/useSchedules";
 import { AcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,11 +80,9 @@ export function MetasCalculator({
     return MONTH_NAMES.filter(m => monthsSet.has(m));
   }, [schedules]);
 
-  // Estado do filtro de mês - por padrão seleciona o primeiro mês disponível ou janeiro
+  // Estado do filtro de mês - por padrão começa em janeiro (para manter o histórico)
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    const currentMonth = MONTH_NAMES[now.getMonth()];
-    return availableMonths.includes(currentMonth) ? currentMonth : (availableMonths[0] || "jan");
+    return "jan";
   });
 
   // Filtra schedules pelo mês selecionado
@@ -210,19 +207,27 @@ export function MetasCalculator({
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-[200px] p-2" align="start">
                 <div className="space-y-1">
-                  {availableMonths.map((month) => (
-                    <div
-                      key={month}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors ${
-                        selectedMonth === month 
-                          ? "bg-primary text-primary-foreground" 
-                          : "hover:bg-muted"
-                      }`}
-                      onClick={() => setSelectedMonth(month)}
-                    >
-                      <span className="text-sm font-medium">{MONTH_LABELS[month]}</span>
-                    </div>
-                  ))}
+                  {MONTH_NAMES.map((month) => {
+                    const hasScheduleData = availableMonths.includes(month);
+                    return (
+                      <div
+                        key={month}
+                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors ${
+                          selectedMonth === month
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted"
+                        }`}
+                        onClick={() => setSelectedMonth(month)}
+                      >
+                        <span className="text-sm font-medium">{MONTH_LABELS[month]}</span>
+                        {!hasScheduleData && (
+                          <span className={`text-xs ${selectedMonth === month ? "opacity-80" : "text-muted-foreground"}`}>
+                            sem escala
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
