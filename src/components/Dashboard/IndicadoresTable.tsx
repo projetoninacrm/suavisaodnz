@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { format, getDaysInMonth, getDay, getWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Lead } from "@/hooks/useLeads";
 import { useIndicadoresData, DayMetrics } from "@/hooks/useIndicadoresData";
-import { Loader2, Calendar, TrendingUp, BarChart3, X } from "lucide-react";
+import { Loader2, Calendar, TrendingUp, BarChart3, X, Calculator } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+
+interface SimulatorValues {
+  vendas: number;
+  ticketMedio: number;
+  potencial: number;
+  taxaPresenca: number;
+  conversao: number;
+}
 
 interface IndicadoresTableProps {
   leads: Lead[];
@@ -93,6 +102,15 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
 
   const { isLoading, getMetricsForDay } = 
     useIndicadoresData(leads, selectedMonths, parseInt(selectedYear));
+
+  // Estado do simulador - inicializa com valores consolidados
+  const [simulator, setSimulator] = useState<SimulatorValues>({
+    vendas: 0,
+    ticketMedio: 0,
+    potencial: 0,
+    taxaPresenca: 0,
+    conversao: 0,
+  });
 
   // Toggle month selection
   const toggleMonth = (month: number) => {
@@ -195,6 +213,43 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
       ticket,
     };
   }, [periodData]);
+
+  // Inicializar simulador com valores consolidados quando os dados carregarem
+  useEffect(() => {
+    if (consolidatedData.vendas > 0 || consolidatedData.potencial > 0) {
+      setSimulator({
+        vendas: consolidatedData.vendas,
+        ticketMedio: consolidatedData.ticket,
+        potencial: consolidatedData.potencial,
+        taxaPresenca: consolidatedData.taxa_presenca,
+        conversao: consolidatedData.conversao,
+      });
+    }
+  }, [consolidatedData]);
+
+  // Cálculos reversos do simulador
+  const simulatorResults = useMemo(() => {
+    const { vendas, ticketMedio, potencial, taxaPresenca, conversao } = simulator;
+    
+    // Faturamento = Vendas × Ticket Médio
+    const faturamento = vendas * ticketMedio;
+    
+    // Visitou DNZ = Vendas / (Conversão/100)
+    const visitouDnz = conversao > 0 ? vendas / (conversao / 100) : 0;
+    
+    // Receitas = Visitou DNZ / (Taxa de Presença/100)
+    const receitas = taxaPresenca > 0 ? visitouDnz / (taxaPresenca / 100) : 0;
+    
+    // Atendimentos = Receitas / (Potencial/100)
+    const atendimentos = potencial > 0 ? receitas / (potencial / 100) : 0;
+    
+    return {
+      faturamento,
+      visitouDnz: Math.round(visitouDnz),
+      receitas: Math.round(receitas),
+      atendimentos: Math.round(atendimentos),
+    };
+  }, [simulator]);
 
   // Calcular faturamento por semana
   const weeklyRevenue = useMemo(() => {
@@ -365,10 +420,10 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
         )}
       </div>
 
-      {/* Kanbans de Indicadores */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* Kanbans de Indicadores - Grid 2x2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* Dados Consolidados do Período */}
-        <Card className="bg-card border-border md:col-span-1">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-blue-500" />
@@ -415,6 +470,110 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
               <div className="flex justify-between items-center p-2 rounded bg-muted/30">
                 <span className="text-muted-foreground">Ticket Médio</span>
                 <span className="font-bold">{formatCurrencyFull(consolidatedData.ticket)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Simulador de Metas */}
+        <Card className="bg-card border-border border-2 border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Calculator className="h-4 w-4 text-primary" />
+              Simulador de Metas
+              <Badge variant="default" className="ml-auto text-xs">
+                Editável
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 text-sm">
+              {/* Campos editáveis */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Vendas (meta)</label>
+                  <Input
+                    type="number"
+                    value={simulator.vendas || ""}
+                    onChange={(e) => setSimulator(prev => ({ ...prev, vendas: Number(e.target.value) || 0 }))}
+                    className="h-8 text-right font-bold"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Ticket Médio (R$)</label>
+                  <Input
+                    type="number"
+                    value={simulator.ticketMedio || ""}
+                    onChange={(e) => setSimulator(prev => ({ ...prev, ticketMedio: Number(e.target.value) || 0 }))}
+                    className="h-8 text-right font-bold"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Potencial (%)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={simulator.potencial || ""}
+                    onChange={(e) => setSimulator(prev => ({ ...prev, potencial: Number(e.target.value) || 0 }))}
+                    className="h-8 text-right text-sm"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Tx. Presença (%)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={simulator.taxaPresenca || ""}
+                    onChange={(e) => setSimulator(prev => ({ ...prev, taxaPresenca: Number(e.target.value) || 0 }))}
+                    className="h-8 text-right text-sm"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Conversão (%)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={simulator.conversao || ""}
+                    onChange={(e) => setSimulator(prev => ({ ...prev, conversao: Number(e.target.value) || 0 }))}
+                    className="h-8 text-right text-sm"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {/* Resultados calculados */}
+              <div className="pt-2 border-t border-border space-y-2">
+                <p className="text-xs text-muted-foreground font-medium">Resultados Calculados:</p>
+                <div className="flex justify-between items-center p-2 rounded bg-blue-500/10 border border-blue-500/20">
+                  <span className="text-muted-foreground">Atendimentos necessários</span>
+                  <span className="font-bold text-blue-600">{simulatorResults.atendimentos}</span>
+                </div>
+                <div className="flex justify-between items-center p-2 rounded bg-muted/30">
+                  <span className="text-muted-foreground">Receitas necessárias</span>
+                  <span className="font-bold">{simulatorResults.receitas}</span>
+                </div>
+                <div className="flex justify-between items-center p-2 rounded bg-muted/30">
+                  <span className="text-muted-foreground">Visitou DNZ necessários</span>
+                  <span className="font-bold">{simulatorResults.visitouDnz}</span>
+                </div>
+                <div className="flex justify-between items-center p-2 rounded bg-primary/10 border border-primary/20">
+                  <span className="text-muted-foreground">Faturamento projetado</span>
+                  <span className="font-bold text-primary">{formatCurrencyFull(simulatorResults.faturamento)}</span>
+                </div>
+              </div>
+
+              {/* Fórmulas */}
+              <div className="pt-2 border-t border-border">
+                <p className="text-xs text-muted-foreground">
+                  Fórmulas: Atend = Rec ÷ Pot% | Rec = Visita ÷ Pres% | Visita = Vendas ÷ Conv% | Fat = Vendas × Ticket
+                </p>
               </div>
             </div>
           </CardContent>
