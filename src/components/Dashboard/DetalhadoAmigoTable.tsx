@@ -87,14 +87,18 @@ export function DetalhadoAmigoTable({
     }
   }, [attendances.length]);
 
+  // Normalizar nome para comparação (lowercase, sem espaços extras)
+  const normalizeName = (name: string | null | undefined): string => {
+    if (!name) return "";
+    return name.toLowerCase().trim().replace(/\s+/g, " ");
+  };
+
   // Combinar dados da API com dados do banco
   const combinedRecords = useMemo((): CombinedRecord[] => {
     return attendances.map(att => {
-      // Procurar registro no banco pelo nome e data (ou telefone)
+      // Procurar registro no banco pelo nome normalizado e data
       const dbRecord = dbRecords.find(db => 
-        db.nome === att.patient_name && db.data === att.date
-      ) || dbRecords.find(db =>
-        db.telefone === att.patient_phone && db.data === att.date
+        normalizeName(db.nome) === normalizeName(att.patient_name) && db.data === att.date
       );
 
       return {
