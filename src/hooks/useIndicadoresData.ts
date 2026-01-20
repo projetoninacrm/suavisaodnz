@@ -201,19 +201,23 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
     fetchAttendances();
   }, [selectedMonths, year]);
 
+  // Normalizar nome para comparação (lowercase, sem espaços extras)
+  const normalizeName = useCallback((name: string | null): string => {
+    if (!name) return "";
+    return name.toLowerCase().trim().replace(/\s+/g, " ");
+  }, []);
+
   // Combinar dados da API com dados do banco (igual ao Detalhado)
   const combinedRecords = useMemo((): CombinedRecord[] => {
     return attendances.map(att => {
       const dateStr = att.start_date || att.date || "";
       const formattedDate = formatDateToDDMMYYYY(dateStr);
       const patientName = att.patient?.name || "";
-      const patientPhone = att.patient?.phone || null;
 
-      // Procurar registro no banco pelo nome e data (ou telefone)
+      // Procurar registro no banco pelo nome normalizado e data
+      // (igual à lógica do DetalhadoAmigoTable)
       const dbRecord = detalhados.find(db => 
-        db.nome === patientName && db.data === formattedDate
-      ) || detalhados.find(db =>
-        db.telefone === patientPhone && db.data === formattedDate
+        normalizeName(db.nome) === normalizeName(patientName) && db.data === formattedDate
       );
 
       return {
@@ -221,14 +225,14 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
         dbId: dbRecord?.id || null,
         date: formattedDate,
         patient_name: patientName,
-        patient_phone: patientPhone,
+        patient_phone: att.patient?.phone || null,
         // Prioriza o valor do banco (igual ao Detalhado)
         receita: dbRecord?.receita || "",
         visitou_loja: dbRecord?.visitou_loja || "",
         venda: dbRecord?.venda || "",
       };
     });
-  }, [attendances, detalhados]);
+  }, [attendances, detalhados, normalizeName]);
 
   // Função auxiliar para normalizar data no formato DD/MM/YYYY
   const parseDate = useCallback((dateStr: string | null): { day: number; month: number; year: number } | null => {
