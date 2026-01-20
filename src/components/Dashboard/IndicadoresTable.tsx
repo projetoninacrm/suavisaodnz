@@ -475,6 +475,85 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
           </CardContent>
         </Card>
 
+        {/* Faturamento por Semana */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" />
+              Faturamento por Semana
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {weeklyRevenue.length > 0 ? (
+                weeklyRevenue.slice(0, 8).map((week, idx) => (
+                  <div 
+                    key={week.weekKey} 
+                    className={`flex justify-between items-center p-2 rounded ${
+                      idx === 0 ? "bg-primary/10 border border-primary/20" : "bg-muted/30"
+                    }`}
+                  >
+                    <span className={`text-sm ${idx === 0 ? "font-semibold text-primary" : "text-muted-foreground"}`}>
+                      {week.label}
+                      {idx === 0 && " 🏆"}
+                    </span>
+                    <span className={`font-bold ${idx === 0 ? "text-primary" : ""}`}>
+                      {formatCurrency(week.total)}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">Sem dados de faturamento</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top 3 Dias da Semana */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-green-500" />
+              Top 3 Dias que Mais Faturam
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {dailyAverageRevenue.length > 0 ? (
+                dailyAverageRevenue.map((day, idx) => (
+                  <div 
+                    key={day.dayOfWeek} 
+                    className={`flex justify-between items-center p-2 rounded ${
+                      idx === 0 ? "bg-green-500/10 border border-green-500/20" : "bg-muted/30"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`text-lg font-bold ${
+                        idx === 0 ? "text-green-500" : idx === 1 ? "text-yellow-500" : "text-orange-500"
+                      }`}>
+                        {idx + 1}º
+                      </span>
+                      <span className={`text-sm ${idx === 0 ? "font-semibold" : "text-muted-foreground"}`}>
+                        {day.dayName}
+                      </span>
+                    </div>
+                    <span className={`font-bold ${idx === 0 ? "text-green-500" : ""}`}>
+                      média {formatCurrency(day.average)}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">Sem dados de faturamento</p>
+              )}
+            </div>
+            {dailyAverageRevenue.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-3">
+                {dailyAverageRevenue.map(d => d.dayName).join(", ")} são os dias que mais faturam no período
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Simulador de Metas */}
         <Card className="bg-card border-border border-2 border-primary/20">
           <CardHeader className="pb-2">
@@ -576,85 +655,6 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Faturamento por Semana */}
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-primary" />
-              Faturamento por Semana
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {weeklyRevenue.length > 0 ? (
-                weeklyRevenue.slice(0, 8).map((week, idx) => (
-                  <div 
-                    key={week.weekKey} 
-                    className={`flex justify-between items-center p-2 rounded ${
-                      idx === 0 ? "bg-primary/10 border border-primary/20" : "bg-muted/30"
-                    }`}
-                  >
-                    <span className={`text-sm ${idx === 0 ? "font-semibold text-primary" : "text-muted-foreground"}`}>
-                      {week.label}
-                      {idx === 0 && " 🏆"}
-                    </span>
-                    <span className={`font-bold ${idx === 0 ? "text-primary" : ""}`}>
-                      {formatCurrency(week.total)}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">Sem dados de faturamento</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Top 3 Dias da Semana */}
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-              Top 3 Dias que Mais Faturam
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {dailyAverageRevenue.length > 0 ? (
-                dailyAverageRevenue.map((day, idx) => (
-                  <div 
-                    key={day.dayOfWeek} 
-                    className={`flex justify-between items-center p-2 rounded ${
-                      idx === 0 ? "bg-green-500/10 border border-green-500/20" : "bg-muted/30"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`text-lg font-bold ${
-                        idx === 0 ? "text-green-500" : idx === 1 ? "text-yellow-500" : "text-orange-500"
-                      }`}>
-                        {idx + 1}º
-                      </span>
-                      <span className={`text-sm ${idx === 0 ? "font-semibold" : "text-muted-foreground"}`}>
-                        {day.dayName}
-                      </span>
-                    </div>
-                    <span className={`font-bold ${idx === 0 ? "text-green-500" : ""}`}>
-                      média {formatCurrency(day.average)}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">Sem dados de faturamento</p>
-              )}
-            </div>
-            {dailyAverageRevenue.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-3">
-                {dailyAverageRevenue.map(d => d.dayName).join(", ")} são os dias que mais faturam no período
-              </p>
-            )}
           </CardContent>
         </Card>
       </div>
