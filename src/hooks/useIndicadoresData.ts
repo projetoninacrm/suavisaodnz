@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "./useLeads";
 
@@ -28,6 +28,7 @@ interface AmigoAttendance {
   patient?: {
     id: number;
     name: string;
+    phone?: string;
   };
   place?: {
     id: number;
@@ -42,6 +43,18 @@ interface AcompanhamentoDiario {
   faturamento_realizado: number | null;
 }
 
+// Tipo combinado: dados da API + dados editáveis do banco (igual ao Detalhado)
+interface CombinedRecord {
+  apiId: number;
+  dbId: string | null;
+  date: string; // formato DD/MM/YYYY
+  patient_name: string;
+  patient_phone: string | null;
+  receita: string;
+  visitou_loja: string;
+  venda: string;
+}
+
 export interface DayMetrics {
   atendimentos: number;
   receitas: number;
@@ -54,10 +67,17 @@ export interface DayMetrics {
   ticket: number;
 }
 
-// Não excluímos mais nenhum tipo de evento - contamos todos os atendimentos
-// igual à aba Detalhado para manter consistência
-
 const MONTH_NAMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+// Helper para formatar data ISO para DD/MM/YYYY
+function formatDateToDDMMYYYY(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "";
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
 
 export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year: number) {
   const [detalhados, setDetalhados] = useState<Detalhado[]>([]);
@@ -181,6 +201,35 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
     fetchAttendances();
   }, [selectedMonths, year]);
 
+  // Combinar dados da API com dados do banco (igual ao Detalhado)
+  const combinedRecords = useMemo((): CombinedRecord[] => {
+    return attendances.map(att => {
+      const dateStr = att.start_date || att.date || "";
+      const formattedDate = formatDateToDDMMYYYY(dateStr);
+      const patientName = att.patient?.name || "";
+      const patientPhone = att.patient?.phone || null;
+
+      // Procurar registro no banco pelo nome e data (ou telefone)
+      const dbRecord = detalhados.find(db => 
+        db.nome === patientName && db.data === formattedDate
+      ) || detalhados.find(db =>
+        db.telefone === patientPhone && db.data === formattedDate
+      );
+
+      return {
+        apiId: att.id,
+        dbId: dbRecord?.id || null,
+        date: formattedDate,
+        patient_name: patientName,
+        patient_phone: patientPhone,
+        // Prioriza o valor do banco (igual ao Detalhado)
+        receita: dbRecord?.receita || "",
+        visitou_loja: dbRecord?.visitou_loja || "",
+        venda: dbRecord?.venda || "",
+      };
+    });
+  }, [attendances, detalhados]);
+
   // Função auxiliar para normalizar data no formato DD/MM/YYYY
   const parseDate = useCallback((dateStr: string | null): { day: number; month: number; year: number } | null => {
     if (!dateStr) return null;
@@ -208,11 +257,6 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
     return null;
   }, []);
 
-  // Contamos todos os atendimentos (sem exclusão) para manter consistência com aba Detalhado
-  const getAtendimentosCount = useCallback((attendancesList: AmigoAttendance[]): number => {
-    return attendancesList.length;
-  }, []);
-
   // Helper: criar chave de data no formato usado pela aba Metas (ex: "05/jan", "15/jan")
   const getAcompanhamentoDateKey = useCallback((day: number, month: number): string => {
     const monthAbbrev = MONTH_NAMES[month - 1];
@@ -220,42 +264,36 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
   }, []);
 
   // Calcular métricas para um dia específico de um mês específico
+  // Agora usa combinedRecords (API + banco) igual ao Detalhado
   const getMetricsForDay = useCallback((day: number, month: number): DayMetrics => {
-    // ATENDIMENTOS (Consultas) - da API do Amigo (Detalhado), excluindo eventos específicos
-    const dayAttendances = attendances.filter((att) => {
-      const dateStr = att.start_date || att.date;
-      if (!dateStr) return false;
-      const attDate = new Date(dateStr);
-      if (isNaN(attDate.getTime())) return false;
-      return attDate.getDate() === day && 
-             (attDate.getMonth() + 1) === month && 
-             attDate.getFullYear() === year;
+    // Filtrar registros combinados para este dia
+    const dayCombinedRecords = combinedRecords.filter(record => {
+      const parsedDate = parseDate(record.date);
+      if (!parsedDate) return false;
+      return parsedDate.day === day && 
+             parsedDate.month === month && 
+             parsedDate.year === year;
     });
     
-    // Contamos todos os atendimentos (sem exclusão) para manter consistência com aba Detalhado
-    const atendimentos = dayAttendances.length;
+    // ATENDIMENTOS = Total de registros da API para o dia
+    const atendimentos = dayCombinedRecords.length;
 
-    // RECEITAS - da aba DETALHADO (banco de dados), onde receita = "sim"
-    const dayDetalhados = detalhados.filter((det) => {
-      const detDate = parseDate(det.data);
-      if (!detDate) return false;
-      return detDate.day === day && detDate.month === month && detDate.year === year;
-    });
-    const receitas = dayDetalhados.filter(det => 
-      det.receita?.toLowerCase().trim() === "sim"
+    // RECEITAS = registros com receita = "sim" (usando dados combinados)
+    const receitas = dayCombinedRecords.filter(r => 
+      r.receita?.toLowerCase().trim() === "sim"
     ).length;
 
     // POTENCIAL (%) = Receitas / Atendimentos
     const potencial = atendimentos > 0 ? (receitas / atendimentos) * 100 : 0;
 
-    // VISITOU DNZ - da aba DETALHADO, onde visitou_loja = "sim"
-    const visitou_dnz = dayDetalhados.filter(det => 
-      det.visitou_loja?.toLowerCase().trim() === "sim"
+    // VISITOU DNZ = registros com visitou_loja = "sim"
+    const visitou_dnz = dayCombinedRecords.filter(r => 
+      r.visitou_loja?.toLowerCase().trim() === "sim"
     ).length;
 
-    // VENDAS - da aba DETALHADO, onde venda = "sim"
-    const vendas = dayDetalhados.filter(det => 
-      det.venda?.toLowerCase().trim() === "sim"
+    // VENDAS = registros com venda = "sim"
+    const vendas = dayCombinedRecords.filter(r => 
+      r.venda?.toLowerCase().trim() === "sim"
     ).length;
 
     // CONVERSÃO (%) = Vendas / Visitou DNZ
@@ -283,7 +321,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
       faturamento,
       ticket,
     };
-  }, [attendances, detalhados, acompanhamentos, year, parseDate, getAcompanhamentoDateKey]);
+  }, [combinedRecords, acompanhamentos, year, parseDate, getAcompanhamentoDateKey]);
 
   return {
     isLoading,
