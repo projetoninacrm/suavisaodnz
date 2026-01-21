@@ -20,6 +20,7 @@ export interface LeadsFilters {
   entrar_em_contato: string[];
   medico: string;
   status: string;
+  vendedor: string;
   pendente: boolean;
 }
 
@@ -40,6 +41,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     entrar_em_contato: [],
     medico: "",
     status: "",
+    vendedor: "",
     pendente: false,
   });
 
@@ -82,6 +84,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
       if (filters.entrar_em_contato.length > 0 && !filters.entrar_em_contato.includes(lead.entrar_em_contato || "")) return false;
       if (filters.medico && lead.medico !== filters.medico) return false;
       if (filters.status && lead.status !== filters.status) return false;
+      if (filters.vendedor && lead.vendedor !== filters.vendedor) return false;
       if (filters.pendente && !isContactDateOverdue(lead)) return false;
       return true;
     });
@@ -93,7 +96,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     });
   }, [leads, filters]);
 
-  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.nome !== "" || filters.orcamento !== "" || filters.venda !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "" || filters.status !== "" || filters.pendente;
+  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.nome !== "" || filters.orcamento !== "" || filters.venda !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "" || filters.status !== "" || filters.vendedor !== "" || filters.pendente;
 
   const clearFilters = () => {
     const newFilters = {
@@ -105,6 +108,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
       entrar_em_contato: [],
       medico: "",
       status: "",
+      vendedor: "",
       pendente: false,
     };
     setFilters(newFilters);
@@ -235,7 +239,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Data</label>
             <CalendarFilterPopover
@@ -308,6 +312,15 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
               value={filters.status}
               onChange={(v) => updateFilters({ ...filters, status: v === "all" ? "" : v })}
               options={uniqueValues.status}
+              placeholder="Todos"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Vendedor</label>
+            <FilterSelect
+              value={filters.vendedor}
+              onChange={(v) => updateFilters({ ...filters, vendedor: v === "all" ? "" : v })}
+              options={uniqueValues.vendedor}
               placeholder="Todos"
             />
           </div>
