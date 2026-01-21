@@ -103,14 +103,33 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
   const { isLoading, getMetricsForDay } = 
     useIndicadoresData(leads, selectedMonths, parseInt(selectedYear));
 
-  // Estado do simulador - inicializa com valores consolidados
-  const [simulator, setSimulator] = useState<SimulatorValues>({
-    vendas: 0,
-    ticketMedio: 0,
-    potencial: 0,
-    taxaPresenca: 0,
-    conversao: 0,
+  // Chave para localStorage
+  const SIMULATOR_STORAGE_KEY = "indicadores_simulator_values";
+
+  // Estado do simulador - inicializa do localStorage ou com valores padrão
+  const [simulator, setSimulator] = useState<SimulatorValues>(() => {
+    const saved = localStorage.getItem(SIMULATOR_STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return { vendas: 0, ticketMedio: 0, potencial: 0, taxaPresenca: 0, conversao: 0 };
+      }
+    }
+    return { vendas: 0, ticketMedio: 0, potencial: 0, taxaPresenca: 0, conversao: 0 };
   });
+
+  // Flag para saber se já carregou do localStorage
+  const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(() => {
+    return localStorage.getItem(SIMULATOR_STORAGE_KEY) !== null;
+  });
+
+  // Salvar no localStorage quando o simulador mudar
+  useEffect(() => {
+    if (simulator.vendas > 0 || simulator.potencial > 0) {
+      localStorage.setItem(SIMULATOR_STORAGE_KEY, JSON.stringify(simulator));
+    }
+  }, [simulator]);
 
   // Toggle month selection
   const toggleMonth = (month: number) => {
@@ -214,9 +233,9 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
     };
   }, [periodData]);
 
-  // Inicializar simulador com valores consolidados quando os dados carregarem
+  // Inicializar simulador com valores consolidados APENAS se não tiver dados salvos
   useEffect(() => {
-    if (consolidatedData.vendas > 0 || consolidatedData.potencial > 0) {
+    if (!hasLoadedFromStorage && (consolidatedData.vendas > 0 || consolidatedData.potencial > 0)) {
       setSimulator({
         vendas: consolidatedData.vendas,
         ticketMedio: consolidatedData.ticket,
@@ -225,7 +244,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
         conversao: consolidatedData.conversao,
       });
     }
-  }, [consolidatedData]);
+  }, [consolidatedData, hasLoadedFromStorage]);
 
   // Cálculos reversos do simulador
   const simulatorResults = useMemo(() => {
