@@ -60,14 +60,17 @@ const Index = () => {
     activeTab === "Perdas" ? leads.isLoading :
     false;
 
-  // Stats for Leads tab - by channel (filtered by date if filter is active)
+  // Stats for Leads tab - by channel (filtered by date and vendedor if filters are active)
   const leadsStatsByChannel = useMemo(() => {
-    // First filter by date if filter is active
+    // First filter by date and vendedor if filters are active
     let baseLeads = leads.leads;
     if (leadsFilters.data_registro.length > 0) {
-      baseLeads = leads.leads.filter(l => 
+      baseLeads = baseLeads.filter(l => 
         leadsFilters.data_registro.includes(l.data_registro || "")
       );
+    }
+    if (leadsFilters.vendedor) {
+      baseLeads = baseLeads.filter(l => l.vendedor === leadsFilters.vendedor);
     }
 
     const calcStats = (filteredLeads: typeof leads.leads) => {
@@ -92,7 +95,7 @@ const Index = () => {
       internet: calcStats(internetLeads),
       todos: calcStats(baseLeads),
     };
-  }, [leads.leads, leadsFilters.data_registro]);
+  }, [leads.leads, leadsFilters.data_registro, leadsFilters.vendedor]);
 
   // Cálculo de dias com médico e períodos totais a partir da Agenda
   const { diasComMedico, periodosComMedico } = useMemo(() => {
