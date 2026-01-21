@@ -40,6 +40,7 @@ const Index = () => {
     entrar_em_contato: [],
     medico: "",
     status: "",
+    vendedor: "",
     pendente: false,
   });
   
