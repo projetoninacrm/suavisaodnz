@@ -342,7 +342,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
 
       {/* Table */}
       <div className="bg-card rounded-xl border border-border overflow-hidden card-shadow-lg animate-fade-in">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scrollbar-visible">
           <table className="w-full">
             <thead>
               <tr className="bg-table-header border-b border-table-border">
