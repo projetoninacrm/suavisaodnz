@@ -147,6 +147,34 @@
   .card-shadow-lg {
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
   }
+
+
+  /* Scrollbar visível para área de filtros */
+  .scrollbar-visible {
+    scrollbar-width: auto;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.4) hsl(var(--muted) / 0.3);
+  }
+
+  .scrollbar-visible::-webkit-scrollbar {
+    height: 10px;
+  }
+
+  .scrollbar-visible::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.3);
+    border-radius: 5px;
+  }
+
+  .scrollbar-visible::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.4);
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .scrollbar-visible::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.6);
+    background-clip: padding-box;
+  }
 }
 
 @layer utilities {

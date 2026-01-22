@@ -239,7 +239,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
             </Button>
           )}
         </div>
-        <div className="overflow-x-auto pb-2">
+        <div className="overflow-x-auto pb-2 scrollbar-visible">
           <div className="flex gap-3 min-w-max">
             <div className="space-y-1 min-w-[140px]">
               <label className="text-xs text-muted-foreground">Data</label>
