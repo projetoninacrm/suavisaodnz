@@ -239,101 +239,103 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Data</label>
-            <CalendarFilterPopover
-              selectedDates={filters.data_registro}
-              onDatesChange={(dates) => updateFilters({ ...filters, data_registro: dates })}
-              placeholder="Todas"
-              availableDates={uniqueValues.data_registro}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Canal</label>
-            <FilterSelect
-              value={filters.canal}
-              onChange={(v) => updateFilters({ ...filters, canal: v === "all" ? "" : v })}
-              options={uniqueValues.canal}
-              placeholder="Todos"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Nome</label>
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-              <Input
-                placeholder="Buscar..."
-                value={filters.nome}
-                onChange={(e) => updateFilters({ ...filters, nome: e.target.value })}
-                className="h-8 text-xs pl-7 bg-background border-border"
+        <div className="overflow-x-auto pb-2">
+          <div className="flex gap-3 min-w-max">
+            <div className="space-y-1 min-w-[140px]">
+              <label className="text-xs text-muted-foreground">Data</label>
+              <CalendarFilterPopover
+                selectedDates={filters.data_registro}
+                onDatesChange={(dates) => updateFilters({ ...filters, data_registro: dates })}
+                placeholder="Todas"
+                availableDates={uniqueValues.data_registro}
               />
             </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Orçamento</label>
-            <FilterSelect
-              value={filters.orcamento}
-              onChange={(v) => updateFilters({ ...filters, orcamento: v === "all" ? "" : v })}
-              options={uniqueValues.orcamento}
-              placeholder="Todos"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Venda</label>
-            <FilterSelect
-              value={filters.venda}
-              onChange={(v) => updateFilters({ ...filters, venda: v === "all" ? "" : v })}
-              options={uniqueValues.venda}
-              placeholder="Todos"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Entrar em Contato</label>
-            <CalendarFilterPopover
-              selectedDates={filters.entrar_em_contato}
-              onDatesChange={(dates) => updateFilters({ ...filters, entrar_em_contato: dates })}
-              placeholder="Todas"
-              availableDates={uniqueValues.entrar_em_contato}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Médico</label>
-            <FilterSelect
-              value={filters.medico}
-              onChange={(v) => updateFilters({ ...filters, medico: v === "all" ? "" : v })}
-              options={uniqueValues.medico}
-              placeholder="Todos"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Status</label>
-            <FilterSelect
-              value={filters.status}
-              onChange={(v) => updateFilters({ ...filters, status: v === "all" ? "" : v })}
-              options={uniqueValues.status}
-              placeholder="Todos"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Vendedor</label>
-            <FilterSelect
-              value={filters.vendedor}
-              onChange={(v) => updateFilters({ ...filters, vendedor: v === "all" ? "" : v })}
-              options={uniqueValues.vendedor}
-              placeholder="Todos"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Pendente</label>
-            <Button
-              variant={filters.pendente ? "default" : "outline"}
-              size="sm"
-              onClick={() => updateFilters({ ...filters, pendente: !filters.pendente })}
-              className={`h-8 w-full text-xs ${filters.pendente ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : ''}`}
-            >
-              {filters.pendente ? "Filtrando" : "Filtrar"}
-            </Button>
+            <div className="space-y-1 min-w-[120px]">
+              <label className="text-xs text-muted-foreground">Canal</label>
+              <FilterSelect
+                value={filters.canal}
+                onChange={(v) => updateFilters({ ...filters, canal: v === "all" ? "" : v })}
+                options={uniqueValues.canal}
+                placeholder="Todos"
+              />
+            </div>
+            <div className="space-y-1 min-w-[150px]">
+              <label className="text-xs text-muted-foreground">Nome</label>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar..."
+                  value={filters.nome}
+                  onChange={(e) => updateFilters({ ...filters, nome: e.target.value })}
+                  className="h-8 text-xs pl-7 bg-background border-border"
+                />
+              </div>
+            </div>
+            <div className="space-y-1 min-w-[110px]">
+              <label className="text-xs text-muted-foreground">Orçamento</label>
+              <FilterSelect
+                value={filters.orcamento}
+                onChange={(v) => updateFilters({ ...filters, orcamento: v === "all" ? "" : v })}
+                options={uniqueValues.orcamento}
+                placeholder="Todos"
+              />
+            </div>
+            <div className="space-y-1 min-w-[110px]">
+              <label className="text-xs text-muted-foreground">Venda</label>
+              <FilterSelect
+                value={filters.venda}
+                onChange={(v) => updateFilters({ ...filters, venda: v === "all" ? "" : v })}
+                options={uniqueValues.venda}
+                placeholder="Todos"
+              />
+            </div>
+            <div className="space-y-1 min-w-[140px]">
+              <label className="text-xs text-muted-foreground">Entrar em Contato</label>
+              <CalendarFilterPopover
+                selectedDates={filters.entrar_em_contato}
+                onDatesChange={(dates) => updateFilters({ ...filters, entrar_em_contato: dates })}
+                placeholder="Todas"
+                availableDates={uniqueValues.entrar_em_contato}
+              />
+            </div>
+            <div className="space-y-1 min-w-[120px]">
+              <label className="text-xs text-muted-foreground">Médico</label>
+              <FilterSelect
+                value={filters.medico}
+                onChange={(v) => updateFilters({ ...filters, medico: v === "all" ? "" : v })}
+                options={uniqueValues.medico}
+                placeholder="Todos"
+              />
+            </div>
+            <div className="space-y-1 min-w-[120px]">
+              <label className="text-xs text-muted-foreground">Status</label>
+              <FilterSelect
+                value={filters.status}
+                onChange={(v) => updateFilters({ ...filters, status: v === "all" ? "" : v })}
+                options={uniqueValues.status}
+                placeholder="Todos"
+              />
+            </div>
+            <div className="space-y-1 min-w-[120px]">
+              <label className="text-xs text-muted-foreground">Vendedor</label>
+              <FilterSelect
+                value={filters.vendedor}
+                onChange={(v) => updateFilters({ ...filters, vendedor: v === "all" ? "" : v })}
+                options={uniqueValues.vendedor}
+                placeholder="Todos"
+              />
+            </div>
+            <div className="space-y-1 min-w-[100px]">
+              <label className="text-xs text-muted-foreground">Pendente</label>
+              <Button
+                variant={filters.pendente ? "default" : "outline"}
+                size="sm"
+                onClick={() => updateFilters({ ...filters, pendente: !filters.pendente })}
+                className={`h-8 w-full text-xs ${filters.pendente ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : ''}`}
+              >
+                {filters.pendente ? "Filtrando" : "Filtrar"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
