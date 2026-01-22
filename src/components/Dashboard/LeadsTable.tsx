@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Trash2, MessageCircle, Filter, X, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { SelectCell } from "./SelectCell";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Lead } from "@/hooks/useLeads";
+import { SyncedHorizontalScrollbar } from "@/components/ui/synced-horizontal-scrollbar";
 
 const CANAL_OPTIONS = ["Internet", "Sua Visão", "Loja"];
 
@@ -32,6 +33,8 @@ interface LeadsTableProps {
 }
 
 export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: LeadsTableProps) {
+  const filtersScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState<LeadsFilters>({
     data_registro: [],
     canal: "",
@@ -239,7 +242,8 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
             </Button>
           )}
         </div>
-        <div className="overflow-x-auto pb-2 scrollbar-visible">
+        <SyncedHorizontalScrollbar targetRef={filtersScrollRef} className="mb-2 rounded-md" />
+        <div ref={filtersScrollRef} className="overflow-x-auto pb-2 scrollbar-visible">
           <div className="flex gap-3 min-w-max">
             <div className="space-y-1 min-w-[140px]">
               <label className="text-xs text-muted-foreground">Data</label>
@@ -342,8 +346,9 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
 
       {/* Table */}
       <div className="bg-card rounded-xl border border-border overflow-hidden card-shadow-lg animate-fade-in">
-        <div className="overflow-x-auto scrollbar-visible">
-          <table className="w-full">
+        <SyncedHorizontalScrollbar targetRef={tableScrollRef} />
+        <div ref={tableScrollRef} className="overflow-x-auto scrollbar-visible">
+          <table className="w-full min-w-[1500px]">
             <thead>
               <tr className="bg-table-header border-b border-table-border">
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[110px]">Data</th>
