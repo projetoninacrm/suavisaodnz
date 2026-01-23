@@ -178,9 +178,12 @@ export function DetalhadoAmigoTable({
       }
       return true;
     });
-    // Ordenar por data decrescente (mais recentes primeiro) - manter ordem reversa da API
-    // A API já retorna ordenado, então invertemos para mais recente primeiro
-    return [...filtered].reverse();
+    // Ordenar por data decrescente (mais recentes primeiro)
+    return filtered.sort((a, b) => {
+      const dateA = a.date ? new Date(a.date.split('/').reverse().join('-')) : new Date(0);
+      const dateB = b.date ? new Date(b.date.split('/').reverse().join('-')) : new Date(0);
+      return dateB.getTime() - dateA.getTime();
+    });
   }, [combinedRecords, filters]);
 
   const hasActiveFilters = Object.entries(filters).some(([, value]) => 
