@@ -43,6 +43,7 @@ interface CombinedRecord {
   apiId: string;
   dbId: string | null;
   date: string;
+  time: string; // Horário do atendimento para ordenação
   patient_name: string;
   patient_phone: string | null;
   patient_know_by: string | null;
@@ -105,6 +106,7 @@ export function DetalhadoAmigoTable({
         apiId: att.id,
         dbId: dbRecord?.id || null,
         date: att.date,
+        time: att.time || "", // Horário do atendimento
         patient_name: att.patient_name,
         patient_phone: att.patient_phone,
         patient_know_by: att.patient_know_by,
@@ -178,11 +180,16 @@ export function DetalhadoAmigoTable({
       }
       return true;
     });
-    // Ordenar por data decrescente (mais recentes primeiro)
+    // Ordenar por data e hora decrescente (mais recentes primeiro)
     return filtered.sort((a, b) => {
       const dateA = a.date ? new Date(a.date.split('/').reverse().join('-')) : new Date(0);
       const dateB = b.date ? new Date(b.date.split('/').reverse().join('-')) : new Date(0);
-      return dateB.getTime() - dateA.getTime();
+      const dateDiff = dateB.getTime() - dateA.getTime();
+      if (dateDiff !== 0) return dateDiff;
+      // Se mesma data, ordenar por hora decrescente
+      const timeA = a.time || "00:00";
+      const timeB = b.time || "00:00";
+      return timeB.localeCompare(timeA);
     });
   }, [combinedRecords, filters]);
 
