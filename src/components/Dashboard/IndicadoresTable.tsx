@@ -200,6 +200,44 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
     }));
   }, [daysOfPeriod, getMetricsForDay]);
 
+  // Calcular vendas do canal "Sua Visão" da aba Leads no período selecionado
+  const leadsVendas = useMemo(() => {
+    return leads.filter(lead => {
+      // Filtrar apenas leads do canal "Sua Visão" (case insensitive)
+      const canal = (lead.canal || "").toLowerCase().trim();
+      if (!canal.includes("sua vis")) return false;
+      
+      // Filtrar leads com venda = "sim"
+      const venda = (lead.venda || "").toLowerCase().trim();
+      if (venda !== "sim") return false;
+      
+      // Verificar se está no período selecionado
+      if (!lead.data_registro) return false;
+      
+      // Parse da data (formato esperado: DD/MM/YYYY ou YYYY-MM-DD)
+      let leadMonth: number;
+      let leadYear: number;
+      
+      if (lead.data_registro.includes("/")) {
+        const parts = lead.data_registro.split("/");
+        if (parts.length === 3) {
+          leadMonth = parseInt(parts[1]);
+          leadYear = parseInt(parts[2]);
+        } else return false;
+      } else if (lead.data_registro.includes("-")) {
+        const parts = lead.data_registro.split("-");
+        if (parts.length >= 2) {
+          leadYear = parseInt(parts[0]);
+          leadMonth = parseInt(parts[1]);
+        } else return false;
+      } else {
+        return false;
+      }
+      
+      return selectedMonths.includes(leadMonth) && leadYear === parseInt(selectedYear);
+    });
+  }, [leads, selectedMonths, selectedYear]);
+
   // Calcular dados consolidados do período
   const consolidatedData = useMemo(() => {
     const totals = {
@@ -218,20 +256,24 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
       totals.faturamento += data.faturamento;
     });
 
+    // USAR VENDAS DO CANAL "SUA VISÃO" DA ABA LEADS
+    const vendasLeads = leadsVendas.length;
+
     // Calcular percentuais baseados nos totais
     const potencial = totals.atendimentos > 0 ? (totals.receitas / totals.atendimentos) * 100 : 0;
     const taxa_presenca = totals.receitas > 0 ? (totals.visitou_dnz / totals.receitas) * 100 : 0;
-    const conversao = totals.visitou_dnz > 0 ? (totals.vendas / totals.visitou_dnz) * 100 : 0;
-    const ticket = totals.vendas > 0 ? totals.faturamento / totals.vendas : 0;
+    const conversao = totals.visitou_dnz > 0 ? (vendasLeads / totals.visitou_dnz) * 100 : 0;
+    const ticket = vendasLeads > 0 ? totals.faturamento / vendasLeads : 0;
 
     return {
       ...totals,
+      vendas: vendasLeads, // Substituir vendas pelo valor dos Leads "Sua Visão"
       potencial,
       taxa_presenca,
       conversao,
       ticket,
     };
-  }, [periodData]);
+  }, [periodData, leadsVendas]);
 
   // Inicializar simulador com valores consolidados APENAS se não tiver dados salvos
   useEffect(() => {
@@ -270,34 +312,89 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
     };
   }, [simulator]);
 
-  // Calcular faturamento por semana
+  // Helper: parse data do lead para obter dia/mês/ano
+  const parseLeadDate = (dateStr: string | null): { day: number; month: number; year: number } | null => {
+    if (!dateStr) return null;
+    
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      if (parts.length === 3) {
+        return { day: parseInt(parts[0]), month: parseInt(parts[1]), year: parseInt(parts[2]) };
+      }
+    } else if (dateStr.includes("-")) {
+      const parts = dateStr.split("-");
+      if (parts.length >= 3) {
+        return { year: parseInt(parts[0]), month: parseInt(parts[1]), day: parseInt(parts[2]) };
+      }
+    }
+    return null;
+  };
+
+  // Calcular faturamento e outras métricas por semana
   const weeklyRevenue = useMemo(() => {
-    const weekMap = new Map<string, { total: number; weekLabel: string }>();
+    const weekMap = new Map<string, { 
+      faturamento: number; 
+      weekLabel: string;
+      receitas: number;
+      visitou_dnz: number;
+      vendas: number;
+    }>();
     
     daysOfPeriod.forEach((day, idx) => {
-      const faturamento = periodData[idx]?.faturamento || 0;
+      const data = periodData[idx];
       const weekKey = `${day.month}-${day.weekNumber}`;
       const monthShort = MONTHS.find(m => m.value === day.month)?.short || "";
       
       if (!weekMap.has(weekKey)) {
         weekMap.set(weekKey, { 
-          total: 0, 
+          faturamento: 0, 
           weekLabel: selectedMonths.length > 1 
             ? `Sem ${day.weekNumber} (${monthShort})` 
-            : `Semana ${day.weekNumber}` 
+            : `Semana ${day.weekNumber}`,
+          receitas: 0,
+          visitou_dnz: 0,
+          vendas: 0,
         });
       }
-      weekMap.get(weekKey)!.total += faturamento;
+      const entry = weekMap.get(weekKey)!;
+      entry.faturamento += data?.faturamento || 0;
+      entry.receitas += data?.receitas || 0;
+      entry.visitou_dnz += data?.visitou_dnz || 0;
+    });
+
+    // Calcular vendas por semana usando leads "Sua Visão"
+    const year = parseInt(selectedYear);
+    leadsVendas.forEach(lead => {
+      const parsedDate = parseLeadDate(lead.data_registro);
+      if (!parsedDate) return;
+      
+      const leadDate = new Date(parsedDate.year, parsedDate.month - 1, parsedDate.day);
+      const weekNumber = getWeek(leadDate, { weekStartsOn: 1 });
+      const weekKey = `${parsedDate.month}-${weekNumber}`;
+      
+      if (weekMap.has(weekKey)) {
+        weekMap.get(weekKey)!.vendas += 1;
+      }
     });
 
     return Array.from(weekMap.entries())
-      .map(([key, data]) => ({
-        weekKey: key,
-        total: data.total,
-        label: data.weekLabel,
-      }))
+      .map(([key, data]) => {
+        const taxaPresenca = data.receitas > 0 ? (data.visitou_dnz / data.receitas) * 100 : 0;
+        const conversao = data.visitou_dnz > 0 ? (data.vendas / data.visitou_dnz) * 100 : 0;
+        const ticket = data.vendas > 0 ? data.faturamento / data.vendas : 0;
+        
+        return {
+          weekKey: key,
+          total: data.faturamento,
+          label: data.weekLabel,
+          vendas: data.vendas,
+          taxaPresenca,
+          conversao,
+          ticket,
+        };
+      })
       .sort((a, b) => b.total - a.total);
-  }, [daysOfPeriod, periodData, selectedMonths.length]);
+  }, [daysOfPeriod, periodData, selectedMonths.length, leadsVendas, selectedYear]);
 
   // Calcular média de faturamento por dia da semana
   const dailyAverageRevenue = useMemo(() => {
@@ -499,26 +596,46 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Calendar className="h-4 w-4 text-primary" />
-              Faturamento por Semana
+              Indicadores por Semana
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            <div className="space-y-3 max-h-[350px] overflow-y-auto">
               {weeklyRevenue.length > 0 ? (
                 weeklyRevenue.slice(0, 8).map((week, idx) => (
                   <div 
                     key={week.weekKey} 
-                    className={`flex justify-between items-center p-2 rounded ${
+                    className={`p-3 rounded space-y-2 ${
                       idx === 0 ? "bg-primary/10 border border-primary/20" : "bg-muted/30"
                     }`}
                   >
-                    <span className={`text-sm ${idx === 0 ? "font-semibold text-primary" : "text-muted-foreground"}`}>
-                      {week.label}
-                      {idx === 0 && " 🏆"}
-                    </span>
-                    <span className={`font-bold ${idx === 0 ? "text-primary" : ""}`}>
-                      {formatCurrency(week.total)}
-                    </span>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-sm font-semibold ${idx === 0 ? "text-primary" : ""}`}>
+                        {week.label}
+                        {idx === 0 && " 🏆"}
+                      </span>
+                      <span className={`font-bold ${idx === 0 ? "text-primary" : ""}`}>
+                        {formatCurrency(week.total)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 text-xs">
+                      <div className="flex flex-col items-center">
+                        <span className="text-muted-foreground">Vendas</span>
+                        <span className="font-semibold">{week.vendas}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-muted-foreground">Tx. Pres.</span>
+                        <span className="font-semibold">{week.taxaPresenca.toFixed(1)}%</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-muted-foreground">Conv.</span>
+                        <span className="font-semibold">{week.conversao.toFixed(1)}%</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-muted-foreground">Ticket</span>
+                        <span className="font-semibold">{formatCurrency(week.ticket)}</span>
+                      </div>
+                    </div>
                   </div>
                 ))
               ) : (
