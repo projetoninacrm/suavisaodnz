@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { format, getDaysInMonth, getDay, getWeek } from "date-fns";
+import { format, getDaysInMonth, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Table,
@@ -148,6 +148,15 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
     setSelectedMonths([month]);
   };
 
+  // Helper: calcular número da semana dentro do mês (1-5)
+  const getWeekOfMonth = (date: Date): number => {
+    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const firstDayWeekday = firstDayOfMonth.getDay(); // 0 = domingo
+    const dayOfMonth = date.getDate();
+    // Semana 1 começa no dia 1, nova semana a cada segunda-feira
+    return Math.ceil((dayOfMonth + firstDayWeekday) / 7);
+  };
+
   // Gerar dias para todos os meses selecionados (excluindo domingos)
   const daysOfPeriod = useMemo(() => {
     const year = parseInt(selectedYear);
@@ -163,7 +172,8 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
         // Excluir domingos (0 = domingo)
         if (dayOfWeek !== 0) {
           const monthAbbrev = format(date, "MMM", { locale: ptBR });
-          const weekNumber = getWeek(date, { weekStartsOn: 1 });
+          // Usar semana dentro do mês (1-5) ao invés de semana do ano
+          const weekNumber = getWeekOfMonth(date);
           days.push({
             day,
             month,
@@ -363,13 +373,12 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
     });
 
     // Calcular vendas por semana usando leads "Sua Visão"
-    const year = parseInt(selectedYear);
     leadsVendas.forEach(lead => {
       const parsedDate = parseLeadDate(lead.data_registro);
       if (!parsedDate) return;
       
       const leadDate = new Date(parsedDate.year, parsedDate.month - 1, parsedDate.day);
-      const weekNumber = getWeek(leadDate, { weekStartsOn: 1 });
+      const weekNumber = getWeekOfMonth(leadDate);
       const weekKey = `${parsedDate.month}-${weekNumber}`;
       
       if (weekMap.has(weekKey)) {
