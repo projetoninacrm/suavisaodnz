@@ -1,0 +1,422 @@
+import { useState, useRef } from "react";
+import { Upload, Loader2, Plus, Trash2, Image as ImageIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAnuncios, type ExtractedMetrics } from "@/hooks/useAnuncios";
+
+interface AnunciosTableProps {
+  tipo: "DNZ" | "SV";
+}
+
+const ANOS = [2024, 2025, 2026];
+
+// Editable cell for this table
+function EditableTableCell({ 
+  value, 
+  onSave, 
+  isNumber = false,
+  prefix = "",
+  suffix = ""
+}: { 
+  value: string; 
+  onSave: (v: string) => void; 
+  isNumber?: boolean;
+  prefix?: string;
+  suffix?: string;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleBlur = () => {
+    setIsEditing(false);
+    if (editValue !== value) {
+      onSave(editValue);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleBlur();
+    if (e.key === "Escape") {
+      setEditValue(value);
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        autoFocus
+        type={isNumber ? "number" : "text"}
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        className="w-full px-2 py-1 text-sm border rounded bg-background text-right"
+        step={isNumber ? "0.01" : undefined}
+      />
+    );
+  }
+
+  const displayValue = isNumber 
+    ? `${prefix}${parseFloat(value || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`
+    : value || "-";
+
+  return (
+    <div
+      onClick={() => {
+        setEditValue(value);
+        setIsEditing(true);
+      }}
+      className="px-2 py-1 text-sm cursor-pointer rounded hover:bg-muted/50 transition-colors text-right"
+    >
+      {displayValue}
+    </div>
+  );
+}
+
+export function AnunciosTable({ tipo }: AnunciosTableProps) {
+  const {
+    anuncios,
+    isLoading,
+    isExtracting,
+    selectedAno,
+    selectedMes,
+    setSelectedAno,
+    setSelectedMes,
+    extractMetricsFromImage,
+    saveMetrics,
+    updateAnuncio,
+    deleteAnuncio,
+    addManualRow,
+    MESES,
+  } = useAnuncios(tipo);
+
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [extractedMetrics, setExtractedMetrics] = useState<ExtractedMetrics[] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      setPreviewImage(base64);
+      
+      // Extract metrics from image
+      const metrics = await extractMetricsFromImage(base64);
+      if (metrics.length > 0) {
+        setExtractedMetrics(metrics);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleConfirmImport = async () => {
+    if (extractedMetrics) {
+      await saveMetrics(extractedMetrics);
+      setExtractedMetrics(null);
+      setPreviewImage(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleCancelImport = () => {
+    setExtractedMetrics(null);
+    setPreviewImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
+  };
+
+  const formatPercent = (value: number) => {
+    return `${value.toFixed(0)}%`;
+  };
+
+  // Calculate totals
+  const totals = anuncios.reduce(
+    (acc, a) => ({
+      cliques: acc.cliques + (a.cliques || 0),
+      leads: acc.leads + (a.leads || 0),
+      investimento: acc.investimento + (a.investimento || 0),
+      pacientes: acc.pacientes + (a.pacientes || 0),
+    }),
+    { cliques: 0, leads: 0, investimento: 0, pacientes: 0 }
+  );
+
+  const avgConversao = totals.cliques > 0 ? (totals.leads / totals.cliques) * 100 : 0;
+  const avgCustoLead = totals.leads > 0 ? totals.investimento / totals.leads : 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Header with filters */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Select value={String(selectedAno)} onValueChange={(v) => setSelectedAno(Number(v))}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Ano" />
+            </SelectTrigger>
+            <SelectContent>
+              {ANOS.map((ano) => (
+                <SelectItem key={ano} value={String(ano)}>
+                  {ano}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedMes} onValueChange={setSelectedMes}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Mês" />
+            </SelectTrigger>
+            <SelectContent>
+              {MESES.map((mes) => (
+                <SelectItem key={mes} value={mes}>
+                  {mes}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={addManualRow}>
+            <Plus className="w-4 h-4 mr-1" />
+            Adicionar Linha
+          </Button>
+        </div>
+      </div>
+
+      {/* Upload Section */}
+      <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6">
+        <div className="flex flex-col items-center justify-center gap-4">
+          {previewImage ? (
+            <div className="relative w-full max-w-2xl">
+              <img
+                src={previewImage}
+                alt="Preview"
+                className="w-full rounded-lg border border-border"
+              />
+              {isExtracting && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-lg">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    <span>Extraindo métricas...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+              <ImageIcon className="w-12 h-12" />
+              <p className="text-sm">Faça upload de um print das métricas de anúncios</p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+              id={`file-upload-${tipo}`}
+            />
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isExtracting}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {previewImage ? "Trocar Imagem" : "Upload de Print"}
+            </Button>
+
+            {extractedMetrics && (
+              <>
+                <Button onClick={handleConfirmImport} variant="default">
+                  Confirmar Importação ({extractedMetrics.length} registros)
+                </Button>
+                <Button onClick={handleCancelImport} variant="ghost">
+                  Cancelar
+                </Button>
+              </>
+            )}
+          </div>
+
+          {extractedMetrics && (
+            <div className="w-full mt-4 p-4 bg-card rounded-lg border border-border">
+              <h4 className="text-sm font-medium mb-2">Dados extraídos (prévia):</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-muted-foreground">
+                      <th className="text-left p-2">Plataforma</th>
+                      <th className="text-right p-2">Cliques</th>
+                      <th className="text-right p-2">Leads</th>
+                      <th className="text-right p-2">Conversão</th>
+                      <th className="text-right p-2">Investimento</th>
+                      <th className="text-right p-2">CPL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {extractedMetrics.map((m, i) => (
+                      <tr key={i} className="border-t border-border/50">
+                        <td className="p-2 font-medium">{m.plataforma}</td>
+                        <td className="p-2 text-right">{m.cliques}</td>
+                        <td className="p-2 text-right">{m.leads}</td>
+                        <td className="p-2 text-right">{m.conversao}%</td>
+                        <td className="p-2 text-right">{formatCurrency(m.investimento)}</td>
+                        <td className="p-2 text-right">{formatCurrency(m.custo_por_lead)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Data Table */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      ) : anuncios.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <p>Nenhum dado cadastrado para {selectedMes}/{selectedAno}</p>
+          <p className="text-sm mt-1">Faça upload de um print ou adicione manualmente</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="w-[120px]">Plataforma</TableHead>
+                <TableHead className="text-right">Cliques</TableHead>
+                <TableHead className="text-right">Leads</TableHead>
+                <TableHead className="text-right">Conversão</TableHead>
+                <TableHead className="text-right">Investimento</TableHead>
+                <TableHead className="text-right">Custo/Lead</TableHead>
+                <TableHead className="text-right">Pacientes</TableHead>
+                <TableHead className="text-right">%</TableHead>
+                <TableHead className="text-right">CAC</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {anuncios.map((anuncio) => (
+                <TableRow key={anuncio.id}>
+                  <TableCell>
+                    <EditableTableCell
+                      value={anuncio.plataforma}
+                      onSave={(v) => updateAnuncio(anuncio.id, "plataforma", v)}
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableTableCell
+                      value={String(anuncio.cliques)}
+                      onSave={(v) => updateAnuncio(anuncio.id, "cliques", v)}
+                      isNumber
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableTableCell
+                      value={String(anuncio.leads)}
+                      onSave={(v) => updateAnuncio(anuncio.id, "leads", v)}
+                      isNumber
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableTableCell
+                      value={String(anuncio.conversao)}
+                      onSave={(v) => updateAnuncio(anuncio.id, "conversao", v)}
+                      isNumber
+                      suffix="%"
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableTableCell
+                      value={String(anuncio.investimento)}
+                      onSave={(v) => updateAnuncio(anuncio.id, "investimento", v)}
+                      isNumber
+                      prefix="R$ "
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableTableCell
+                      value={String(anuncio.custo_por_lead)}
+                      onSave={(v) => updateAnuncio(anuncio.id, "custo_por_lead", v)}
+                      isNumber
+                      prefix="R$ "
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableTableCell
+                      value={String(anuncio.pacientes)}
+                      onSave={(v) => updateAnuncio(anuncio.id, "pacientes", v)}
+                      isNumber
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableTableCell
+                      value={String(anuncio.percentual)}
+                      onSave={(v) => updateAnuncio(anuncio.id, "percentual", v)}
+                      isNumber
+                      suffix="%"
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableTableCell
+                      value={String(anuncio.cac)}
+                      onSave={(v) => updateAnuncio(anuncio.id, "cac", v)}
+                      isNumber
+                      prefix="R$ "
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteAnuncio(anuncio.id)}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {/* Totals row */}
+              <TableRow className="bg-muted/30 font-medium">
+                <TableCell>TOTAL</TableCell>
+                <TableCell className="text-right">{totals.cliques.toLocaleString("pt-BR")}</TableCell>
+                <TableCell className="text-right">{totals.leads.toLocaleString("pt-BR")}</TableCell>
+                <TableCell className="text-right">{formatPercent(avgConversao)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(totals.investimento)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(avgCustoLead)}</TableCell>
+                <TableCell className="text-right">{totals.pacientes.toLocaleString("pt-BR")}</TableCell>
+                <TableCell className="text-right">-</TableCell>
+                <TableCell className="text-right">-</TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}

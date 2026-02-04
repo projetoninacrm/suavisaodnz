@@ -9,13 +9,14 @@ import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
 import { MetasCalculator } from "@/components/Dashboard/MetasCalculator";
 import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { PerdasSection } from "@/components/Dashboard/PerdasSection";
+import { AnunciosTable } from "@/components/Dashboard/AnunciosTable";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
 import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 
-const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas"];
+const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV"];
 
 const INDICADORES_COLUMNS = [
   { key: "indicador", label: "Indicador", width: "200px" },
@@ -58,6 +59,8 @@ const Index = () => {
     activeTab === "Metas" ? false :
     activeTab === "Detalhado" ? detalhadoAmigo.isLoading :
     activeTab === "Perdas" ? leads.isLoading :
+    activeTab === "Anúncios DNZ" ? false :
+    activeTab === "Anúncios SV" ? false :
     false;
 
   // Stats for Leads tab - by channel (filtered by date and vendedor if filters are active)
@@ -126,6 +129,8 @@ const Index = () => {
       case "Metas": schedules.fetchSchedules(); break;
       case "Detalhado": detalhadoAmigo.refresh(); break;
       case "Perdas": leads.fetchLeads(); break;
+      case "Anúncios DNZ": break;
+      case "Anúncios SV": break;
     }
   };
 
@@ -137,6 +142,8 @@ const Index = () => {
       case "Metas": break;
       case "Detalhado": break;
       case "Perdas": break;
+      case "Anúncios DNZ": break;
+      case "Anúncios SV": break;
     }
   };
 
@@ -194,6 +201,10 @@ const Index = () => {
         return (
           <PerdasSection leads={leads.leads} />
         );
+      case "Anúncios DNZ":
+        return <AnunciosTable tipo="DNZ" />;
+      case "Anúncios SV":
+        return <AnunciosTable tipo="SV" />;
       default:
         return null;
     }
