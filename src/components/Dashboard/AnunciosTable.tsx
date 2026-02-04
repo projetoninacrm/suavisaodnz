@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
-import { Upload, Loader2, Plus, Trash2, Image as ImageIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Upload, Loader2, Trash2, Image as ImageIcon, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAnuncios, type ExtractedRawMetrics } from "@/hooks/useAnuncios";
+import { Label } from "@/components/ui/label";
 
 interface AnunciosTableProps {
   tipo: "DNZ" | "SV";
@@ -234,9 +235,24 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
     savePlatformMetrics,
     updateAnuncio,
     deleteAnuncio,
-    addManualRow,
+    updatePacientesTotal,
+    pacientesTotal,
     MESES,
   } = useAnuncios(tipo);
+
+  const [localPacientes, setLocalPacientes] = useState(String(pacientesTotal));
+
+  // Sync local state with hook state
+  useEffect(() => {
+    setLocalPacientes(String(pacientesTotal));
+  }, [pacientesTotal]);
+
+  const handlePacientesBlur = () => {
+    const value = parseInt(localPacientes) || 0;
+    if (value !== pacientesTotal) {
+      updatePacientesTotal(value);
+    }
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -255,13 +271,16 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
       cliques: acc.cliques + (a.cliques || 0),
       leads: acc.leads + (a.leads || 0),
       investimento: acc.investimento + (a.investimento || 0),
-      pacientes: acc.pacientes + (a.pacientes || 0),
     }),
-    { cliques: 0, leads: 0, investimento: 0, pacientes: 0 }
+    { cliques: 0, leads: 0, investimento: 0 }
   );
 
   const avgConversao = totals.cliques > 0 ? (totals.leads / totals.cliques) * 100 : 0;
   const avgCustoLead = totals.leads > 0 ? totals.investimento / totals.leads : 0;
+  
+  // Unified metrics using pacientesTotal
+  const percentualTotal = totals.leads > 0 ? (pacientesTotal / totals.leads) * 100 : 0;
+  const cacTotal = pacientesTotal > 0 ? totals.investimento / pacientesTotal : 0;
 
   return (
     <div className="space-y-6">
@@ -294,13 +313,6 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
             </SelectContent>
           </Select>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={addManualRow}>
-            <Plus className="w-4 h-4 mr-1" />
-            Adicionar Linha
-          </Button>
-        </div>
       </div>
 
       {/* Two Upload Sections - META and GOOGLE */}
@@ -317,6 +329,34 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
           onExtract={extractMetricsFromImage}
           onSave={savePlatformMetrics}
         />
+      </div>
+
+      {/* Unified Pacientes Input */}
+      <div className="flex items-center gap-4 p-4 rounded-lg border border-border bg-card">
+        <div className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-primary" />
+          <Label htmlFor="pacientes-total" className="font-medium">Pacientes Total (ambas plataformas):</Label>
+        </div>
+        <Input
+          id="pacientes-total"
+          type="number"
+          value={localPacientes}
+          onChange={(e) => setLocalPacientes(e.target.value)}
+          onBlur={handlePacientesBlur}
+          onKeyDown={(e) => e.key === "Enter" && handlePacientesBlur()}
+          className="w-32"
+          min={0}
+        />
+        <div className="flex-1 flex items-center gap-6 text-sm">
+          <div>
+            <span className="text-muted-foreground">% Conv. (P/L): </span>
+            <span className="font-medium">{formatPercent(percentualTotal)}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">CAC: </span>
+            <span className="font-medium">{formatCurrency(cacTotal)}</span>
+          </div>
+        </div>
       </div>
 
       {/* Data Table */}
@@ -340,22 +380,11 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
                 <TableHead className="text-right">Conv. (L/C)</TableHead>
                 <TableHead className="text-right">Investimento</TableHead>
                 <TableHead className="text-right">CPL</TableHead>
-                <TableHead className="text-right">Pacientes</TableHead>
-                <TableHead className="text-right">% Conv. (P/L)</TableHead>
-                <TableHead className="text-right">CAC</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {anuncios.map((anuncio) => {
-                // Calculate derived values for display
-                const leads = anuncio.leads || 0;
-                const pacientes = anuncio.pacientes || 0;
-                const investimento = anuncio.investimento || 0;
-                const percentualCalc = leads > 0 ? (pacientes / leads) * 100 : 0;
-                const cacCalc = pacientes > 0 ? investimento / pacientes : 0;
-                
-                return (
+              {anuncios.map((anuncio) => (
                 <TableRow key={anuncio.id}>
                   <TableCell>
                     <EditableTableCell
@@ -401,23 +430,6 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
                       prefix="R$ "
                     />
                   </TableCell>
-                  <TableCell className="text-right">
-                    <EditableTableCell
-                      value={String(anuncio.pacientes)}
-                      onSave={(v) => updateAnuncio(anuncio.id, "pacientes", v)}
-                      isNumber
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="px-2 py-1 text-sm text-muted-foreground">
-                      {percentualCalc.toFixed(2)}%
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="px-2 py-1 text-sm text-muted-foreground">
-                      {formatCurrency(cacCalc)}
-                    </div>
-                  </TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"
@@ -429,7 +441,7 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
                     </Button>
                   </TableCell>
                 </TableRow>
-              );})}
+              ))}
               {/* Totals row */}
               <TableRow className="bg-muted/30 font-medium">
                 <TableCell>TOTAL</TableCell>
@@ -438,13 +450,6 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
                 <TableCell className="text-right">{formatPercent(avgConversao)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(totals.investimento)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(avgCustoLead)}</TableCell>
-                <TableCell className="text-right">{totals.pacientes.toLocaleString("pt-BR")}</TableCell>
-                <TableCell className="text-right">
-                  {totals.leads > 0 ? formatPercent((totals.pacientes / totals.leads) * 100) : "-"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {totals.pacientes > 0 ? formatCurrency(totals.investimento / totals.pacientes) : "-"}
-                </TableCell>
                 <TableCell></TableCell>
               </TableRow>
             </TableBody>
