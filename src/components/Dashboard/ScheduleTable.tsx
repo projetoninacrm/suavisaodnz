@@ -116,7 +116,9 @@ interface ScheduleTableProps {
 
 export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: ScheduleTableProps) {
   const { toast } = useToast();
-  const [selectedMonth, setSelectedMonth] = useState<string>("jan");
+  // Inicia com o mês atual
+  const currentMonthIndex = new Date().getMonth();
+  const [selectedMonth, setSelectedMonth] = useState<string>(MONTH_NAMES[currentMonthIndex]);
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Detecta meses disponíveis nos schedules
