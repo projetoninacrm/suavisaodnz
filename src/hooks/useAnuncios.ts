@@ -38,6 +38,7 @@ export function useAnuncios(tipo: "DNZ" | "SV") {
   const [isExtracting, setIsExtracting] = useState(false);
   const [selectedAno, setSelectedAno] = useState(new Date().getFullYear());
   const [selectedMes, setSelectedMes] = useState(MESES[new Date().getMonth()]);
+  const [pacientesTotal, setPacientesTotal] = useState(0);
   const { toast } = useToast();
 
   const fetchAnuncios = useCallback(async () => {
@@ -52,7 +53,19 @@ export function useAnuncios(tipo: "DNZ" | "SV") {
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      setAnuncios((data as Anuncio[]) || []);
+      const anuncioData = (data as Anuncio[]) || [];
+      setAnuncios(anuncioData);
+      
+      // Get pacientes from the first record that has it (unified value)
+      // We'll use a special "TOTAL" plataforma or just take from any record
+      const totalRecord = anuncioData.find(a => a.plataforma === "TOTAL");
+      if (totalRecord) {
+        setPacientesTotal(totalRecord.pacientes || 0);
+      } else {
+        // Sum all pacientes from individual records as fallback
+        const sum = anuncioData.reduce((acc, a) => acc + (a.pacientes || 0), 0);
+        setPacientesTotal(sum);
+      }
     } catch (error) {
       console.error("Error fetching anuncios:", error);
       toast({
@@ -291,8 +304,60 @@ export function useAnuncios(tipo: "DNZ" | "SV") {
     }
   };
 
+  const updatePacientesTotal = async (value: number) => {
+    try {
+      // Check if TOTAL record exists
+      const { data: existing } = await supabase
+        .from("anuncios")
+        .select("id")
+        .eq("tipo", tipo)
+        .eq("ano", selectedAno)
+        .eq("mes", selectedMes)
+        .eq("plataforma", "TOTAL")
+        .single();
+
+      if (existing) {
+        // Update existing
+        const { error } = await supabase
+          .from("anuncios")
+          .update({ pacientes: value, updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        // Insert new TOTAL record
+        const { error } = await supabase.from("anuncios").insert({
+          tipo,
+          ano: selectedAno,
+          mes: selectedMes,
+          plataforma: "TOTAL",
+          cliques: 0,
+          leads: 0,
+          conversao: 0,
+          investimento: 0,
+          custo_por_lead: 0,
+          pacientes: value,
+          percentual: 0,
+          cac: 0,
+        });
+        if (error) throw error;
+      }
+
+      setPacientesTotal(value);
+      fetchAnuncios();
+    } catch (error) {
+      console.error("Error updating pacientes total:", error);
+      toast({
+        title: "Erro ao atualizar pacientes",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter out TOTAL record from display
+  const displayAnuncios = anuncios.filter(a => a.plataforma !== "TOTAL");
+
   return {
-    anuncios,
+    anuncios: displayAnuncios,
     isLoading,
     isExtracting,
     selectedAno,
@@ -305,6 +370,8 @@ export function useAnuncios(tipo: "DNZ" | "SV") {
     updateAnuncio,
     deleteAnuncio,
     addManualRow,
+    updatePacientesTotal,
+    pacientesTotal,
     MESES,
   };
 }
