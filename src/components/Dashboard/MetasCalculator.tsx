@@ -80,8 +80,9 @@ export function MetasCalculator({
     return MONTH_NAMES.filter(m => monthsSet.has(m));
   }, [schedules]);
 
-  // Estado do filtro de mês
-  const [selectedMonth, setSelectedMonth] = useState<string>("jan");
+  // Estado do filtro de mês - inicia com o mês atual
+  const currentMonthIndex = new Date().getMonth();
+  const [selectedMonth, setSelectedMonth] = useState<string>(MONTH_NAMES[currentMonthIndex]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Filtra schedules pelo mês selecionado

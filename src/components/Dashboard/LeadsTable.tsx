@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { Trash2, MessageCircle, Filter, X, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,8 +35,25 @@ interface LeadsTableProps {
 export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: LeadsTableProps) {
   const filtersScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
-  const [filters, setFilters] = useState<LeadsFilters>({
-    data_registro: [],
+  
+  // Calcular datas do mês atual para filtro inicial
+  const getCurrentMonthDates = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const dates: string[] = [];
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayStr = day.toString().padStart(2, "0");
+      const monthStr = (month + 1).toString().padStart(2, "0");
+      dates.push(`${dayStr}/${monthStr}/${year}`);
+    }
+    return dates;
+  };
+
+  const [filters, setFilters] = useState<LeadsFilters>(() => ({
+    data_registro: getCurrentMonthDates(),
     canal: "",
     nome: "",
     orcamento: "",
@@ -46,7 +63,12 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     status: "",
     vendedor: "",
     pendente: false,
-  });
+  }));
+
+  // Notificar o componente pai sobre os filtros iniciais
+  useEffect(() => {
+    onFiltersChange?.(filters);
+  }, []);
 
   const updateFilters = (newFilters: LeadsFilters) => {
     setFilters(newFilters);
