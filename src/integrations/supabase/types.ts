@@ -44,6 +44,63 @@ export type Database = {
         }
         Relationships: []
       }
+      anuncios: {
+        Row: {
+          ano: number
+          cac: number | null
+          cliques: number | null
+          conversao: number | null
+          created_at: string
+          custo_por_lead: number | null
+          id: string
+          investimento: number | null
+          leads: number | null
+          mes: string
+          pacientes: number | null
+          percentual: number | null
+          plataforma: string
+          screenshot_url: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          cac?: number | null
+          cliques?: number | null
+          conversao?: number | null
+          created_at?: string
+          custo_por_lead?: number | null
+          id?: string
+          investimento?: number | null
+          leads?: number | null
+          mes: string
+          pacientes?: number | null
+          percentual?: number | null
+          plataforma: string
+          screenshot_url?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          cac?: number | null
+          cliques?: number | null
+          conversao?: number | null
+          created_at?: string
+          custo_por_lead?: number | null
+          id?: string
+          investimento?: number | null
+          leads?: number | null
+          mes?: string
+          pacientes?: number | null
+          percentual?: number | null
+          plataforma?: string
+          screenshot_url?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       detalhado: {
         Row: {
           como_conheceu: string | null
