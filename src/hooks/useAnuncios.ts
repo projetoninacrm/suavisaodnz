@@ -21,16 +21,10 @@ export interface Anuncio {
   updated_at: string;
 }
 
-export interface ExtractedMetrics {
-  plataforma: string;
-  cliques: number;
-  leads: number;
-  conversao: number;
+export interface ExtractedRawMetrics {
   investimento: number;
-  custo_por_lead: number;
-  pacientes: number;
-  percentual: number;
-  cac: number;
+  mensagens: number;
+  cliques: number;
 }
 
 const MESES = [
@@ -75,7 +69,7 @@ export function useAnuncios(tipo: "DNZ" | "SV") {
     fetchAnuncios();
   }, [fetchAnuncios]);
 
-  const extractMetricsFromImage = async (imageBase64: string): Promise<ExtractedMetrics[]> => {
+  const extractMetricsFromImage = async (imageBase64: string): Promise<ExtractedRawMetrics | null> => {
     setIsExtracting(true);
     try {
       const { data, error } = await supabase.functions.invoke("extract-ad-metrics", {
@@ -84,10 +78,10 @@ export function useAnuncios(tipo: "DNZ" | "SV") {
 
       if (error) throw error;
 
-      if (data?.success && data.metrics) {
-        return data.metrics;
+      if (data?.success && data.rawMetrics) {
+        return data.rawMetrics;
       }
-      return [];
+      return null;
     } catch (error) {
       console.error("Error extracting metrics:", error);
       toast({
@@ -95,44 +89,70 @@ export function useAnuncios(tipo: "DNZ" | "SV") {
         description: "Não foi possível analisar a imagem.",
         variant: "destructive",
       });
-      return [];
+      return null;
     } finally {
       setIsExtracting(false);
     }
   };
 
-  const saveMetrics = async (metrics: ExtractedMetrics[]) => {
+  const savePlatformMetrics = async (plataforma: "META" | "GOOGLE", rawMetrics: ExtractedRawMetrics) => {
     try {
-      // Delete existing records for this month/year/type
-      await supabase
+      // Calculate derived metrics
+      // Conversão = leads / cliques (leads = mensagens in this context)
+      // CPL = investimento / mensagens
+      const leads = rawMetrics.mensagens || 0;
+      const cliques = rawMetrics.cliques || 0;
+      const investimento = rawMetrics.investimento || 0;
+      
+      const conversao = cliques > 0 ? (leads / cliques) * 100 : 0;
+      const custo_por_lead = leads > 0 ? investimento / leads : 0;
+
+      // Check if record exists for this platform/month/year
+      const { data: existing } = await supabase
         .from("anuncios")
-        .delete()
+        .select("id")
         .eq("tipo", tipo)
         .eq("ano", selectedAno)
-        .eq("mes", selectedMes);
+        .eq("mes", selectedMes)
+        .eq("plataforma", plataforma)
+        .single();
 
-      // Insert new records
-      const records = metrics.map((m) => ({
-        tipo,
-        ano: selectedAno,
-        mes: selectedMes,
-        plataforma: m.plataforma,
-        cliques: m.cliques || 0,
-        leads: m.leads || 0,
-        conversao: m.conversao || 0,
-        investimento: m.investimento || 0,
-        custo_por_lead: m.custo_por_lead || 0,
-        pacientes: m.pacientes || 0,
-        percentual: m.percentual || 0,
-        cac: m.cac || 0,
-      }));
-
-      const { error } = await supabase.from("anuncios").insert(records);
-      if (error) throw error;
+      if (existing) {
+        // Update existing
+        const { error } = await supabase
+          .from("anuncios")
+          .update({
+            cliques,
+            leads,
+            conversao: parseFloat(conversao.toFixed(2)),
+            investimento,
+            custo_por_lead: parseFloat(custo_por_lead.toFixed(2)),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        // Insert new
+        const { error } = await supabase.from("anuncios").insert({
+          tipo,
+          ano: selectedAno,
+          mes: selectedMes,
+          plataforma,
+          cliques,
+          leads,
+          conversao: parseFloat(conversao.toFixed(2)),
+          investimento,
+          custo_por_lead: parseFloat(custo_por_lead.toFixed(2)),
+          pacientes: 0,
+          percentual: 0,
+          cac: 0,
+        });
+        if (error) throw error;
+      }
 
       toast({
         title: "Métricas salvas",
-        description: `${metrics.length} registro(s) importado(s) com sucesso.`,
+        description: `Dados de ${plataforma} importados com sucesso.`,
       });
 
       fetchAnuncios();
@@ -218,7 +238,7 @@ export function useAnuncios(tipo: "DNZ" | "SV") {
     setSelectedMes,
     fetchAnuncios,
     extractMetricsFromImage,
-    saveMetrics,
+    savePlatformMetrics,
     updateAnuncio,
     deleteAnuncio,
     addManualRow,

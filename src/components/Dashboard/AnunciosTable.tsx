@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useAnuncios, type ExtractedMetrics } from "@/hooks/useAnuncios";
+import { useAnuncios, type ExtractedRawMetrics } from "@/hooks/useAnuncios";
 
 interface AnunciosTableProps {
   tipo: "DNZ" | "SV";
@@ -78,25 +78,17 @@ function EditableTableCell({
   );
 }
 
-export function AnunciosTable({ tipo }: AnunciosTableProps) {
-  const {
-    anuncios,
-    isLoading,
-    isExtracting,
-    selectedAno,
-    selectedMes,
-    setSelectedAno,
-    setSelectedMes,
-    extractMetricsFromImage,
-    saveMetrics,
-    updateAnuncio,
-    deleteAnuncio,
-    addManualRow,
-    MESES,
-  } = useAnuncios(tipo);
+interface PlatformUploadProps {
+  platform: "META" | "GOOGLE";
+  isExtracting: boolean;
+  onExtract: (base64: string) => Promise<ExtractedRawMetrics | null>;
+  onSave: (platform: "META" | "GOOGLE", metrics: ExtractedRawMetrics) => Promise<void>;
+}
 
+function PlatformUpload({ platform, isExtracting, onExtract, onSave }: PlatformUploadProps) {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [extractedMetrics, setExtractedMetrics] = useState<ExtractedMetrics[] | null>(null);
+  const [extractedMetrics, setExtractedMetrics] = useState<ExtractedRawMetrics | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,19 +99,20 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
     reader.onload = async (event) => {
       const base64 = event.target?.result as string;
       setPreviewImage(base64);
+      setIsProcessing(true);
       
-      // Extract metrics from image
-      const metrics = await extractMetricsFromImage(base64);
-      if (metrics.length > 0) {
+      const metrics = await onExtract(base64);
+      if (metrics) {
         setExtractedMetrics(metrics);
       }
+      setIsProcessing(false);
     };
     reader.readAsDataURL(file);
   };
 
   const handleConfirmImport = async () => {
     if (extractedMetrics) {
-      await saveMetrics(extractedMetrics);
+      await onSave(platform, extractedMetrics);
       setExtractedMetrics(null);
       setPreviewImage(null);
       if (fileInputRef.current) {
@@ -143,8 +136,117 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
     }).format(value);
   };
 
+  const platformColor = platform === "META" ? "text-blue-500" : "text-yellow-500";
+  const platformBg = platform === "META" ? "bg-blue-500/10" : "bg-yellow-500/10";
+
+  return (
+    <div className={`rounded-lg border border-dashed border-border p-4 ${platformBg}`}>
+      <div className="flex items-center gap-2 mb-3">
+        <span className={`font-semibold ${platformColor}`}>{platform}</span>
+      </div>
+      
+      <div className="flex flex-col gap-3">
+        {previewImage ? (
+          <div className="relative w-full">
+            <img
+              src={previewImage}
+              alt={`Preview ${platform}`}
+              className="w-full max-h-48 object-contain rounded-lg border border-border"
+            />
+            {(isExtracting || isProcessing) && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-lg">
+                <div className="flex items-center gap-2 text-primary">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Extraindo...</span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 text-muted-foreground py-4">
+            <ImageIcon className="w-8 h-8" />
+            <p className="text-xs text-center">Upload print {platform}</p>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2">
+          <Input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+            id={`file-upload-${platform}`}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isExtracting || isProcessing}
+            className="w-full"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            {previewImage ? "Trocar" : "Upload"}
+          </Button>
+
+          {extractedMetrics && (
+            <div className="space-y-2">
+              <div className="text-xs space-y-1 bg-card p-2 rounded border">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Investimento:</span>
+                  <span className="font-medium">{formatCurrency(extractedMetrics.investimento)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Mensagens:</span>
+                  <span className="font-medium">{extractedMetrics.mensagens}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cliques:</span>
+                  <span className="font-medium">{extractedMetrics.cliques}</span>
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <Button onClick={handleConfirmImport} variant="default" size="sm" className="flex-1">
+                  Confirmar
+                </Button>
+                <Button onClick={handleCancelImport} variant="ghost" size="sm">
+                  ✕
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AnunciosTable({ tipo }: AnunciosTableProps) {
+  const {
+    anuncios,
+    isLoading,
+    isExtracting,
+    selectedAno,
+    selectedMes,
+    setSelectedAno,
+    setSelectedMes,
+    extractMetricsFromImage,
+    savePlatformMetrics,
+    updateAnuncio,
+    deleteAnuncio,
+    addManualRow,
+    MESES,
+  } = useAnuncios(tipo);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
+  };
+
   const formatPercent = (value: number) => {
-    return `${value.toFixed(0)}%`;
+    return `${value.toFixed(2)}%`;
   };
 
   // Calculate totals
@@ -201,94 +303,20 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
         </div>
       </div>
 
-      {/* Upload Section */}
-      <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6">
-        <div className="flex flex-col items-center justify-center gap-4">
-          {previewImage ? (
-            <div className="relative w-full max-w-2xl">
-              <img
-                src={previewImage}
-                alt="Preview"
-                className="w-full rounded-lg border border-border"
-              />
-              {isExtracting && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-lg">
-                  <div className="flex items-center gap-2 text-primary">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                    <span>Extraindo métricas...</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <ImageIcon className="w-12 h-12" />
-              <p className="text-sm">Faça upload de um print das métricas de anúncios</p>
-            </div>
-          )}
-
-          <div className="flex items-center gap-3">
-            <Input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-              id={`file-upload-${tipo}`}
-            />
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isExtracting}
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              {previewImage ? "Trocar Imagem" : "Upload de Print"}
-            </Button>
-
-            {extractedMetrics && (
-              <>
-                <Button onClick={handleConfirmImport} variant="default">
-                  Confirmar Importação ({extractedMetrics.length} registros)
-                </Button>
-                <Button onClick={handleCancelImport} variant="ghost">
-                  Cancelar
-                </Button>
-              </>
-            )}
-          </div>
-
-          {extractedMetrics && (
-            <div className="w-full mt-4 p-4 bg-card rounded-lg border border-border">
-              <h4 className="text-sm font-medium mb-2">Dados extraídos (prévia):</h4>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-muted-foreground">
-                      <th className="text-left p-2">Plataforma</th>
-                      <th className="text-right p-2">Cliques</th>
-                      <th className="text-right p-2">Leads</th>
-                      <th className="text-right p-2">Conversão</th>
-                      <th className="text-right p-2">Investimento</th>
-                      <th className="text-right p-2">CPL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {extractedMetrics.map((m, i) => (
-                      <tr key={i} className="border-t border-border/50">
-                        <td className="p-2 font-medium">{m.plataforma}</td>
-                        <td className="p-2 text-right">{m.cliques}</td>
-                        <td className="p-2 text-right">{m.leads}</td>
-                        <td className="p-2 text-right">{m.conversao}%</td>
-                        <td className="p-2 text-right">{formatCurrency(m.investimento)}</td>
-                        <td className="p-2 text-right">{formatCurrency(m.custo_por_lead)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Two Upload Sections - META and GOOGLE */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <PlatformUpload
+          platform="META"
+          isExtracting={isExtracting}
+          onExtract={extractMetricsFromImage}
+          onSave={savePlatformMetrics}
+        />
+        <PlatformUpload
+          platform="GOOGLE"
+          isExtracting={isExtracting}
+          onExtract={extractMetricsFromImage}
+          onSave={savePlatformMetrics}
+        />
       </div>
 
       {/* Data Table */}
@@ -311,7 +339,7 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
                 <TableHead className="text-right">Leads</TableHead>
                 <TableHead className="text-right">Conversão</TableHead>
                 <TableHead className="text-right">Investimento</TableHead>
-                <TableHead className="text-right">Custo/Lead</TableHead>
+                <TableHead className="text-right">CPL</TableHead>
                 <TableHead className="text-right">Pacientes</TableHead>
                 <TableHead className="text-right">%</TableHead>
                 <TableHead className="text-right">CAC</TableHead>
