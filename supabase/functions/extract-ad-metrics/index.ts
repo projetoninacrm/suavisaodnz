@@ -5,16 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface AdMetrics {
-  plataforma: string;
-  cliques: number;
-  leads: number;
-  conversao: number;
+interface ExtractedRawMetrics {
   investimento: number;
-  custo_por_lead: number;
-  pacientes: number;
-  percentual: number;
-  cac: number;
+  mensagens: number;
+  cliques: number;
 }
 
 Deno.serve(async (req) => {
@@ -51,26 +45,16 @@ Deno.serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: `Analyze this marketing metrics screenshot and extract the data for each platform (META, GOOGLE, etc.).
+                text: `Analyze this marketing metrics screenshot and extract ONLY these 3 fields:
 
-Return ONLY a JSON array with objects containing these fields for each platform row found:
-- plataforma: string (e.g., "META", "GOOGLE")
-- cliques: number (clicks)
-- leads: number
-- conversao: number (conversion percentage as decimal, e.g., 6% = 6)
-- investimento: number (investment amount in BRL, without R$ symbol)
-- custo_por_lead: number (cost per lead in BRL)
-- pacientes: number (patients count, if available, otherwise 0)
-- percentual: number (percentage, if available, otherwise 0)
-- cac: number (customer acquisition cost in BRL, if available, otherwise 0)
+- investimento: number (investment/budget amount in BRL, look for "Valor gasto" or similar, without R$ symbol)
+- mensagens: number (messages sent, look for "Mensagens enviadas" or similar)
+- cliques: number (link clicks, look for "Cliques no link" or similar)
 
-Example response:
-[
-  {"plataforma": "META", "cliques": 780, "leads": 43, "conversao": 6, "investimento": 1496.02, "custo_por_lead": 34.79, "pacientes": 0, "percentual": 0, "cac": 0},
-  {"plataforma": "GOOGLE", "cliques": 1757, "leads": 453, "conversao": 26, "investimento": 1758.77, "custo_por_lead": 3.88, "pacientes": 176, "percentual": 35, "cac": 1}
-]
+Return ONLY a JSON object with these 3 fields. Example:
+{"investimento": 3311.66, "mensagens": 667, "cliques": 1678}
 
-Return ONLY the JSON array, no other text.`,
+Return ONLY the JSON object, no other text.`,
               },
               {
                 type: "image_url",
@@ -81,7 +65,7 @@ Return ONLY the JSON array, no other text.`,
             ],
           },
         ],
-        max_tokens: 2000,
+        max_tokens: 500,
       }),
     });
 
@@ -97,19 +81,19 @@ Return ONLY the JSON array, no other text.`,
     console.log("AI Response:", content);
 
     // Try to parse JSON from the response
-    let metrics: AdMetrics[] = [];
+    let rawMetrics: ExtractedRawMetrics | null = null;
     try {
-      // Extract JSON array from the response
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      // Extract JSON object from the response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        metrics = JSON.parse(jsonMatch[0]);
+        rawMetrics = JSON.parse(jsonMatch[0]);
       }
     } catch (parseError) {
       console.error("Failed to parse AI response:", parseError);
     }
 
     return new Response(
-      JSON.stringify({ success: true, metrics }),
+      JSON.stringify({ success: true, rawMetrics }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
