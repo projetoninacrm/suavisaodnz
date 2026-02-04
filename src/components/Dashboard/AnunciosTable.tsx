@@ -223,6 +223,9 @@ function PlatformUpload({ platform, isExtracting, onExtract, onSave }: PlatformU
 }
 
 export function AnunciosTable({ tipo }: AnunciosTableProps) {
+  // Local state for pacientes input
+  const [localPacientes, setLocalPacientes] = useState("0");
+  
   const {
     anuncios,
     isLoading,
@@ -239,8 +242,6 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
     pacientesTotal,
     MESES,
   } = useAnuncios(tipo);
-
-  const [localPacientes, setLocalPacientes] = useState(String(pacientesTotal));
 
   // Sync local state with hook state
   useEffect(() => {
