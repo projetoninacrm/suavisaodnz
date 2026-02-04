@@ -336,18 +336,26 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
               <TableRow className="bg-muted/50">
                 <TableHead className="w-[120px]">Plataforma</TableHead>
                 <TableHead className="text-right">Cliques</TableHead>
-                <TableHead className="text-right">Leads</TableHead>
-                <TableHead className="text-right">Conversão</TableHead>
+                <TableHead className="text-right">Leads (Msgs)</TableHead>
+                <TableHead className="text-right">Conv. (L/C)</TableHead>
                 <TableHead className="text-right">Investimento</TableHead>
                 <TableHead className="text-right">CPL</TableHead>
                 <TableHead className="text-right">Pacientes</TableHead>
-                <TableHead className="text-right">%</TableHead>
+                <TableHead className="text-right">% Conv. (P/L)</TableHead>
                 <TableHead className="text-right">CAC</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {anuncios.map((anuncio) => (
+              {anuncios.map((anuncio) => {
+                // Calculate derived values for display
+                const leads = anuncio.leads || 0;
+                const pacientes = anuncio.pacientes || 0;
+                const investimento = anuncio.investimento || 0;
+                const percentualCalc = leads > 0 ? (pacientes / leads) * 100 : 0;
+                const cacCalc = pacientes > 0 ? investimento / pacientes : 0;
+                
+                return (
                 <TableRow key={anuncio.id}>
                   <TableCell>
                     <EditableTableCell
@@ -401,20 +409,14 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                    <EditableTableCell
-                      value={String(anuncio.percentual)}
-                      onSave={(v) => updateAnuncio(anuncio.id, "percentual", v)}
-                      isNumber
-                      suffix="%"
-                    />
+                    <div className="px-2 py-1 text-sm text-muted-foreground">
+                      {percentualCalc.toFixed(2)}%
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <EditableTableCell
-                      value={String(anuncio.cac)}
-                      onSave={(v) => updateAnuncio(anuncio.id, "cac", v)}
-                      isNumber
-                      prefix="R$ "
-                    />
+                    <div className="px-2 py-1 text-sm text-muted-foreground">
+                      {formatCurrency(cacCalc)}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Button
@@ -427,7 +429,7 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+              );})}
               {/* Totals row */}
               <TableRow className="bg-muted/30 font-medium">
                 <TableCell>TOTAL</TableCell>
@@ -437,8 +439,12 @@ export function AnunciosTable({ tipo }: AnunciosTableProps) {
                 <TableCell className="text-right">{formatCurrency(totals.investimento)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(avgCustoLead)}</TableCell>
                 <TableCell className="text-right">{totals.pacientes.toLocaleString("pt-BR")}</TableCell>
-                <TableCell className="text-right">-</TableCell>
-                <TableCell className="text-right">-</TableCell>
+                <TableCell className="text-right">
+                  {totals.leads > 0 ? formatPercent((totals.pacientes / totals.leads) * 100) : "-"}
+                </TableCell>
+                <TableCell className="text-right">
+                  {totals.pacientes > 0 ? formatCurrency(totals.investimento / totals.pacientes) : "-"}
+                </TableCell>
                 <TableCell></TableCell>
               </TableRow>
             </TableBody>

@@ -171,15 +171,78 @@ export function useAnuncios(tipo: "DNZ" | "SV") {
       const numericFields = ["cliques", "leads", "conversao", "investimento", "custo_por_lead", "pacientes", "percentual", "cac"];
       const finalValue = numericFields.includes(field) ? parseFloat(String(value)) || 0 : value;
 
+      // Get current record to calculate derived fields
+      const currentRecord = anuncios.find(a => a.id === id);
+      if (!currentRecord) return;
+
+      let updates: Record<string, unknown> = { 
+        [field]: finalValue, 
+        updated_at: new Date().toISOString() 
+      };
+
+      // If pacientes is being updated, recalculate percentual and CAC
+      if (field === "pacientes") {
+        const pacientes = finalValue as number;
+        const leads = currentRecord.leads || 0;
+        const investimento = currentRecord.investimento || 0;
+        
+        // % Conversão = (pacientes / leads) * 100
+        const percentual = leads > 0 ? (pacientes / leads) * 100 : 0;
+        // CAC = investimento / pacientes
+        const cac = pacientes > 0 ? investimento / pacientes : 0;
+        
+        updates = {
+          ...updates,
+          percentual: parseFloat(percentual.toFixed(2)),
+          cac: parseFloat(cac.toFixed(2)),
+        };
+      }
+
+      // If leads or investimento changes, recalculate derived fields
+      if (field === "leads" || field === "investimento") {
+        const leads = field === "leads" ? (finalValue as number) : currentRecord.leads || 0;
+        const investimento = field === "investimento" ? (finalValue as number) : currentRecord.investimento || 0;
+        const pacientes = currentRecord.pacientes || 0;
+        
+        // Recalculate conversao (leads/cliques) and custo_por_lead
+        const cliques = currentRecord.cliques || 0;
+        const conversao = cliques > 0 ? (leads / cliques) * 100 : 0;
+        const custo_por_lead = leads > 0 ? investimento / leads : 0;
+        
+        // Recalculate percentual and CAC
+        const percentual = leads > 0 ? (pacientes / leads) * 100 : 0;
+        const cac = pacientes > 0 ? investimento / pacientes : 0;
+        
+        updates = {
+          ...updates,
+          conversao: parseFloat(conversao.toFixed(2)),
+          custo_por_lead: parseFloat(custo_por_lead.toFixed(2)),
+          percentual: parseFloat(percentual.toFixed(2)),
+          cac: parseFloat(cac.toFixed(2)),
+        };
+      }
+
+      // If cliques changes, recalculate conversao
+      if (field === "cliques") {
+        const cliques = finalValue as number;
+        const leads = currentRecord.leads || 0;
+        const conversao = cliques > 0 ? (leads / cliques) * 100 : 0;
+        
+        updates = {
+          ...updates,
+          conversao: parseFloat(conversao.toFixed(2)),
+        };
+      }
+
       const { error } = await supabase
         .from("anuncios")
-        .update({ [field]: finalValue, updated_at: new Date().toISOString() })
+        .update(updates)
         .eq("id", id);
 
       if (error) throw error;
 
       setAnuncios((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, [field]: finalValue } : a))
+        prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
       );
     } catch (error) {
       console.error("Error updating anuncio:", error);
