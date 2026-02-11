@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck, Search } from "lucide-react";
+import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck, Search, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,17 @@ import { ptBR } from "date-fns/locale";
 import type { AmigoAttendance } from "@/hooks/useDetalhadoAmigo";
 import type { GenericRecord } from "@/hooks/useGenericTable";
 import type { DateRange } from "react-day-picker";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface DetalhadoAmigoTableProps {
   attendances: AmigoAttendance[];
@@ -25,6 +36,7 @@ interface DetalhadoAmigoTableProps {
   dbRecords: GenericRecord[];
   onUpdateDb: (id: string, field: string, value: string) => void;
   onCreateDb: (record: Partial<GenericRecord>) => Promise<string | null>;
+  onDeleteDb: (id: string) => void;
   onRefreshDb: () => void;
 }
 
@@ -64,6 +76,7 @@ export function DetalhadoAmigoTable({
   dbRecords,
   onUpdateDb,
   onCreateDb,
+  onDeleteDb,
   onRefreshDb
 }: DetalhadoAmigoTableProps) {
   const [filters, setFilters] = useState<Filters>({
@@ -659,6 +672,7 @@ export function DetalhadoAmigoTable({
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Venda</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Data</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Visitou a Loja</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[50px]"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-table-border">
@@ -716,6 +730,36 @@ export function DetalhadoAmigoTable({
                           onSave={(v) => handleDbUpdate(record, "visitou_loja", v)} 
                           placeholder="Visitou" 
                         />
+                      </td>
+                      <td className="px-1 py-1 text-center">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir registro</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir <strong>{record.patient_name}</strong> da lista? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => {
+                                  if (record.dbId) {
+                                    onDeleteDb(record.dbId);
+                                  }
+                                }}
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </td>
                     </tr>
                   );
