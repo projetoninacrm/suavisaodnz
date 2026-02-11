@@ -194,6 +194,7 @@ const Index = () => {
             dbRecords={detalhadoDb.records}
             onUpdateDb={detalhadoDb.updateRecord}
             onCreateDb={detalhadoDb.createRecord}
+            onDeleteDb={detalhadoDb.deleteRecord}
             onRefreshDb={detalhadoDb.fetchRecords}
           />
         );
