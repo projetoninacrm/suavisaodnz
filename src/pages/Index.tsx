@@ -10,13 +10,14 @@ import { MetasCalculator } from "@/components/Dashboard/MetasCalculator";
 import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { PerdasSection } from "@/components/Dashboard/PerdasSection";
 import { AnunciosTable } from "@/components/Dashboard/AnunciosTable";
+import { AutomacoesTable } from "@/components/Dashboard/AutomacoesTable";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
 import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 
-const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV"];
+const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações"];
 
 const INDICADORES_COLUMNS = [
   { key: "indicador", label: "Indicador", width: "200px" },
@@ -61,6 +62,7 @@ const Index = () => {
     activeTab === "Perdas" ? leads.isLoading :
     activeTab === "Anúncios DNZ" ? false :
     activeTab === "Anúncios SV" ? false :
+    activeTab === "Automações" ? false :
     false;
 
   // Stats for Leads tab - by channel (filtered by date and vendedor if filters are active)
@@ -131,6 +133,7 @@ const Index = () => {
       case "Perdas": leads.fetchLeads(); break;
       case "Anúncios DNZ": break;
       case "Anúncios SV": break;
+      case "Automações": break;
     }
   };
 
@@ -144,6 +147,7 @@ const Index = () => {
       case "Perdas": break;
       case "Anúncios DNZ": break;
       case "Anúncios SV": break;
+      case "Automações": break;
     }
   };
 
@@ -206,6 +210,8 @@ const Index = () => {
         return <AnunciosTable tipo="DNZ" />;
       case "Anúncios SV":
         return <AnunciosTable tipo="SV" />;
+      case "Automações":
+        return <AutomacoesTable />;
       default:
         return null;
     }
