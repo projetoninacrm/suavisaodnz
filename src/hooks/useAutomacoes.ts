@@ -9,6 +9,8 @@ export interface Automacao {
   mensagem: string;
   status: string;
   total_envios: number;
+  fonte: string;
+  filtro_como_conheceu: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +34,8 @@ export interface NewAutomacaoData {
   dias_apos_venda: number;
   mensagem: string;
   status: string;
+  fonte: string;
+  filtro_como_conheceu: string[] | null;
 }
 
 export function useAutomacoes() {

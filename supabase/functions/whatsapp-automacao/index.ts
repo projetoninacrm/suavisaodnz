@@ -45,19 +45,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get leads with venda = "Sim" and valid phone
-    const { data: leads } = await supabase
-      .from("leads")
-      .select("*")
-      .eq("venda", "Sim")
-      .not("numero", "is", null);
-
-    if (!leads || leads.length === 0) {
-      return new Response(JSON.stringify({ message: "Nenhum lead com venda para processar" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split("T")[0];
@@ -67,17 +54,59 @@ Deno.serve(async (req) => {
     let totalErrors = 0;
 
     for (const automacao of automacoes) {
-      for (const lead of leads) {
-        // Parse sale date from data_registro (format: DD/MM/YYYY or similar)
-        const dataVenda = parseDate(lead.data_registro);
+      let clients: any[] = [];
+
+      if (automacao.fonte === "detalhado") {
+        // Get detalhado clients: has receita but didn't visit store
+        let query = supabase
+          .from("detalhado")
+          .select("*")
+          .not("telefone", "is", null)
+          .or("receita.eq.Sim,receita.eq.sim,receita.eq.SIM")
+          .or("visitou_loja.eq.Não,visitou_loja.eq.não,visitou_loja.eq.NAO,visitou_loja.is.null");
+
+        // Apply como_conheceu filter if set
+        if (automacao.filtro_como_conheceu && automacao.filtro_como_conheceu.length > 0) {
+          query = query.in("como_conheceu", automacao.filtro_como_conheceu);
+        }
+
+        const { data } = await query;
+        clients = (data || []).map(d => ({
+          id: d.id,
+          nome: d.nome,
+          telefone: d.telefone,
+          data_registro: d.data,
+          vendedor: null,
+          medico: null,
+        }));
+      } else {
+        // Default: leads with venda = "Sim"
+        const { data } = await supabase
+          .from("leads")
+          .select("*")
+          .eq("venda", "Sim")
+          .not("numero", "is", null);
+
+        clients = (data || []).map(l => ({
+          id: l.id,
+          nome: l.nome,
+          telefone: l.numero,
+          data_registro: l.data_registro,
+          vendedor: l.vendedor,
+          medico: l.medico,
+        }));
+      }
+
+      if (clients.length === 0) continue;
+
+      for (const client of clients) {
+        const dataVenda = parseDate(client.data_registro);
         if (!dataVenda) continue;
 
-        // Calculate target date
         const targetDate = new Date(dataVenda);
         targetDate.setDate(targetDate.getDate() + automacao.dias_apos_venda);
         const targetStr = targetDate.toISOString().split("T")[0];
 
-        // Only process if target date is today
         if (targetStr !== todayStr) continue;
 
         // Check if already dispatched
@@ -85,25 +114,22 @@ Deno.serve(async (req) => {
           .from("automacao_disparos")
           .select("id")
           .eq("automacao_id", automacao.id)
-          .eq("lead_id", lead.id)
+          .eq("lead_id", client.id)
           .limit(1);
 
         if (existing && existing.length > 0) continue;
 
-        // Clean phone number
-        const phone = cleanPhone(lead.numero);
+        const phone = cleanPhone(client.telefone);
         if (!phone) continue;
 
-        // Build personalized message
         const mensagem = automacao.mensagem
-          .replace(/\{nome_cliente\}/g, lead.nome || "Cliente")
-          .replace(/\{data_compra\}/g, lead.data_registro || "")
-          .replace(/\{vendedor\}/g, lead.vendedor || "")
-          .replace(/\{medico\}/g, lead.medico || "");
+          .replace(/\{nome_cliente\}/g, client.nome || "Cliente")
+          .replace(/\{data_compra\}/g, client.data_registro || "")
+          .replace(/\{vendedor\}/g, client.vendedor || "")
+          .replace(/\{medico\}/g, client.medico || "");
 
         totalProcessed++;
 
-        // Try to send via Evolution API
         let status = "pendente";
         let erro: string | null = null;
 
@@ -144,12 +170,11 @@ Deno.serve(async (req) => {
           totalErrors++;
         }
 
-        // Save dispatch log
         await supabase.from("automacao_disparos").insert({
           automacao_id: automacao.id,
-          lead_id: lead.id,
-          nome_cliente: lead.nome,
-          telefone: lead.numero,
+          lead_id: client.id,
+          nome_cliente: client.nome,
+          telefone: client.telefone,
           mensagem_enviada: mensagem,
           status,
           data_envio: status === "enviado" ? new Date().toISOString() : null,
@@ -157,7 +182,6 @@ Deno.serve(async (req) => {
           erro,
         });
 
-        // Increment send counter if successful
         if (status === "enviado") {
           await supabase
             .from("automacoes")
@@ -187,12 +211,10 @@ Deno.serve(async (req) => {
 
 function parseDate(dateStr: string | null): Date | null {
   if (!dateStr) return null;
-  // Try DD/MM/YYYY HH:mm format
   const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (match) {
     return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
   }
-  // Try ISO format
   const d = new Date(dateStr);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -201,7 +223,6 @@ function cleanPhone(phone: string | null): string | null {
   if (!phone) return null;
   const cleaned = phone.replace(/\D/g, "");
   if (cleaned.length < 10) return null;
-  // Remove country code if present
   if (cleaned.startsWith("55") && cleaned.length >= 12) {
     return cleaned.substring(2);
   }

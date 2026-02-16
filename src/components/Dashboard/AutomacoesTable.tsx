@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Pause, Play, Pencil, Trash2, History, Bot, Send, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Pause, Play, Pencil, Trash2, History, Bot, Send, Clock, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAutomacoes, type Automacao, type NewAutomacaoData } from "@/hooks/useAutomacoes";
+import { supabase } from "@/integrations/supabase/client";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function AutomacoesTable() {
   const {
@@ -48,10 +50,28 @@ export function AutomacoesTable() {
     dias_apos_venda: 7,
     mensagem: "",
     status: "Ativa",
+    fonte: "leads",
+    filtro_como_conheceu: null,
   });
 
+  const [comoConheceuOptions, setComoConheceuOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      const { data } = await supabase
+        .from("detalhado")
+        .select("como_conheceu")
+        .not("como_conheceu", "is", null);
+      if (data) {
+        const unique = [...new Set(data.map(d => d.como_conheceu).filter(Boolean))] as string[];
+        setComoConheceuOptions(unique.sort());
+      }
+    };
+    fetchOptions();
+  }, []);
+
   const resetForm = () => {
-    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa" });
+    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null });
     setEditingId(null);
     setShowForm(false);
   };
@@ -67,7 +87,7 @@ export function AutomacoesTable() {
   };
 
   const handleEdit = (a: Automacao) => {
-    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status });
+    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu });
     setEditingId(a.id);
     setShowForm(true);
   };
@@ -137,6 +157,51 @@ export function AutomacoesTable() {
                   />
                 </div>
                 <div>
+                  <label className="text-sm font-medium mb-1 block">Fonte dos clientes</label>
+                  <select
+                    className="text-sm border rounded px-2 py-1 bg-background w-full"
+                    value={form.fonte}
+                    onChange={(e) => setForm({ ...form, fonte: e.target.value, filtro_como_conheceu: e.target.value === "detalhado" ? form.filtro_como_conheceu : null })}
+                  >
+                    <option value="leads">Leads (com venda)</option>
+                    <option value="detalhado">Detalhado (receita sem visita à loja)</option>
+                  </select>
+                </div>
+                {form.fonte === "detalhado" && (
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">
+                      <Filter className="w-3.5 h-3.5 inline mr-1" />
+                      Filtrar por "Como Conheceu"
+                    </label>
+                    <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1.5 bg-background">
+                      {comoConheceuOptions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhuma opção encontrada</p>
+                      ) : (
+                        comoConheceuOptions.map((opt) => (
+                          <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
+                            <Checkbox
+                              checked={form.filtro_como_conheceu?.includes(opt) ?? false}
+                              onCheckedChange={(checked) => {
+                                const current = form.filtro_como_conheceu || [];
+                                if (checked) {
+                                  setForm({ ...form, filtro_como_conheceu: [...current, opt] });
+                                } else {
+                                  const next = current.filter(v => v !== opt);
+                                  setForm({ ...form, filtro_como_conheceu: next.length > 0 ? next : null });
+                                }
+                              }}
+                            />
+                            {opt}
+                          </label>
+                        ))
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Filtra pacientes com receita que NÃO visitaram a loja
+                    </p>
+                  </div>
+                )}
+                <div>
                   <label className="text-sm font-medium mb-1 block">Disparar após quantos dias da venda</label>
                   <Input
                     type="number"
@@ -197,6 +262,7 @@ export function AutomacoesTable() {
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Nome</th>
+                    <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Fonte</th>
                     <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Dias</th>
                     <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Mensagem</th>
                     <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
@@ -208,6 +274,11 @@ export function AutomacoesTable() {
                   {automacoes.map((a) => (
                     <tr key={a.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-medium">{a.nome}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge variant="outline" className="text-xs">
+                          {a.fonte === "detalhado" ? "Detalhado" : "Leads"}
+                        </Badge>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <Badge variant="outline" className="gap-1">
                           <Clock className="w-3 h-3" /> {formatDias(a.dias_apos_venda)}
