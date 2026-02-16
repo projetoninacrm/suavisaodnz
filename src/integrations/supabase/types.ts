@@ -101,6 +101,117 @@ export type Database = {
         }
         Relationships: []
       }
+      automacao_disparos: {
+        Row: {
+          automacao_id: string
+          created_at: string
+          data_envio: string | null
+          data_programada: string
+          erro: string | null
+          id: string
+          lead_id: string
+          mensagem_enviada: string | null
+          nome_cliente: string | null
+          status: string
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          automacao_id: string
+          created_at?: string
+          data_envio?: string | null
+          data_programada: string
+          erro?: string | null
+          id?: string
+          lead_id: string
+          mensagem_enviada?: string | null
+          nome_cliente?: string | null
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          automacao_id?: string
+          created_at?: string
+          data_envio?: string | null
+          data_programada?: string
+          erro?: string | null
+          id?: string
+          lead_id?: string
+          mensagem_enviada?: string | null
+          nome_cliente?: string | null
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automacao_disparos_automacao_id_fkey"
+            columns: ["automacao_id"]
+            isOneToOne: false
+            referencedRelation: "automacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automacao_disparos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automacoes: {
+        Row: {
+          created_at: string
+          dias_apos_venda: number
+          id: string
+          mensagem: string
+          nome: string
+          status: string
+          total_envios: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dias_apos_venda: number
+          id?: string
+          mensagem: string
+          nome: string
+          status?: string
+          total_envios?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dias_apos_venda?: number
+          id?: string
+          mensagem?: string
+          nome?: string
+          status?: string
+          total_envios?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      automacoes_config: {
+        Row: {
+          id: string
+          pausado: boolean
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          pausado?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          pausado?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       detalhado: {
         Row: {
           como_conheceu: string | null

@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.import-attendances]
 verify_jwt = false
+
+[functions.whatsapp-automacao]
+verify_jwt = false
