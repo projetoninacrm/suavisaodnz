@@ -165,6 +165,8 @@ export type Database = {
         Row: {
           created_at: string
           dias_apos_venda: number
+          filtro_como_conheceu: string[] | null
+          fonte: string
           id: string
           mensagem: string
           nome: string
@@ -175,6 +177,8 @@ export type Database = {
         Insert: {
           created_at?: string
           dias_apos_venda: number
+          filtro_como_conheceu?: string[] | null
+          fonte?: string
           id?: string
           mensagem: string
           nome: string
@@ -185,6 +189,8 @@ export type Database = {
         Update: {
           created_at?: string
           dias_apos_venda?: number
+          filtro_como_conheceu?: string[] | null
+          fonte?: string
           id?: string
           mensagem?: string
           nome?: string
