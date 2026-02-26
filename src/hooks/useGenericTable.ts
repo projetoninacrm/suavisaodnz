@@ -32,9 +32,21 @@ export function useGenericTable(tableName: TableName, defaultValues: Record<stri
         data = result.data as GenericRecord[] | null;
         error = result.error;
       } else if (tableName === "detalhado") {
-        const result = await supabase.from("detalhado").select("*").order("created_at", { ascending: true });
-        data = result.data as GenericRecord[] | null;
-        error = result.error;
+        // Fetch all records - table may exceed default 1000 row limit
+        let allData: GenericRecord[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        let hasMore = true;
+        while (hasMore) {
+          const result = await supabase.from("detalhado").select("*").order("created_at", { ascending: true }).range(from, from + pageSize - 1);
+          if (result.error) { error = result.error; break; }
+          const page = (result.data || []) as GenericRecord[];
+          allData = allData.concat(page);
+          hasMore = page.length === pageSize;
+          from += pageSize;
+        }
+        if (!error) data = allData;
+        // error already handled in the loop above
       } else if (tableName === "mkt") {
         const result = await supabase.from("mkt").select("*").order("created_at", { ascending: true });
         data = result.data as GenericRecord[] | null;
