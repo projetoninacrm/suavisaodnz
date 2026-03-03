@@ -372,6 +372,7 @@ export function MetasCalculator({
                   id="mediaAtendimentos"
                   type="number"
                   min="0"
+                  step="0.1"
                   value={config.mediaAtendimentos}
                   onChange={(e) => handleConfigChange("mediaAtendimentos", e.target.value)}
                   className="pr-16"
