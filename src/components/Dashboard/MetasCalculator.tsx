@@ -159,6 +159,7 @@ export function MetasCalculator({
         percentualConversao: monthConfig.percentual_conversao,
         metaFaturamentoMensal: monthConfig.meta_faturamento_mensal,
       });
+      setMediaAtendimentosText(String(monthConfig.media_atendimentos).replace(".", ","));
       setHasUnsavedChanges(false);
     }
   }, [selectedMonth, isLoadingConfig, getConfigForMonth, periodosComMedico]);
@@ -176,9 +177,19 @@ export function MetasCalculator({
     }
   }, [periodosComMedico]);
 
+  const [mediaAtendimentosText, setMediaAtendimentosText] = useState("");
+
   const handleConfigChange = (field: keyof ConfigValues, value: string) => {
-    const numValue = parseFloat(value) || 0;
-    setConfig(prev => ({ ...prev, [field]: numValue }));
+    if (field === "mediaAtendimentos") {
+      // Allow comma as decimal separator and keep raw text for editing
+      const sanitized = value.replace(",", ".");
+      setMediaAtendimentosText(value);
+      const numValue = parseFloat(sanitized) || 0;
+      setConfig(prev => ({ ...prev, [field]: numValue }));
+    } else {
+      const numValue = parseFloat(value) || 0;
+      setConfig(prev => ({ ...prev, [field]: numValue }));
+    }
     setHasUnsavedChanges(true);
   };
 
@@ -370,10 +381,9 @@ export function MetasCalculator({
               <div className="relative">
                 <Input
                   id="mediaAtendimentos"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={config.mediaAtendimentos}
+                  type="text"
+                  inputMode="decimal"
+                  value={mediaAtendimentosText}
                   onChange={(e) => handleConfigChange("mediaAtendimentos", e.target.value)}
                   className="pr-16"
                 />
