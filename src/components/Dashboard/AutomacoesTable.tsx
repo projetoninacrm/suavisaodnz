@@ -30,6 +30,7 @@ import { useAutomacoes, type Automacao, type NewAutomacaoData } from "@/hooks/us
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DisparosTable } from "./DisparosTable";
+import { EnviadosTable } from "./EnviadosTable";
 import type { Lead } from "@/hooks/useLeads";
 
 interface AutomacoesTableProps {
@@ -132,6 +133,9 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
             </TabsTrigger>
             <TabsTrigger value="perdidos" className="gap-1.5">
               <UserX className="w-4 h-4" /> Perdidos
+            </TabsTrigger>
+            <TabsTrigger value="enviados" className="gap-1.5">
+              <Send className="w-4 h-4" /> Enviados
             </TabsTrigger>
             <TabsTrigger value="historico" className="gap-1.5">
               <History className="w-4 h-4" /> Histórico
@@ -355,6 +359,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
       {/* Perdidos */}
       {subTab === "perdidos" && (
         <DisparosTable leads={leads} />
+      )}
+
+      {/* Enviados */}
+      {subTab === "enviados" && (
+        <EnviadosTable />
       )}
 
       {/* Histórico */}
