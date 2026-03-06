@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Send, Filter, X, CheckSquare, Square, Loader2, MessageCircle } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Send, Filter, X, CheckSquare, Square, Loader2, MessageCircle, Paperclip, FileAudio, FileVideo, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
@@ -24,6 +23,7 @@ interface DisparosTableProps {
 export function DisparosTable({ leads }: DisparosTableProps) {
   const { toast } = useToast();
   const tableScrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [mensagem, setMensagem] = useState(
@@ -34,7 +34,12 @@ export function DisparosTable({ leads }: DisparosTableProps) {
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [isMassSending, setIsMassSending] = useState(false);
 
-  // Only "Perdido" leads
+  // Media attachment state
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"audio" | "video" | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   const perdidos = useMemo(() => leads.filter(l => l.status === "Perdido"), [leads]);
 
   const uniqueDates = useMemo(
@@ -69,9 +74,69 @@ export function DisparosTable({ leads }: DisparosTableProps) {
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isAudio = file.type.startsWith("audio/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isAudio && !isVideo) {
+      toast({ title: "Formato inválido", description: "Envie apenas arquivos de áudio ou vídeo.", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 16 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "O tamanho máximo é 16MB.", variant: "destructive" });
+      return;
+    }
+
+    setIsUploading(true);
+    setMediaFile(file);
+    setMediaType(isAudio ? "audio" : "video");
+
+    try {
+      const ext = file.name.split(".").pop() || "mp4";
+      const fileName = `disparo_${Date.now()}.${ext}`;
+
+      const { data, error } = await supabase.storage
+        .from("whatsapp-media")
+        .upload(fileName, file, { contentType: file.type, upsert: true });
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from("whatsapp-media")
+        .getPublicUrl(data.path);
+
+      setMediaUrl(urlData.publicUrl);
+      toast({ title: "Arquivo anexado", description: `${isAudio ? "Áudio" : "Vídeo"} carregado com sucesso.` });
+    } catch (error) {
+      console.error("Erro ao fazer upload:", error);
+      toast({ title: "Erro no upload", description: "Não foi possível carregar o arquivo.", variant: "destructive" });
+      setMediaFile(null);
+      setMediaType(null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeMedia = async () => {
+    if (mediaUrl) {
+      const path = mediaUrl.split("/whatsapp-media/")[1];
+      if (path) {
+        await supabase.storage.from("whatsapp-media").remove([path]);
+      }
+    }
+    setMediaFile(null);
+    setMediaUrl(null);
+    setMediaType(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const sendToLeads = async (leadsToSend: Lead[]) => {
-    if (!mensagem.trim()) {
-      toast({ title: "Erro", description: "Escreva uma mensagem antes de enviar.", variant: "destructive" });
+    if (!mensagem.trim() && !mediaUrl) {
+      toast({ title: "Erro", description: "Escreva uma mensagem ou anexe uma mídia.", variant: "destructive" });
       return;
     }
 
@@ -97,6 +162,8 @@ export function DisparosTable({ leads }: DisparosTableProps) {
             data_registro: l.data_registro,
           })),
           mensagem,
+          mediaUrl: mediaUrl || undefined,
+          mediaType: mediaType || undefined,
         },
       });
 
@@ -168,7 +235,7 @@ export function DisparosTable({ leads }: DisparosTableProps) {
           placeholder="Digite sua mensagem aqui..."
           className="mb-3"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2 mb-3">
           <span className="text-xs text-muted-foreground self-center">Variáveis:</span>
           {VARIABLES.map(v => (
             <Button
@@ -182,6 +249,63 @@ export function DisparosTable({ leads }: DisparosTableProps) {
               {v.label}
             </Button>
           ))}
+        </div>
+
+        {/* Media attachment */}
+        <div className="border-t border-border pt-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*,video/*"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Paperclip className="w-3.5 h-3.5" />
+              )}
+              {isUploading ? "Carregando..." : "Anexar áudio ou vídeo"}
+            </Button>
+
+            {mediaFile && (
+              <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5 border border-border">
+                {mediaType === "audio" ? (
+                  <FileAudio className="w-4 h-4 text-primary" />
+                ) : (
+                  <FileVideo className="w-4 h-4 text-primary" />
+                )}
+                <span className="text-xs font-medium text-foreground max-w-[200px] truncate">
+                  {mediaFile.name}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({(mediaFile.size / 1024 / 1024).toFixed(1)}MB)
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                  onClick={removeMedia}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            )}
+
+            {!mediaFile && (
+              <span className="text-xs text-muted-foreground">
+                Formatos: MP3, MP4, OGG, WAV, M4A • Máx: 16MB
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

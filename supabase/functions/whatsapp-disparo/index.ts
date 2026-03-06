@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { leads, mensagem } = await req.json();
+    const { leads, mensagem, mediaUrl, mediaType } = await req.json();
 
     if (!leads || !Array.isArray(leads) || leads.length === 0) {
       return new Response(
@@ -32,9 +32,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!mensagem) {
+    if (!mensagem && !mediaUrl) {
       return new Response(
-        JSON.stringify({ error: "Mensagem não fornecida" }),
+        JSON.stringify({ error: "Mensagem ou mídia não fornecida" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -50,38 +50,100 @@ Deno.serve(async (req) => {
 
       // Replace variables in message
       const msg = mensagem
-        .replace(/\{nome\}/g, lead.nome || "Cliente")
-        .replace(/\{medico\}/g, lead.medico || "")
-        .replace(/\{canal\}/g, lead.canal || "")
-        .replace(/\{vendedor\}/g, lead.vendedor || "")
-        .replace(/\{data_registro\}/g, lead.data_registro || "");
+        ? mensagem
+            .replace(/\{nome\}/g, lead.nome || "Cliente")
+            .replace(/\{medico\}/g, lead.medico || "")
+            .replace(/\{canal\}/g, lead.canal || "")
+            .replace(/\{vendedor\}/g, lead.vendedor || "")
+            .replace(/\{data_registro\}/g, lead.data_registro || "")
+        : "";
 
       try {
-        const response = await fetch(
-          `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
-          {
+        // Send media if attached
+        if (mediaUrl) {
+          const mediaEndpoint = mediaType === "audio"
+            ? `${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${EVOLUTION_INSTANCE}`
+            : `${EVOLUTION_API_URL}/message/sendMedia/${EVOLUTION_INSTANCE}`;
+
+          const mediaBody = mediaType === "audio"
+            ? {
+                number: `55${phone}`,
+                audio: mediaUrl,
+              }
+            : {
+                number: `55${phone}`,
+                mediatype: "video",
+                media: mediaUrl,
+                caption: msg || undefined,
+              };
+
+          const mediaResponse = await fetch(mediaEndpoint, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               apikey: EVOLUTION_API_KEY,
             },
-            body: JSON.stringify({
-              number: `55${phone}`,
-              text: msg,
-            }),
-          }
-        );
+            body: JSON.stringify(mediaBody),
+          });
 
-        if (response.ok) {
+          if (!mediaResponse.ok) {
+            const errBody = await mediaResponse.text();
+            results.push({
+              leadId: lead.id,
+              nome: lead.nome || "—",
+              status: "erro",
+              erro: `Mídia HTTP ${mediaResponse.status}: ${errBody.substring(0, 200)}`,
+            });
+            continue;
+          }
+
+          // If audio, send text separately (audio doesn't support caption)
+          if (mediaType === "audio" && msg) {
+            await fetch(
+              `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  apikey: EVOLUTION_API_KEY,
+                },
+                body: JSON.stringify({
+                  number: `55${phone}`,
+                  text: msg,
+                }),
+              }
+            );
+          }
+
           results.push({ leadId: lead.id, nome: lead.nome || "—", status: "enviado" });
         } else {
-          const errBody = await response.text();
-          results.push({
-            leadId: lead.id,
-            nome: lead.nome || "—",
-            status: "erro",
-            erro: `HTTP ${response.status}: ${errBody.substring(0, 200)}`,
-          });
+          // Text-only message
+          const response = await fetch(
+            `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: EVOLUTION_API_KEY,
+              },
+              body: JSON.stringify({
+                number: `55${phone}`,
+                text: msg,
+              }),
+            }
+          );
+
+          if (response.ok) {
+            results.push({ leadId: lead.id, nome: lead.nome || "—", status: "enviado" });
+          } else {
+            const errBody = await response.text();
+            results.push({
+              leadId: lead.id,
+              nome: lead.nome || "—",
+              status: "erro",
+              erro: `HTTP ${response.status}: ${errBody.substring(0, 200)}`,
+            });
+          }
         }
       } catch (e) {
         results.push({
