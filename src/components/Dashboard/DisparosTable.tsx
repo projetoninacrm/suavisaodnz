@@ -304,7 +304,7 @@ export function DisparosTable({ leads }: DisparosTableProps) {
                       <td className="px-3 py-2 text-sm">{lead.vendedor || "—"}</td>
                       <td className="px-3 py-2 text-sm text-muted-foreground">{lead.obs || "—"}</td>
                       <td className="px-3 py-2 text-center">
-                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-500/10 text-red-600">
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-destructive/10 text-destructive">
                           Perdido
                         </span>
                       </td>
