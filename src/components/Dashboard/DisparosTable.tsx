@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import { Send, Filter, X, CheckSquare, Square, Loader2, MessageCircle, Paperclip, FileAudio, FileVideo, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +29,7 @@ export function DisparosTable({ leads }: DisparosTableProps) {
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [isMassSending, setIsMassSending] = useState(false);
+  const [enviadosLeadIds, setEnviadosLeadIds] = useState<Set<string>>(new Set());
 
   // Media attachment state
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -36,7 +37,24 @@ export function DisparosTable({ leads }: DisparosTableProps) {
   const [mediaType, setMediaType] = useState<"audio" | "video" | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const perdidos = useMemo(() => leads.filter(l => l.status === "Perdido"), [leads]);
+  // Fetch already-sent lead IDs to exclude from the list
+  useEffect(() => {
+    const fetchEnviados = async () => {
+      const { data } = await supabase
+        .from("disparos_perdidos")
+        .select("lead_id")
+        .eq("status", "enviado");
+      if (data) {
+        setEnviadosLeadIds(new Set(data.map(d => d.lead_id)));
+      }
+    };
+    fetchEnviados();
+  }, [sentIds]);
+
+  const perdidos = useMemo(
+    () => leads.filter(l => l.status === "Perdido" && !enviadosLeadIds.has(l.id) && !sentIds.has(l.id)),
+    [leads, enviadosLeadIds, sentIds]
+  );
 
   const uniqueDates = useMemo(
     () => [...new Set(perdidos.map(l => l.data_registro).filter(Boolean))] as string[],

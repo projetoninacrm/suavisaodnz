@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import { Send, RefreshCw, FileAudio, FileVideo, MessageCircle } from "lucide-react";
+import { Send, RefreshCw, FileAudio, FileVideo, MessageCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SyncedHorizontalScrollbar } from "@/components/ui/synced-horizontal-scrollbar";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DisparoPerdido {
@@ -20,8 +21,10 @@ interface DisparoPerdido {
 }
 
 export function EnviadosTable() {
+  const { toast } = useToast();
   const [disparos, setDisparos] = useState<DisparoPerdido[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [resendingIds, setResendingIds] = useState<Set<string>>(new Set());
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
   const fetchDisparos = async () => {
@@ -40,6 +43,65 @@ export function EnviadosTable() {
   useEffect(() => {
     fetchDisparos();
   }, []);
+
+  const handleResend = async (disparo: DisparoPerdido) => {
+    if (!disparo.telefone) {
+      toast({ title: "Erro", description: "Sem número de telefone.", variant: "destructive" });
+      return;
+    }
+
+    setResendingIds(prev => new Set([...prev, disparo.id]));
+
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-disparo", {
+        body: {
+          leads: [{
+            id: disparo.lead_id,
+            nome: disparo.nome_cliente,
+            numero: disparo.telefone,
+          }],
+          mensagem: disparo.mensagem_enviada || "",
+          mediaUrl: disparo.media_url || undefined,
+          mediaType: disparo.media_type || undefined,
+        },
+      });
+
+      if (error) throw error;
+
+      const status = data?.results?.[0]?.status === "enviado" ? "enviado" : "erro";
+      const erro = data?.results?.[0]?.erro || null;
+
+      // Save new record
+      await supabase.from("disparos_perdidos").insert({
+        lead_id: disparo.lead_id,
+        nome_cliente: disparo.nome_cliente,
+        telefone: disparo.telefone,
+        mensagem_enviada: disparo.mensagem_enviada,
+        media_url: disparo.media_url,
+        media_type: disparo.media_type,
+        status,
+        erro,
+        data_envio: status === "enviado" ? new Date().toISOString() : null,
+      });
+
+      toast({
+        title: status === "enviado" ? "Reenviado com sucesso!" : "Erro ao reenviar",
+        description: status === "enviado" ? `Mensagem reenviada para ${disparo.nome_cliente}` : erro || "Falha no envio",
+        variant: status === "enviado" ? "default" : "destructive",
+      });
+
+      fetchDisparos();
+    } catch (error) {
+      console.error("Erro ao reenviar:", error);
+      toast({ title: "Erro ao reenviar", description: "Não foi possível reenviar a mensagem.", variant: "destructive" });
+    } finally {
+      setResendingIds(prev => {
+        const next = new Set(prev);
+        next.delete(disparo.id);
+        return next;
+      });
+    }
+  };
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "—";
@@ -74,7 +136,7 @@ export function EnviadosTable() {
       <div className="bg-card rounded-xl border border-border overflow-hidden card-shadow-lg animate-fade-in">
         <SyncedHorizontalScrollbar targetRef={tableScrollRef} />
         <div ref={tableScrollRef} className="overflow-x-auto scrollbar-visible">
-          <table className="w-full min-w-[900px]">
+          <table className="w-full min-w-[1000px]">
             <thead>
               <tr className="bg-table-header border-b border-table-border">
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[160px]">Data Envio</th>
@@ -83,12 +145,13 @@ export function EnviadosTable() {
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[250px]">Mensagem</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[90px]">Mídia</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[90px]">Status</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-table-border">
               {disparos.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                     <Send className="w-10 h-10 mx-auto mb-3 opacity-40" />
                     <p>Nenhuma mensagem enviada ainda.</p>
                   </td>
@@ -96,6 +159,7 @@ export function EnviadosTable() {
               ) : (
                 disparos.map((d, index) => {
                   const whatsappNumber = formatPhoneForWhatsApp(d.telefone);
+                  const isResending = resendingIds.has(d.id);
                   return (
                     <tr
                       key={d.id}
@@ -134,6 +198,18 @@ export function EnviadosTable() {
                         <Badge variant={d.status === "enviado" ? "default" : "destructive"} className="text-xs">
                           {d.status === "enviado" ? "Enviado ✓" : d.erro || "Erro"}
                         </Badge>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          disabled={isResending}
+                          onClick={() => handleResend(d)}
+                        >
+                          {isResending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                          Reenviar
+                        </Button>
                       </td>
                     </tr>
                   );
