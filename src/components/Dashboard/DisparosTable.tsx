@@ -140,12 +140,10 @@ export function DisparosTable({ leads }: DisparosTableProps) {
     setMensagem(prev => prev + variable);
   };
 
-  const hasActiveFilters = selectedDates.length > 0 || vendedorFilter || canalFilter;
+  const hasActiveFilters = selectedDates.length > 0;
 
   const clearFilters = () => {
     setSelectedDates([]);
-    setVendedorFilter("");
-    setCanalFilter("");
   };
 
   const formatPhoneForWhatsApp = (phone: string | null) => {
