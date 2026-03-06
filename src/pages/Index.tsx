@@ -135,7 +135,6 @@ const Index = () => {
       case "Anúncios DNZ": break;
       case "Anúncios SV": break;
       case "Automações": break;
-      case "Disparos": leads.fetchLeads(); break;
     }
   };
 
@@ -213,9 +212,7 @@ const Index = () => {
       case "Anúncios SV":
         return <AnunciosTable tipo="SV" />;
       case "Automações":
-        return <AutomacoesTable />;
-      case "Disparos":
-        return <DisparosTable leads={leads.leads} />;
+        return <AutomacoesTable leads={leads.leads} />;
       default:
         return null;
     }
