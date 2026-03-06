@@ -10,10 +10,6 @@ import type { Lead } from "@/hooks/useLeads";
 
 const VARIABLES = [
   { label: "{nome}", desc: "Nome do cliente" },
-  { label: "{medico}", desc: "Médico" },
-  { label: "{canal}", desc: "Canal" },
-  { label: "{vendedor}", desc: "Vendedor" },
-  { label: "{data_registro}", desc: "Data de registro" },
 ];
 
 interface DisparosTableProps {
