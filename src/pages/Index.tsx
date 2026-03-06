@@ -18,7 +18,7 @@ import { useGenericTable } from "@/hooks/useGenericTable";
 import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 
-const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações", "Disparos"];
+const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações"];
 
 const INDICADORES_COLUMNS = [
   { key: "indicador", label: "Indicador", width: "200px" },

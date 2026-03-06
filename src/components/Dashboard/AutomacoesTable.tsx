@@ -251,7 +251,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
+        </div>}
       </div>
 
       {/* Automações list */}
