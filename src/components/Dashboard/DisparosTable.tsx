@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SyncedHorizontalScrollbar } from "@/components/ui/synced-horizontal-scrollbar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -247,13 +246,14 @@ export function DisparosTable({ leads }: DisparosTableProps) {
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Médico</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Vendedor</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[90px]">Status</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Enviar</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-table-border">
               {filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={11} className="px-4 py-12 text-center text-muted-foreground">
                     Nenhum lead com status "Perdido" encontrado para o período selecionado.
                   </td>
                 </tr>
@@ -303,6 +303,11 @@ export function DisparosTable({ leads }: DisparosTableProps) {
                       <td className="px-3 py-2 text-sm">{lead.medico || "—"}</td>
                       <td className="px-3 py-2 text-sm">{lead.vendedor || "—"}</td>
                       <td className="px-3 py-2 text-sm text-muted-foreground">{lead.obs || "—"}</td>
+                      <td className="px-3 py-2 text-center">
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-500/10 text-red-600">
+                          Perdido
+                        </span>
+                      </td>
                       <td className="px-3 py-2 text-center">
                         {isSent ? (
                           <span className="text-xs text-accent font-medium">Enviado ✓</span>
