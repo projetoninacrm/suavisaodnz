@@ -46,15 +46,13 @@ export function DisparosTable({ leads }: DisparosTableProps) {
   const filteredLeads = useMemo(() => {
     return perdidos.filter(lead => {
       if (selectedDates.length > 0 && !selectedDates.includes(lead.data_registro || "")) return false;
-      if (vendedorFilter && lead.vendedor !== vendedorFilter) return false;
-      if (canalFilter && lead.canal !== canalFilter) return false;
       return true;
     }).sort((a, b) => {
       const dateA = a.data_registro ? new Date(a.data_registro.split('/').reverse().join('-')) : new Date(0);
       const dateB = b.data_registro ? new Date(b.data_registro.split('/').reverse().join('-')) : new Date(0);
       return dateB.getTime() - dateA.getTime();
     });
-  }, [perdidos, selectedDates, vendedorFilter, canalFilter]);
+  }, [perdidos, selectedDates]);
 
   const toggleSelect = (id: string) => {
     setSelectedLeads(prev => {
