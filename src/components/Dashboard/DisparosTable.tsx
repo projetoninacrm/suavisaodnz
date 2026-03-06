@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SyncedHorizontalScrollbar } from "@/components/ui/synced-horizontal-scrollbar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,8 +26,6 @@ export function DisparosTable({ leads }: DisparosTableProps) {
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [vendedorFilter, setVendedorFilter] = useState("");
-  const [canalFilter, setCanalFilter] = useState("");
   const [mensagem, setMensagem] = useState(
     "Olá {nome}, tudo bem? Aqui é da Sua Visão! Notamos que você nos visitou mas ainda não fechou. Gostaria de saber se podemos ajudar com algo?"
   );
@@ -48,15 +45,13 @@ export function DisparosTable({ leads }: DisparosTableProps) {
   const filteredLeads = useMemo(() => {
     return perdidos.filter(lead => {
       if (selectedDates.length > 0 && !selectedDates.includes(lead.data_registro || "")) return false;
-      if (vendedorFilter && lead.vendedor !== vendedorFilter) return false;
-      if (canalFilter && lead.canal !== canalFilter) return false;
       return true;
     }).sort((a, b) => {
       const dateA = a.data_registro ? new Date(a.data_registro.split('/').reverse().join('-')) : new Date(0);
       const dateB = b.data_registro ? new Date(b.data_registro.split('/').reverse().join('-')) : new Date(0);
       return dateB.getTime() - dateA.getTime();
     });
-  }, [perdidos, selectedDates, vendedorFilter, canalFilter]);
+  }, [perdidos, selectedDates]);
 
   const toggleSelect = (id: string) => {
     setSelectedLeads(prev => {
@@ -144,12 +139,10 @@ export function DisparosTable({ leads }: DisparosTableProps) {
     setMensagem(prev => prev + variable);
   };
 
-  const hasActiveFilters = selectedDates.length > 0 || vendedorFilter || canalFilter;
+  const hasActiveFilters = selectedDates.length > 0;
 
   const clearFilters = () => {
     setSelectedDates([]);
-    setVendedorFilter("");
-    setCanalFilter("");
   };
 
   const formatPhoneForWhatsApp = (phone: string | null) => {
@@ -228,33 +221,6 @@ export function DisparosTable({ leads }: DisparosTableProps) {
               availableDates={uniqueDates}
             />
           </div>
-          <div className="space-y-1 min-w-[120px]">
-            <label className="text-xs text-muted-foreground">Vendedor</label>
-            <Select value={vendedorFilter} onValueChange={v => setVendedorFilter(v === "all" ? "" : v)}>
-              <SelectTrigger className="h-8 text-xs bg-background border-border">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border z-50">
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="Bernardo">Bernardo</SelectItem>
-                <SelectItem value="Thayssa">Thayssa</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1 min-w-[120px]">
-            <label className="text-xs text-muted-foreground">Canal</label>
-            <Select value={canalFilter} onValueChange={v => setCanalFilter(v === "all" ? "" : v)}>
-              <SelectTrigger className="h-8 text-xs bg-background border-border">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border z-50">
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="Internet">Internet</SelectItem>
-                <SelectItem value="Sua Visão">Sua Visão</SelectItem>
-                <SelectItem value="Loja">Loja</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 
@@ -280,13 +246,14 @@ export function DisparosTable({ leads }: DisparosTableProps) {
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Médico</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Vendedor</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[90px]">Status</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Enviar</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-table-border">
               {filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={11} className="px-4 py-12 text-center text-muted-foreground">
                     Nenhum lead com status "Perdido" encontrado para o período selecionado.
                   </td>
                 </tr>
@@ -336,6 +303,11 @@ export function DisparosTable({ leads }: DisparosTableProps) {
                       <td className="px-3 py-2 text-sm">{lead.medico || "—"}</td>
                       <td className="px-3 py-2 text-sm">{lead.vendedor || "—"}</td>
                       <td className="px-3 py-2 text-sm text-muted-foreground">{lead.obs || "—"}</td>
+                      <td className="px-3 py-2 text-center">
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-destructive/10 text-destructive">
+                          Perdido
+                        </span>
+                      </td>
                       <td className="px-3 py-2 text-center">
                         {isSent ? (
                           <span className="text-xs text-accent font-medium">Enviado ✓</span>
