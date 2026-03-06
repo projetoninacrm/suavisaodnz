@@ -27,8 +27,6 @@ export function DisparosTable({ leads }: DisparosTableProps) {
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [vendedorFilter, setVendedorFilter] = useState("");
-  const [canalFilter, setCanalFilter] = useState("");
   const [mensagem, setMensagem] = useState(
     "Olá {nome}, tudo bem? Aqui é da Sua Visão! Notamos que você nos visitou mas ainda não fechou. Gostaria de saber se podemos ajudar com algo?"
   );
