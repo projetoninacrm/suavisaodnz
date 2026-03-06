@@ -64,7 +64,6 @@ const Index = () => {
     activeTab === "Anúncios DNZ" ? false :
     activeTab === "Anúncios SV" ? false :
     activeTab === "Automações" ? false :
-    activeTab === "Disparos" ? leads.isLoading :
     false;
 
   // Stats for Leads tab - by channel (filtered by date and vendedor if filters are active)
