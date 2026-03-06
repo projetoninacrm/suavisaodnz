@@ -204,16 +204,19 @@ export type Database = {
         Row: {
           id: string
           pausado: boolean
+          template_perdidos: string | null
           updated_at: string
         }
         Insert: {
           id?: string
           pausado?: boolean
+          template_perdidos?: string | null
           updated_at?: string
         }
         Update: {
           id?: string
           pausado?: boolean
+          template_perdidos?: string | null
           updated_at?: string
         }
         Relationships: []
