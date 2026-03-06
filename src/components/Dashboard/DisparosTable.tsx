@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef, useState } from "react";
-import { Send, Filter, X, CheckSquare, Square, Loader2, MessageCircle, Paperclip, FileAudio, FileVideo, Trash2 } from "lucide-react";
+import { Send, Filter, X, CheckSquare, Square, Loader2, MessageCircle, Paperclip, FileAudio, FileVideo, Trash2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
@@ -291,9 +291,21 @@ export function DisparosTable({ leads }: DisparosTableProps) {
     <div className="space-y-4">
       {/* Message Template */}
       <div className="bg-card rounded-xl border border-border p-4 card-shadow animate-fade-in">
-        <div className="flex items-center gap-2 mb-3">
-          <MessageCircle className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Modelo de Mensagem</span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">Modelo de Mensagem</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            onClick={handleSaveTemplate}
+            disabled={isSavingTemplate}
+          >
+            {isSavingTemplate ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+            Salvar Modelo
+          </Button>
         </div>
         <Textarea
           value={mensagem}
