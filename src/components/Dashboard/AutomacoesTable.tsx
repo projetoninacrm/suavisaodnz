@@ -139,7 +139,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
           </TabsList>
         </Tabs>
 
-        <div className="flex items-center gap-3">
+        {subTab !== "perdidos" && <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Pausa geral:</span>
             <Switch checked={pausadoGlobal} onCheckedChange={togglePausaGlobal} />
