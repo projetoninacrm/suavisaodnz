@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef, useState } from "react";
-import { Send, Filter, X, CheckSquare, Square, Loader2, MessageCircle, Paperclip, FileAudio, FileVideo, Trash2 } from "lucide-react";
+import { Send, Filter, X, CheckSquare, Square, Loader2, MessageCircle, Paperclip, FileAudio, FileVideo, Trash2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
@@ -22,9 +22,41 @@ export function DisparosTable({ leads }: DisparosTableProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [mensagem, setMensagem] = useState(
-    "Olá {nome}, tudo bem? Aqui é da Sua Visão! Notamos que você nos visitou mas ainda não fechou. Gostaria de saber se podemos ajudar com algo?"
-  );
+  const [mensagem, setMensagem] = useState("");
+  const [templateLoaded, setTemplateLoaded] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
+  // Load saved template from database
+  useEffect(() => {
+    const loadTemplate = async () => {
+      const { data } = await supabase
+        .from("automacoes_config")
+        .select("template_perdidos")
+        .limit(1)
+        .single();
+      if (data?.template_perdidos) {
+        setMensagem(data.template_perdidos);
+      } else {
+        setMensagem("Olá {nome}, tudo bem? Aqui é da Sua Visão! Notamos que você nos visitou mas ainda não fechou. Gostaria de saber se podemos ajudar com algo?");
+      }
+      setTemplateLoaded(true);
+    };
+    loadTemplate();
+  }, []);
+
+  const handleSaveTemplate = async () => {
+    setIsSavingTemplate(true);
+    const { error } = await supabase
+      .from("automacoes_config")
+      .update({ template_perdidos: mensagem })
+      .not("id", "is", null);
+    if (error) {
+      toast({ title: "Erro ao salvar modelo", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Modelo de mensagem salvo com sucesso!" });
+    }
+    setIsSavingTemplate(false);
+  };
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
@@ -259,9 +291,21 @@ export function DisparosTable({ leads }: DisparosTableProps) {
     <div className="space-y-4">
       {/* Message Template */}
       <div className="bg-card rounded-xl border border-border p-4 card-shadow animate-fade-in">
-        <div className="flex items-center gap-2 mb-3">
-          <MessageCircle className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Modelo de Mensagem</span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">Modelo de Mensagem</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            onClick={handleSaveTemplate}
+            disabled={isSavingTemplate}
+          >
+            {isSavingTemplate ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+            Salvar Modelo
+          </Button>
         </div>
         <Textarea
           value={mensagem}

@@ -1,0 +1,1 @@
+ALTER TABLE public.automacoes_config ADD COLUMN template_perdidos text DEFAULT '';
