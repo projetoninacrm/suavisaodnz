@@ -168,6 +168,27 @@ export function DisparosTable({ leads }: DisparosTableProps) {
       const enviados = data?.results?.filter((r: any) => r.status === "enviado").map((r: any) => r.leadId) || [];
       setSentIds(prev => new Set([...prev, ...enviados]));
 
+      // Save sent records to disparos_perdidos
+      if (data?.results) {
+        const records = data.results.map((r: any) => {
+          const lead = validLeads.find(l => l.id === r.leadId);
+          return {
+            lead_id: r.leadId,
+            nome_cliente: lead?.nome || r.nome || null,
+            telefone: lead?.numero || null,
+            mensagem_enviada: mensagem
+              ? mensagem.replace(/\{nome\}/g, lead?.nome || "Cliente")
+              : null,
+            media_url: mediaUrl || null,
+            media_type: mediaType || null,
+            status: r.status,
+            erro: r.erro || null,
+            data_envio: r.status === "enviado" ? new Date().toISOString() : null,
+          };
+        });
+        await supabase.from("disparos_perdidos").insert(records);
+      }
+
       toast({
         title: "Disparos concluídos",
         description: `${data?.enviados || 0} enviados, ${data?.erros || 0} erros de ${data?.total || 0} total.`,
