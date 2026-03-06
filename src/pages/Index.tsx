@@ -11,7 +11,6 @@ import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { PerdasSection } from "@/components/Dashboard/PerdasSection";
 import { AnunciosTable } from "@/components/Dashboard/AnunciosTable";
 import { AutomacoesTable } from "@/components/Dashboard/AutomacoesTable";
-import { DisparosTable } from "@/components/Dashboard/DisparosTable";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
