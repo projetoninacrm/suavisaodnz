@@ -352,6 +352,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
         </div>
       )}
 
+      {/* Perdidos */}
+      {subTab === "perdidos" && (
+        <DisparosTable leads={leads} />
+      )}
+
       {/* Histórico */}
       {subTab === "historico" && (
         <div className="overflow-hidden rounded-lg border border-border bg-card">
