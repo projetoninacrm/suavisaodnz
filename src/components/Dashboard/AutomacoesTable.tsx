@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pause, Play, Pencil, Trash2, History, Bot, Send, Clock, Filter } from "lucide-react";
+import { Plus, Pause, Play, Pencil, Trash2, History, Bot, Send, Clock, Filter, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,8 +29,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAutomacoes, type Automacao, type NewAutomacaoData } from "@/hooks/useAutomacoes";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DisparosTable } from "./DisparosTable";
+import type { Lead } from "@/hooks/useLeads";
 
-export function AutomacoesTable() {
+interface AutomacoesTableProps {
+  leads?: Lead[];
+}
+
+export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   const {
     automacoes,
     disparos,
@@ -123,6 +129,9 @@ export function AutomacoesTable() {
           <TabsList>
             <TabsTrigger value="automacoes" className="gap-1.5">
               <Bot className="w-4 h-4" /> Automações
+            </TabsTrigger>
+            <TabsTrigger value="perdidos" className="gap-1.5">
+              <UserX className="w-4 h-4" /> Perdidos
             </TabsTrigger>
             <TabsTrigger value="historico" className="gap-1.5">
               <History className="w-4 h-4" /> Histórico
