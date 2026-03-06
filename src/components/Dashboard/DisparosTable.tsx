@@ -22,9 +22,41 @@ export function DisparosTable({ leads }: DisparosTableProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [mensagem, setMensagem] = useState(
-    "Olá {nome}, tudo bem? Aqui é da Sua Visão! Notamos que você nos visitou mas ainda não fechou. Gostaria de saber se podemos ajudar com algo?"
-  );
+  const [mensagem, setMensagem] = useState("");
+  const [templateLoaded, setTemplateLoaded] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
+  // Load saved template from database
+  useEffect(() => {
+    const loadTemplate = async () => {
+      const { data } = await supabase
+        .from("automacoes_config")
+        .select("template_perdidos")
+        .limit(1)
+        .single();
+      if (data?.template_perdidos) {
+        setMensagem(data.template_perdidos);
+      } else {
+        setMensagem("Olá {nome}, tudo bem? Aqui é da Sua Visão! Notamos que você nos visitou mas ainda não fechou. Gostaria de saber se podemos ajudar com algo?");
+      }
+      setTemplateLoaded(true);
+    };
+    loadTemplate();
+  }, []);
+
+  const handleSaveTemplate = async () => {
+    setIsSavingTemplate(true);
+    const { error } = await supabase
+      .from("automacoes_config")
+      .update({ template_perdidos: mensagem })
+      .not("id", "is", null);
+    if (error) {
+      toast({ title: "Erro ao salvar modelo", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Modelo de mensagem salvo com sucesso!" });
+    }
+    setIsSavingTemplate(false);
+  };
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
