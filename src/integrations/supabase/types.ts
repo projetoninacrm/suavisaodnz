@@ -263,6 +263,48 @@ export type Database = {
         }
         Relationships: []
       }
+      disparos_perdidos: {
+        Row: {
+          created_at: string
+          data_envio: string | null
+          erro: string | null
+          id: string
+          lead_id: string
+          media_type: string | null
+          media_url: string | null
+          mensagem_enviada: string | null
+          nome_cliente: string | null
+          status: string
+          telefone: string | null
+        }
+        Insert: {
+          created_at?: string
+          data_envio?: string | null
+          erro?: string | null
+          id?: string
+          lead_id: string
+          media_type?: string | null
+          media_url?: string | null
+          mensagem_enviada?: string | null
+          nome_cliente?: string | null
+          status?: string
+          telefone?: string | null
+        }
+        Update: {
+          created_at?: string
+          data_envio?: string | null
+          erro?: string | null
+          id?: string
+          lead_id?: string
+          media_type?: string | null
+          media_url?: string | null
+          mensagem_enviada?: string | null
+          nome_cliente?: string | null
+          status?: string
+          telefone?: string | null
+        }
+        Relationships: []
+      }
       indicadores: {
         Row: {
           created_at: string
