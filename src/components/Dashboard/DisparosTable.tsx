@@ -222,33 +222,6 @@ export function DisparosTable({ leads }: DisparosTableProps) {
               availableDates={uniqueDates}
             />
           </div>
-          <div className="space-y-1 min-w-[120px]">
-            <label className="text-xs text-muted-foreground">Vendedor</label>
-            <Select value={vendedorFilter} onValueChange={v => setVendedorFilter(v === "all" ? "" : v)}>
-              <SelectTrigger className="h-8 text-xs bg-background border-border">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border z-50">
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="Bernardo">Bernardo</SelectItem>
-                <SelectItem value="Thayssa">Thayssa</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1 min-w-[120px]">
-            <label className="text-xs text-muted-foreground">Canal</label>
-            <Select value={canalFilter} onValueChange={v => setCanalFilter(v === "all" ? "" : v)}>
-              <SelectTrigger className="h-8 text-xs bg-background border-border">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border z-50">
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="Internet">Internet</SelectItem>
-                <SelectItem value="Sua Visão">Sua Visão</SelectItem>
-                <SelectItem value="Loja">Loja</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 
