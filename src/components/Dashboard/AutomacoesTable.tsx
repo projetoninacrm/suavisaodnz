@@ -351,7 +351,12 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 <tbody>
                   {automacoes.map((a) => (
                     <tr key={a.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-medium">{a.nome}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <div className="flex items-center gap-1.5">
+                          {a.nome}
+                          {a.audio_url && <Volume2 className="w-3.5 h-3.5 text-muted-foreground" title="Com áudio" />}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <Badge variant="outline" className="text-xs">
                           {a.fonte === "detalhado" ? "Detalhado" : "Leads"}
