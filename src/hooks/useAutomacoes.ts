@@ -11,6 +11,7 @@ export interface Automacao {
   total_envios: number;
   fonte: string;
   filtro_como_conheceu: string[] | null;
+  audio_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -36,6 +37,7 @@ export interface NewAutomacaoData {
   status: string;
   fonte: string;
   filtro_como_conheceu: string[] | null;
+  audio_url: string | null;
 }
 
 export function useAutomacoes() {

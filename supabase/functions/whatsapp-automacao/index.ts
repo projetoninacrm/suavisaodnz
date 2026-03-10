@@ -135,7 +135,8 @@ Deno.serve(async (req) => {
 
         if (EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE) {
           try {
-            const response = await fetch(
+            // Step 1: Send text message
+            const textResponse = await fetch(
               `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
               {
                 method: "POST",
@@ -150,14 +151,45 @@ Deno.serve(async (req) => {
               }
             );
 
-            if (response.ok) {
+            if (!textResponse.ok) {
+              const errBody = await textResponse.text();
+              status = "erro";
+              erro = `HTTP ${textResponse.status}: ${errBody.substring(0, 200)}`;
+              totalErrors++;
+            } else {
               status = "enviado";
               totalSent++;
-            } else {
-              const errBody = await response.text();
-              status = "erro";
-              erro = `HTTP ${response.status}: ${errBody.substring(0, 200)}`;
-              totalErrors++;
+
+              // Step 2: Send audio if configured
+              if (automacao.audio_url) {
+                try {
+                  // Small delay to ensure message order
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+
+                  const audioResponse = await fetch(
+                    `${EVOLUTION_API_URL}/message/sendMedia/${EVOLUTION_INSTANCE}`,
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        apikey: EVOLUTION_API_KEY,
+                      },
+                      body: JSON.stringify({
+                        number: `55${phone}`,
+                        mediatype: "audio",
+                        media: automacao.audio_url,
+                      }),
+                    }
+                  );
+
+                  if (!audioResponse.ok) {
+                    const errBody = await audioResponse.text();
+                    console.error(`Audio send failed for ${client.nome}: ${errBody}`);
+                  }
+                } catch (audioErr) {
+                  console.error(`Audio send error for ${client.nome}:`, audioErr);
+                }
+              }
             }
           } catch (e) {
             status = "erro";
