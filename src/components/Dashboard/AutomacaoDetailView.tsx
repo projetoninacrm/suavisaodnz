@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +62,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   const [isLoading, setIsLoading] = useState(true);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -287,13 +288,53 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
           <ArrowLeft className="w-4 h-4" /> Voltar
         </Button>
-        <div>
+        <div className="flex-1">
           <h3 className="font-semibold text-lg">{automacao.nome}</h3>
           <p className="text-sm text-muted-foreground">
             {automacao.fonte === "detalhado" ? "Detalhado" : "Leads"} · {automacao.dias_apos_venda} dias após venda
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setShowPreview(!showPreview)}
+        >
+          <Eye className="w-4 h-4" />
+          {showPreview ? "Ocultar prévia" : "Ver prévia"}
+          {showPreview ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        </Button>
       </div>
+
+      {/* Message & Audio Preview */}
+      {showPreview && (
+        <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+            <Eye className="w-3.5 h-3.5" /> Prévia da mensagem
+          </h4>
+          <div className="rounded-md bg-background border border-border p-3 text-sm whitespace-pre-wrap">
+            {automacao.mensagem
+              .replace(/\{nome_cliente\}/g, "João da Silva")
+              .replace(/\{data_compra\}/g, "10/03/2026")
+              .replace(/\{vendedor\}/g, "Vendedor")
+              .replace(/\{medico\}/g, "Dr. Exemplo")}
+          </div>
+          <p className="text-xs text-muted-foreground italic">
+            * Variáveis substituídas com dados de exemplo
+          </p>
+          {automacao.audio_url && (
+            <div className="space-y-1.5">
+              <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Volume2 className="w-3.5 h-3.5" /> Áudio anexado
+              </h4>
+              <audio controls src={automacao.audio_url} className="w-full max-w-md h-10" />
+              <p className="text-xs text-muted-foreground">
+                Este áudio será enviado logo após a mensagem de texto.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
