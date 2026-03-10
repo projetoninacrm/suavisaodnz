@@ -121,7 +121,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   };
 
   const handleEdit = (a: Automacao) => {
-    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu, audio_url: a.audio_url });
+    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu, audio_url: a.audio_url, audios_vendedor: a.audios_vendedor });
     setEditingId(a.id);
     setShowForm(true);
   };
