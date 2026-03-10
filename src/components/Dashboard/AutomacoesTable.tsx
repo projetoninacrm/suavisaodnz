@@ -86,7 +86,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   }, []);
 
   const resetForm = () => {
-    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null });
+    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null, audios_vendedor: null });
     setEditingId(null);
     setShowForm(false);
   };
