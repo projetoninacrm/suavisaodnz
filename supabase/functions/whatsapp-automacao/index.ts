@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
               totalSent++;
 
               // Step 2: Send audio if configured - pick by vendedor first, then fallback
-              const audioUrl = automacao.audios_vendedor?.[client.vendedor] || automacao.audio_url;
+              const audioUrl = automacao.audios_vendedor?.[client.vendedor] || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
               if (audioUrl) {
                 try {
                   await new Promise(resolve => setTimeout(resolve, 1500));
