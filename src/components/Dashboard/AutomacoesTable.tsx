@@ -81,9 +81,27 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   }, []);
 
   const resetForm = () => {
-    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null });
+    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null });
     setEditingId(null);
     setShowForm(false);
+  };
+
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingAudio(true);
+    const fileName = `automacao-audio-${Date.now()}-${file.name}`;
+    const { data, error } = await supabase.storage
+      .from("whatsapp-media")
+      .upload(fileName, file, { contentType: file.type });
+    if (error) {
+      console.error("Upload error:", error);
+      setIsUploadingAudio(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(data.path);
+    setForm({ ...form, audio_url: urlData.publicUrl });
+    setIsUploadingAudio(false);
   };
 
   const handleSubmit = async () => {
