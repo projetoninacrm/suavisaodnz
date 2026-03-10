@@ -256,6 +256,49 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                     Variáveis: {"{nome_cliente}"}, {"{data_compra}"}, {"{vendedor}"}, {"{medico}"}
                   </p>
                 </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">
+                    <Volume2 className="w-3.5 h-3.5 inline mr-1" />
+                    Áudio (enviado após a mensagem de texto)
+                  </label>
+                  {form.audio_url ? (
+                    <div className="flex items-center gap-2 border rounded p-2 bg-muted/30">
+                      <audio controls src={form.audio_url} className="h-8 flex-1" />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => setForm({ ...form, audio_url: null })}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        ref={audioInputRef}
+                        type="file"
+                        accept="audio/*"
+                        className="hidden"
+                        onChange={handleAudioUpload}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => audioInputRef.current?.click()}
+                        disabled={isUploadingAudio}
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        {isUploadingAudio ? "Enviando..." : "Enviar áudio"}
+                      </Button>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Opcional. O áudio será enviado logo após a mensagem de texto.
+                  </p>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium">Status:</label>
                   <select
