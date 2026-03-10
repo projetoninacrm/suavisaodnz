@@ -160,10 +160,10 @@ Deno.serve(async (req) => {
               status = "enviado";
               totalSent++;
 
-              // Step 2: Send audio if configured
-              if (automacao.audio_url) {
+              // Step 2: Send audio if configured - pick by vendedor first, then fallback
+              const audioUrl = automacao.audios_vendedor?.[client.vendedor] || automacao.audio_url;
+              if (audioUrl) {
                 try {
-                  // Small delay to ensure message order
                   await new Promise(resolve => setTimeout(resolve, 1500));
 
                   const audioResponse = await fetch(
@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
                       body: JSON.stringify({
                         number: `55${phone}`,
                         mediatype: "audio",
-                        media: automacao.audio_url,
+                        media: audioUrl,
                       }),
                     }
                   );
