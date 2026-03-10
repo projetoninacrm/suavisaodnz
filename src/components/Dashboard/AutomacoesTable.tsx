@@ -195,6 +195,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   onChange={(e) => setForm({ ...form, fonte: e.target.value, filtro_como_conheceu: e.target.value === "detalhado" ? form.filtro_como_conheceu : null })}
                 >
                   <option value="leads">Leads (com venda)</option>
+                  <option value="perdidos">Leads (perdidos)</option>
                   <option value="detalhado">Detalhado (receita sem visita à loja)</option>
                 </select>
               </div>
