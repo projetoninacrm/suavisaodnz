@@ -39,6 +39,7 @@ export interface NewAutomacaoData {
   fonte: string;
   filtro_como_conheceu: string[] | null;
   audio_url: string | null;
+  audios_vendedor: Record<string, string> | null;
 }
 
 export function useAutomacoes() {
