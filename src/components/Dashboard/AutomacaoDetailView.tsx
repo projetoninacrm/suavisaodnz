@@ -101,6 +101,21 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         vendedor: undefined,
         medico: undefined,
       }));
+    } else if (automacao.fonte === "perdidos") {
+      const { data } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("status", "Perdido")
+        .not("numero", "is", null);
+
+      rawClients = (data || []).map(l => ({
+        id: l.id,
+        nome: l.nome || "Sem nome",
+        telefone: l.numero || "",
+        data_registro: l.updated_at ? new Date(l.updated_at).toLocaleDateString("pt-BR") : "",
+        vendedor: l.vendedor || undefined,
+        medico: l.medico || undefined,
+      }));
     } else {
       const { data } = await supabase
         .from("leads")
@@ -295,7 +310,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         <div className="flex-1">
           <h3 className="font-semibold text-lg">{automacao.nome}</h3>
           <p className="text-sm text-muted-foreground">
-            {automacao.fonte === "detalhado" ? "Detalhado" : "Leads"} · {automacao.dias_apos_venda} dias após venda
+            {automacao.fonte === "detalhado" ? "Detalhado" : automacao.fonte === "perdidos" ? "Perdidos" : "Leads"} · {automacao.dias_apos_venda} dias após {automacao.fonte === "perdidos" ? "marcado como perdido" : "venda"}
           </p>
         </div>
         <Button

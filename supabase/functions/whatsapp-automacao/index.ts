@@ -57,7 +57,6 @@ Deno.serve(async (req) => {
       let clients: any[] = [];
 
       if (automacao.fonte === "detalhado") {
-        // Get detalhado clients: has receita but didn't visit store
         let query = supabase
           .from("detalhado")
           .select("*")
@@ -65,7 +64,6 @@ Deno.serve(async (req) => {
           .or("receita.eq.Sim,receita.eq.sim,receita.eq.SIM")
           .or("visitou_loja.eq.Não,visitou_loja.eq.não,visitou_loja.eq.NAO,visitou_loja.is.null");
 
-        // Apply como_conheceu filter if set
         if (automacao.filtro_como_conheceu && automacao.filtro_como_conheceu.length > 0) {
           query = query.in("como_conheceu", automacao.filtro_como_conheceu);
         }
@@ -79,8 +77,22 @@ Deno.serve(async (req) => {
           vendedor: null,
           medico: null,
         }));
+      } else if (automacao.fonte === "perdidos") {
+        const { data } = await supabase
+          .from("leads")
+          .select("*")
+          .eq("status", "Perdido")
+          .not("numero", "is", null);
+
+        clients = (data || []).map(l => ({
+          id: l.id,
+          nome: l.nome,
+          telefone: l.numero,
+          data_registro: l.updated_at ? new Date(l.updated_at).toLocaleDateString("pt-BR") : null,
+          vendedor: l.vendedor,
+          medico: l.medico,
+        }));
       } else {
-        // Default: leads with venda = "Sim"
         const { data } = await supabase
           .from("leads")
           .select("*")

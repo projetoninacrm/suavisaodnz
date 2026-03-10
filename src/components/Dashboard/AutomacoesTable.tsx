@@ -51,7 +51,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   } = useAutomacoes();
 
   const [selectedAutomacao, setSelectedAutomacao] = useState<Automacao | null>(null);
-  const [showPerdidos, setShowPerdidos] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<NewAutomacaoData>({
@@ -149,41 +148,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
     return <div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>;
   }
 
-  // If showing Clientes Perdidos detail
-  if (showPerdidos) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setShowPerdidos(false)} className="gap-1.5">
-            <X className="w-4 h-4" /> Voltar
-          </Button>
-          <div>
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              <UserX className="w-5 h-5" /> Clientes Perdidos
-            </h3>
-            <p className="text-sm text-muted-foreground">Disparos manuais para leads com status Perdido</p>
-          </div>
-        </div>
-        <Tabs defaultValue="perdidos" className="w-full">
-          <TabsList>
-            <TabsTrigger value="perdidos" className="gap-1.5">
-              <UserX className="w-4 h-4" /> Perdidos
-            </TabsTrigger>
-            <TabsTrigger value="enviados" className="gap-1.5">
-              <Send className="w-4 h-4" /> Enviados
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="perdidos">
-            <DisparosTable leads={leads} />
-          </TabsContent>
-          <TabsContent value="enviados">
-            <EnviadosTable />
-          </TabsContent>
-        </Tabs>
-      </div>
-    );
-  }
-
   // If showing automation detail
   if (selectedAutomacao) {
     return (
@@ -231,6 +195,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   onChange={(e) => setForm({ ...form, fonte: e.target.value, filtro_como_conheceu: e.target.value === "detalhado" ? form.filtro_como_conheceu : null })}
                 >
                   <option value="leads">Leads (com venda)</option>
+                  <option value="perdidos">Leads (perdidos)</option>
                   <option value="detalhado">Detalhado (receita sem visita à loja)</option>
                 </select>
               </div>
@@ -269,7 +234,9 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 </div>
               )}
               <div>
-                <label className="text-sm font-medium mb-1 block">Disparar após quantos dias da venda</label>
+                <label className="text-sm font-medium mb-1 block">
+                  {form.fonte === "perdidos" ? "Disparar após quantos dias de marcado como perdido" : "Disparar após quantos dias da venda"}
+                </label>
                 <Input
                   type="number"
                   value={form.dias_apos_venda}
@@ -371,25 +338,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
 
       {/* Automações list */}
       <div className="space-y-3">
-        {/* Clientes Perdidos - special card */}
-        <div
-          className="overflow-hidden rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors cursor-pointer"
-          onClick={() => setShowPerdidos(true)}
-        >
-          <div className="px-4 py-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-              <UserX className="w-5 h-5 text-destructive" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium">Clientes Perdidos</h4>
-              <p className="text-sm text-muted-foreground">Disparos manuais para leads com status Perdido</p>
-            </div>
-            <Badge variant="outline" className="gap-1">
-              <Send className="w-3 h-3" /> Manual
-            </Badge>
-          </div>
-        </div>
-
         {automacoes.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
@@ -427,7 +375,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant="outline" className="text-xs">
-                        {a.fonte === "detalhado" ? "Detalhado" : "Leads"}
+                        {a.fonte === "detalhado" ? "Detalhado" : a.fonte === "perdidos" ? "Perdidos" : "Leads"}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-center">
