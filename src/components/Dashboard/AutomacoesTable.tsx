@@ -50,9 +50,8 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
     togglePausaGlobal,
   } = useAutomacoes();
 
-  const [subTab, setSubTab] = useState("automacoes");
   const [selectedAutomacao, setSelectedAutomacao] = useState<Automacao | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showPerdidos, setShowPerdidos] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<NewAutomacaoData>({
     nome: "",
