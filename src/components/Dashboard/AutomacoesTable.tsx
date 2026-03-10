@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Pause, Play, Pencil, Trash2, History, Bot, Send, Clock, Filter, UserX, Upload, Volume2, X } from "lucide-react";
+import { Plus, Pause, Play, Pencil, Trash2, Bot, Send, Clock, Filter, UserX, Upload, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
