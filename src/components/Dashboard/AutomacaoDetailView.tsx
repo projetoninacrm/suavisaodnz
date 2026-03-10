@@ -310,7 +310,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         <div className="flex-1">
           <h3 className="font-semibold text-lg">{automacao.nome}</h3>
           <p className="text-sm text-muted-foreground">
-            {automacao.fonte === "detalhado" ? "Detalhado" : "Leads"} · {automacao.dias_apos_venda} dias após venda
+            {automacao.fonte === "detalhado" ? "Detalhado" : automacao.fonte === "perdidos" ? "Perdidos" : "Leads"} · {automacao.dias_apos_venda} dias após {automacao.fonte === "perdidos" ? "marcado como perdido" : "venda"}
           </p>
         </div>
         <Button
