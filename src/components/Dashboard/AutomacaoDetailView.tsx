@@ -201,7 +201,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       });
 
       let audioOk = true;
-      const audioUrl = (cliente.vendedor && automacao.audios_vendedor?.[cliente.vendedor]) || automacao.audio_url;
+      const audioUrl = (cliente.vendedor && automacao.audios_vendedor?.[cliente.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
       if (!error && audioUrl) {
         await new Promise(resolve => setTimeout(resolve, 1500));
         const { error: audioErr } = await supabase.functions.invoke("whatsapp-disparo", {
