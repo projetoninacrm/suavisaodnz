@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DisparosTable } from "./DisparosTable";
 import { EnviadosTable } from "./EnviadosTable";
+import { AutomacaoDetailView } from "./AutomacaoDetailView";
 import type { Lead } from "@/hooks/useLeads";
 
 interface AutomacoesTableProps {
