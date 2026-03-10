@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DisparosTable } from "./DisparosTable";
 import { EnviadosTable } from "./EnviadosTable";
+import { AutomacaoDetailView } from "./AutomacaoDetailView";
 import type { Lead } from "@/hooks/useLeads";
 
 interface AutomacoesTableProps {
@@ -50,6 +51,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   } = useAutomacoes();
 
   const [subTab, setSubTab] = useState("automacoes");
+  const [selectedAutomacao, setSelectedAutomacao] = useState<Automacao | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<NewAutomacaoData>({
@@ -324,7 +326,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
       </div>
 
       {/* Automações list */}
-      {subTab === "automacoes" && (
+      {subTab === "automacoes" && !selectedAutomacao && (
         <div className="space-y-3">
           {automacoes.length === 0 ? (
             <Card>
@@ -350,7 +352,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 </thead>
                 <tbody>
                   {automacoes.map((a) => (
-                    <tr key={a.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <tr
+                      key={a.id}
+                      className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => setSelectedAutomacao(a)}
+                    >
                       <td className="px-4 py-3 font-medium">
                         <div className="flex items-center gap-1.5">
                           {a.nome}
@@ -379,7 +385,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                         </Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(a)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
@@ -424,6 +430,14 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Automation detail view */}
+      {subTab === "automacoes" && selectedAutomacao && (
+        <AutomacaoDetailView
+          automacao={selectedAutomacao}
+          onBack={() => setSelectedAutomacao(null)}
+        />
       )}
 
       {/* Perdidos */}
