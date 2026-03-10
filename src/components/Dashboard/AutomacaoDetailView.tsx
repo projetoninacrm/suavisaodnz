@@ -62,6 +62,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   const [isLoading, setIsLoading] = useState(true);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
