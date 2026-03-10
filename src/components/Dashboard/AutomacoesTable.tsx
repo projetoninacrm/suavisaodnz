@@ -378,7 +378,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                       <td className="px-4 py-3 font-medium">
                         <div className="flex items-center gap-1.5">
                           {a.nome}
-                          {a.audio_url && <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />}
+                          {(a.audio_url || (a.audios_vendedor && Object.keys(a.audios_vendedor).length > 0)) && <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">
