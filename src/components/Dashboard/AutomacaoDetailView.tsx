@@ -18,13 +18,14 @@ import {
 import type { Automacao, AutomacaoDisparo } from "@/hooks/useAutomacoes";
 
 interface ClienteAgendado {
-  id: string; // lead/detalhado id
+  id: string;
   nome: string;
   telefone: string;
   data_compra: string;
   data_envio_programada: string;
   dias_faltam: number;
   status: "pendente" | "enviado" | "erro" | "cancelado";
+  vendedor?: string;
   disparo_id?: string;
   data_envio_real?: string;
   erro?: string;
