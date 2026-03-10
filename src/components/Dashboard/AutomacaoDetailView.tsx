@@ -353,19 +353,27 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         </div>
       )}
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando clientes...
-        </div>
-      ) : clientes.length === 0 ? (
-        <div className="py-12 text-center text-muted-foreground">
-          <Clock className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p>Nenhum cliente encontrado para esta automação.</p>
-        </div>
-      ) : (
-        <>
-          {/* Pending dispatches */}
-          {pendentes.length > 0 && (
+      <Tabs defaultValue="pendentes" className="w-full">
+        <TabsList>
+          <TabsTrigger value="pendentes" className="gap-1.5">
+            <Clock className="w-4 h-4" /> Pendentes
+          </TabsTrigger>
+          <TabsTrigger value="enviados" className="gap-1.5">
+            <Send className="w-4 h-4" /> Enviados
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pendentes">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando clientes...
+            </div>
+          ) : pendentes.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <Clock className="w-10 h-10 mx-auto mb-3 opacity-40" />
+              <p>Nenhum disparo pendente.</p>
+            </div>
+          ) : (
             <div>
               <h4 className="text-sm font-semibold mb-2 text-muted-foreground">
                 Pendentes ({pendentes.length})
@@ -459,12 +467,22 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
               </div>
             </div>
           )}
+        </TabsContent>
 
-          {/* Already processed */}
-          {processados.length > 0 && (
+        <TabsContent value="enviados">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando...
+            </div>
+          ) : processados.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <Send className="w-10 h-10 mx-auto mb-3 opacity-40" />
+              <p>Nenhum disparo enviado ainda.</p>
+            </div>
+          ) : (
             <div>
               <h4 className="text-sm font-semibold mb-2 text-muted-foreground">
-                Processados ({processados.length})
+                Enviados ({processados.length})
               </h4>
               <div className="overflow-hidden rounded-lg border border-border bg-card">
                 <table className="w-full text-sm">
@@ -501,8 +519,8 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
               </div>
             </div>
           )}
-        </>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
