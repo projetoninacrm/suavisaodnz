@@ -163,6 +163,7 @@ export type Database = {
       }
       automacoes: {
         Row: {
+          audio_url: string | null
           created_at: string
           dias_apos_venda: number
           filtro_como_conheceu: string[] | null
@@ -175,6 +176,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audio_url?: string | null
           created_at?: string
           dias_apos_venda: number
           filtro_como_conheceu?: string[] | null
@@ -187,6 +189,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audio_url?: string | null
           created_at?: string
           dias_apos_venda?: number
           filtro_como_conheceu?: string[] | null

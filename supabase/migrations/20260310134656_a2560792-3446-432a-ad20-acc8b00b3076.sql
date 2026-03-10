@@ -1,0 +1,1 @@
+ALTER TABLE public.automacoes ADD COLUMN audio_url text DEFAULT null;
