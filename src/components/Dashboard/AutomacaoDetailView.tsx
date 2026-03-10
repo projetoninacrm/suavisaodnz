@@ -190,7 +190,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       const mensagem = automacao.mensagem
         .replace(/\{nome_cliente\}/g, cliente.nome || "Cliente")
         .replace(/\{data_compra\}/g, cliente.data_compra || "")
-        .replace(/\{vendedor\}/g, "")
+        .replace(/\{vendedor\}/g, cliente.vendedor || "")
         .replace(/\{medico\}/g, "");
 
       const { data, error } = await supabase.functions.invoke("whatsapp-disparo", {
