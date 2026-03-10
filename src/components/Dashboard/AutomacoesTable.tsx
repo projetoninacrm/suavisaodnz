@@ -234,7 +234,9 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 </div>
               )}
               <div>
-                <label className="text-sm font-medium mb-1 block">Disparar após quantos dias da venda</label>
+                <label className="text-sm font-medium mb-1 block">
+                  {form.fonte === "perdidos" ? "Disparar após quantos dias de marcado como perdido" : "Disparar após quantos dias da venda"}
+                </label>
                 <Input
                   type="number"
                   value={form.dias_apos_venda}
