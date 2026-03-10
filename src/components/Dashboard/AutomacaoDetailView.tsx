@@ -322,15 +322,28 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           <p className="text-xs text-muted-foreground italic">
             * Variáveis substituídas com dados de exemplo
           </p>
-          {automacao.audio_url && (
+          {automacao.audios_vendedor && Object.keys(automacao.audios_vendedor).length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Volume2 className="w-3.5 h-3.5" /> Áudios por vendedor
+              </h4>
+              {Object.entries(automacao.audios_vendedor).map(([vendedor, url]) => (
+                <div key={vendedor} className="border rounded p-2 bg-background space-y-1">
+                  <span className="text-sm font-medium">{vendedor}</span>
+                  <audio controls src={url} className="w-full max-w-md h-10" />
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                O áudio do vendedor que fez a venda será enviado automaticamente.
+              </p>
+            </div>
+          )}
+          {automacao.audio_url && (!automacao.audios_vendedor || Object.keys(automacao.audios_vendedor).length === 0) && (
             <div className="space-y-1.5">
               <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
-                <Volume2 className="w-3.5 h-3.5" /> Áudio anexado
+                <Volume2 className="w-3.5 h-3.5" /> Áudio padrão
               </h4>
               <audio controls src={automacao.audio_url} className="w-full max-w-md h-10" />
-              <p className="text-xs text-muted-foreground">
-                Este áudio será enviado logo após a mensagem de texto.
-              </p>
             </div>
           )}
         </div>
