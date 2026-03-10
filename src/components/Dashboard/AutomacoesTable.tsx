@@ -375,7 +375,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant="outline" className="text-xs">
-                        {a.fonte === "detalhado" ? "Detalhado" : "Leads"}
+                        {a.fonte === "detalhado" ? "Detalhado" : a.fonte === "perdidos" ? "Perdidos" : "Leads"}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-center">
