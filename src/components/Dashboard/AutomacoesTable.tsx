@@ -299,6 +299,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   <p className="text-xs text-muted-foreground mt-1">
                     Opcional. O áudio será enviado logo após a mensagem de texto.
                   </p>
+                </div>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium">Status:</label>
                   <select
