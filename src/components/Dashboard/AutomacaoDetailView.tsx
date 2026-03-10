@@ -143,12 +143,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_envio_programada: formatDateBR(targetDate),
           dias_faltam: diasFaltam,
           status: disparo.status as any,
+          vendedor: client.vendedor,
           disparo_id: disparo.id,
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
           erro: disparo.erro || undefined,
         });
       } else if (diasFaltam >= 0) {
-        // Only show pending if not yet past
         result.push({
           id: client.id,
           nome: client.nome,
@@ -157,6 +157,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_envio_programada: formatDateBR(targetDate),
           dias_faltam: diasFaltam,
           status: "pendente",
+          vendedor: client.vendedor,
         });
       }
     }
