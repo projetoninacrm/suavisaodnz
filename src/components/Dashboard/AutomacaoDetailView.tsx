@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -65,6 +65,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -280,8 +281,14 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
     setCancellingId(null);
   };
 
-  const pendentes = clientes.filter(c => c.status === "pendente");
-  const processados = clientes.filter(c => c.status !== "pendente");
+  const filterBySearch = (list: ClienteAgendado[]) => {
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(c => c.nome.toLowerCase().includes(q) || c.telefone.includes(q));
+  };
+
+  const pendentes = filterBySearch(clientes.filter(c => c.status === "pendente"));
+  const processados = filterBySearch(clientes.filter(c => c.status !== "pendente"));
 
   const statusIcon = (s: string) => {
     switch (s) {
@@ -367,6 +374,17 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           )}
         </div>
       )}
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Pesquisar por nome ou telefone..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
 
       <Tabs defaultValue="pendentes" className="w-full">
         <TabsList>
