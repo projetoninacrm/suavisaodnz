@@ -164,7 +164,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
           erro: disparo.erro || undefined,
         });
-      } else if (diasFaltam >= 0 && diasFaltam <= 30) {
+      } else if (diasFaltam >= 0) {
         result.push({
           id: client.id,
           nome: client.nome,
