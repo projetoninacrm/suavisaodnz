@@ -18,13 +18,14 @@ import {
 import type { Automacao, AutomacaoDisparo } from "@/hooks/useAutomacoes";
 
 interface ClienteAgendado {
-  id: string; // lead/detalhado id
+  id: string;
   nome: string;
   telefone: string;
   data_compra: string;
   data_envio_programada: string;
   dias_faltam: number;
   status: "pendente" | "enviado" | "erro" | "cancelado";
+  vendedor?: string;
   disparo_id?: string;
   data_envio_real?: string;
   erro?: string;
@@ -142,12 +143,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_envio_programada: formatDateBR(targetDate),
           dias_faltam: diasFaltam,
           status: disparo.status as any,
+          vendedor: client.vendedor,
           disparo_id: disparo.id,
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
           erro: disparo.erro || undefined,
         });
       } else if (diasFaltam >= 0) {
-        // Only show pending if not yet past
         result.push({
           id: client.id,
           nome: client.nome,
@@ -156,6 +157,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_envio_programada: formatDateBR(targetDate),
           dias_faltam: diasFaltam,
           status: "pendente",
+          vendedor: client.vendedor,
         });
       }
     }
@@ -188,7 +190,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       const mensagem = automacao.mensagem
         .replace(/\{nome_cliente\}/g, cliente.nome || "Cliente")
         .replace(/\{data_compra\}/g, cliente.data_compra || "")
-        .replace(/\{vendedor\}/g, "")
+        .replace(/\{vendedor\}/g, cliente.vendedor || "")
         .replace(/\{medico\}/g, "");
 
       const { data, error } = await supabase.functions.invoke("whatsapp-disparo", {
@@ -199,12 +201,13 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       });
 
       let audioOk = true;
-      if (!error && automacao.audio_url) {
+      const audioUrl = (cliente.vendedor && automacao.audios_vendedor?.[cliente.vendedor]) || automacao.audio_url;
+      if (!error && audioUrl) {
         await new Promise(resolve => setTimeout(resolve, 1500));
         const { error: audioErr } = await supabase.functions.invoke("whatsapp-disparo", {
           body: {
             phone: `55${phone}`,
-            mediaUrl: automacao.audio_url,
+            mediaUrl: audioUrl,
             mediaType: "audio",
           },
         });
@@ -322,15 +325,28 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           <p className="text-xs text-muted-foreground italic">
             * Variáveis substituídas com dados de exemplo
           </p>
-          {automacao.audio_url && (
+          {automacao.audios_vendedor && Object.keys(automacao.audios_vendedor).length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Volume2 className="w-3.5 h-3.5" /> Áudios por vendedor
+              </h4>
+              {Object.entries(automacao.audios_vendedor).map(([vendedor, url]) => (
+                <div key={vendedor} className="border rounded p-2 bg-background space-y-1">
+                  <span className="text-sm font-medium">{vendedor}</span>
+                  <audio controls src={url} className="w-full max-w-md h-10" />
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                O áudio do vendedor que fez a venda será enviado automaticamente.
+              </p>
+            </div>
+          )}
+          {automacao.audio_url && (!automacao.audios_vendedor || Object.keys(automacao.audios_vendedor).length === 0) && (
             <div className="space-y-1.5">
               <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
-                <Volume2 className="w-3.5 h-3.5" /> Áudio anexado
+                <Volume2 className="w-3.5 h-3.5" /> Áudio padrão
               </h4>
               <audio controls src={automacao.audio_url} className="w-full max-w-md h-10" />
-              <p className="text-xs text-muted-foreground">
-                Este áudio será enviado logo após a mensagem de texto.
-              </p>
             </div>
           )}
         </div>
@@ -358,6 +374,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
                       <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Cliente</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendedor</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Data da Compra</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Data do Envio</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Dias Restantes</th>
@@ -373,6 +390,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                             <span className="block text-xs text-muted-foreground">{c.telefone}</span>
                           </div>
                         </td>
+                        <td className="px-4 py-3 text-center text-muted-foreground">{c.vendedor || "—"}</td>
                         <td className="px-4 py-3 text-center text-muted-foreground">{c.data_compra}</td>
                         <td className="px-4 py-3 text-center text-muted-foreground">{c.data_envio_programada}</td>
                         <td className="px-4 py-3 text-center">

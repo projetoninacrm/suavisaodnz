@@ -1,0 +1,1 @@
+ALTER TABLE public.automacoes ADD COLUMN audios_vendedor jsonb DEFAULT '{}'::jsonb;

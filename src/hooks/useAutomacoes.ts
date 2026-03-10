@@ -12,6 +12,7 @@ export interface Automacao {
   fonte: string;
   filtro_como_conheceu: string[] | null;
   audio_url: string | null;
+  audios_vendedor: Record<string, string> | null;
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +39,7 @@ export interface NewAutomacaoData {
   fonte: string;
   filtro_como_conheceu: string[] | null;
   audio_url: string | null;
+  audios_vendedor: Record<string, string> | null;
 }
 
 export function useAutomacoes() {
@@ -56,7 +58,10 @@ export function useAutomacoes() {
     if (error) {
       toast({ title: "Erro ao carregar automações", description: error.message, variant: "destructive" });
     } else {
-      setAutomacoes(data || []);
+      setAutomacoes((data || []).map(d => ({
+        ...d,
+        audios_vendedor: (d.audios_vendedor as Record<string, string>) || null,
+      })));
     }
     setIsLoading(false);
   }, []);

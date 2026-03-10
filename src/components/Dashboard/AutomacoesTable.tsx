@@ -62,9 +62,12 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
     fonte: "leads",
     filtro_como_conheceu: null,
     audio_url: null,
+    audios_vendedor: null,
   });
-  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingVendedor, setUploadingVendedor] = useState<string | null>(null);
+  const vendedores = ["Bernardo", "Thayssa"];
 
   const [comoConheceuOptions, setComoConheceuOptions] = useState<string[]>([]);
 
@@ -83,27 +86,28 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   }, []);
 
   const resetForm = () => {
-    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null });
+    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null, audios_vendedor: null });
     setEditingId(null);
     setShowForm(false);
   };
 
-  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>, vendedor: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setIsUploadingAudio(true);
-    const fileName = `automacao-audio-${Date.now()}-${file.name}`;
+    setIsUploadingAudio(vendedor);
+    const fileName = `automacao-audio-${vendedor}-${Date.now()}-${file.name}`;
     const { data, error } = await supabase.storage
       .from("whatsapp-media")
       .upload(fileName, file, { contentType: file.type });
     if (error) {
       console.error("Upload error:", error);
-      setIsUploadingAudio(false);
+      setIsUploadingAudio(null);
       return;
     }
     const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(data.path);
-    setForm({ ...form, audio_url: urlData.publicUrl });
-    setIsUploadingAudio(false);
+    const current = form.audios_vendedor || {};
+    setForm({ ...form, audios_vendedor: { ...current, [vendedor]: urlData.publicUrl } });
+    setIsUploadingAudio(null);
   };
 
   const handleSubmit = async () => {
@@ -117,7 +121,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   };
 
   const handleEdit = (a: Automacao) => {
-    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu, audio_url: a.audio_url });
+    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu, audio_url: a.audio_url, audios_vendedor: a.audios_vendedor });
     setEditingId(a.id);
     setShowForm(true);
   };
@@ -259,47 +263,61 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">
+                  <label className="text-sm font-medium mb-2 block">
                     <Volume2 className="w-3.5 h-3.5 inline mr-1" />
-                    Áudio (enviado após a mensagem de texto)
+                    Áudios por vendedor (enviados após a mensagem)
                   </label>
-                  {form.audio_url ? (
-                    <div className="flex items-center gap-2 border rounded p-2 bg-muted/30">
-                      <audio controls src={form.audio_url} className="h-8 flex-1" />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => setForm({ ...form, audio_url: null })}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div>
-                      <input
-                        ref={audioInputRef}
-                        type="file"
-                        accept="audio/*"
-                        className="hidden"
-                        onChange={handleAudioUpload}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => audioInputRef.current?.click()}
-                        disabled={isUploadingAudio}
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        {isUploadingAudio ? "Enviando..." : "Enviar áudio"}
-                      </Button>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Opcional. O áudio será enviado logo após a mensagem de texto.
+                  <div className="space-y-3">
+                    {vendedores.map((vendedor) => {
+                      const audioUrl = form.audios_vendedor?.[vendedor];
+                      return (
+                        <div key={vendedor} className="border rounded p-2.5 bg-muted/20 space-y-1.5">
+                          <span className="text-sm font-medium">{vendedor}</span>
+                          {audioUrl ? (
+                            <div className="flex items-center gap-2">
+                              <audio controls src={audioUrl} className="h-8 flex-1" />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive"
+                                onClick={() => {
+                                  const current = { ...form.audios_vendedor };
+                                  delete current[vendedor];
+                                  setForm({ ...form, audios_vendedor: Object.keys(current).length > 0 ? current : null });
+                                }}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div>
+                              <input
+                                type="file"
+                                accept="audio/*"
+                                className="hidden"
+                                id={`audio-${vendedor}`}
+                                onChange={(e) => handleAudioUpload(e, vendedor)}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5"
+                                onClick={() => document.getElementById(`audio-${vendedor}`)?.click()}
+                                disabled={isUploadingAudio === vendedor}
+                              >
+                                <Upload className="w-3.5 h-3.5" />
+                                {isUploadingAudio === vendedor ? "Enviando..." : "Enviar áudio"}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -360,7 +378,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                       <td className="px-4 py-3 font-medium">
                         <div className="flex items-center gap-1.5">
                           {a.nome}
-                          {a.audio_url && <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />}
+                          {(a.audio_url || (a.audios_vendedor && Object.keys(a.audios_vendedor).length > 0)) && <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">
