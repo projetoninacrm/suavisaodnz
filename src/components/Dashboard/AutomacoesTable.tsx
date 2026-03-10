@@ -51,7 +51,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   } = useAutomacoes();
 
   const [selectedAutomacao, setSelectedAutomacao] = useState<Automacao | null>(null);
-  const [showPerdidos, setShowPerdidos] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<NewAutomacaoData>({
