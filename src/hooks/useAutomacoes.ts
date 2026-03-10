@@ -37,6 +37,7 @@ export interface NewAutomacaoData {
   status: string;
   fonte: string;
   filtro_como_conheceu: string[] | null;
+  audio_url: string | null;
 }
 
 export function useAutomacoes() {
