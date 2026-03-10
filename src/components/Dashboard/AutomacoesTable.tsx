@@ -263,47 +263,61 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">
+                  <label className="text-sm font-medium mb-2 block">
                     <Volume2 className="w-3.5 h-3.5 inline mr-1" />
-                    Áudio (enviado após a mensagem de texto)
+                    Áudios por vendedor (enviados após a mensagem)
                   </label>
-                  {form.audio_url ? (
-                    <div className="flex items-center gap-2 border rounded p-2 bg-muted/30">
-                      <audio controls src={form.audio_url} className="h-8 flex-1" />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => setForm({ ...form, audio_url: null })}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div>
-                      <input
-                        ref={audioInputRef}
-                        type="file"
-                        accept="audio/*"
-                        className="hidden"
-                        onChange={handleAudioUpload}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => audioInputRef.current?.click()}
-                        disabled={isUploadingAudio}
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        {isUploadingAudio ? "Enviando..." : "Enviar áudio"}
-                      </Button>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Opcional. O áudio será enviado logo após a mensagem de texto.
+                  <div className="space-y-3">
+                    {vendedores.map((vendedor) => {
+                      const audioUrl = form.audios_vendedor?.[vendedor];
+                      return (
+                        <div key={vendedor} className="border rounded p-2.5 bg-muted/20 space-y-1.5">
+                          <span className="text-sm font-medium">{vendedor}</span>
+                          {audioUrl ? (
+                            <div className="flex items-center gap-2">
+                              <audio controls src={audioUrl} className="h-8 flex-1" />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive"
+                                onClick={() => {
+                                  const current = { ...form.audios_vendedor };
+                                  delete current[vendedor];
+                                  setForm({ ...form, audios_vendedor: Object.keys(current).length > 0 ? current : null });
+                                }}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div>
+                              <input
+                                type="file"
+                                accept="audio/*"
+                                className="hidden"
+                                id={`audio-${vendedor}`}
+                                onChange={(e) => handleAudioUpload(e, vendedor)}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5"
+                                onClick={() => document.getElementById(`audio-${vendedor}`)?.click()}
+                                disabled={isUploadingAudio === vendedor}
+                              >
+                                <Upload className="w-3.5 h-3.5" />
+                                {isUploadingAudio === vendedor ? "Enviando..." : "Enviar áudio"}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
