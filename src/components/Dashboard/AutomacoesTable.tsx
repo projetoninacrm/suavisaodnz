@@ -338,25 +338,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
 
       {/* Automações list */}
       <div className="space-y-3">
-        {/* Clientes Perdidos - special card */}
-        <div
-          className="overflow-hidden rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors cursor-pointer"
-          onClick={() => setShowPerdidos(true)}
-        >
-          <div className="px-4 py-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-              <UserX className="w-5 h-5 text-destructive" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium">Clientes Perdidos</h4>
-              <p className="text-sm text-muted-foreground">Disparos manuais para leads com status Perdido</p>
-            </div>
-            <Badge variant="outline" className="gap-1">
-              <Send className="w-3 h-3" /> Manual
-            </Badge>
-          </div>
-        </div>
-
         {automacoes.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
