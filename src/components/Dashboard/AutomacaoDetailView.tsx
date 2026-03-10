@@ -281,8 +281,14 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
     setCancellingId(null);
   };
 
-  const pendentes = clientes.filter(c => c.status === "pendente");
-  const processados = clientes.filter(c => c.status !== "pendente");
+  const filterBySearch = (list: ClienteAgendado[]) => {
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(c => c.nome.toLowerCase().includes(q) || c.telefone.includes(q));
+  };
+
+  const pendentes = filterBySearch(clientes.filter(c => c.status === "pendente"));
+  const processados = filterBySearch(clientes.filter(c => c.status !== "pendente"));
 
   const statusIcon = (s: string) => {
     switch (s) {
