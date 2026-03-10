@@ -91,22 +91,23 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
     setShowForm(false);
   };
 
-  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>, vendedor: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setIsUploadingAudio(true);
-    const fileName = `automacao-audio-${Date.now()}-${file.name}`;
+    setIsUploadingAudio(vendedor);
+    const fileName = `automacao-audio-${vendedor}-${Date.now()}-${file.name}`;
     const { data, error } = await supabase.storage
       .from("whatsapp-media")
       .upload(fileName, file, { contentType: file.type });
     if (error) {
       console.error("Upload error:", error);
-      setIsUploadingAudio(false);
+      setIsUploadingAudio(null);
       return;
     }
     const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(data.path);
-    setForm({ ...form, audio_url: urlData.publicUrl });
-    setIsUploadingAudio(false);
+    const current = form.audios_vendedor || {};
+    setForm({ ...form, audios_vendedor: { ...current, [vendedor]: urlData.publicUrl } });
+    setIsUploadingAudio(null);
   };
 
   const handleSubmit = async () => {
