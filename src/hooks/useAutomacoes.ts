@@ -58,7 +58,10 @@ export function useAutomacoes() {
     if (error) {
       toast({ title: "Erro ao carregar automações", description: error.message, variant: "destructive" });
     } else {
-      setAutomacoes(data || []);
+      setAutomacoes((data || []).map(d => ({
+        ...d,
+        audios_vendedor: (d.audios_vendedor as Record<string, string>) || null,
+      })));
     }
     setIsLoading(false);
   }, []);
