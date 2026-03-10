@@ -148,41 +148,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
     return <div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>;
   }
 
-  // If showing Clientes Perdidos detail
-  if (showPerdidos) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setShowPerdidos(false)} className="gap-1.5">
-            <X className="w-4 h-4" /> Voltar
-          </Button>
-          <div>
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              <UserX className="w-5 h-5" /> Clientes Perdidos
-            </h3>
-            <p className="text-sm text-muted-foreground">Disparos manuais para leads com status Perdido</p>
-          </div>
-        </div>
-        <Tabs defaultValue="perdidos" className="w-full">
-          <TabsList>
-            <TabsTrigger value="perdidos" className="gap-1.5">
-              <UserX className="w-4 h-4" /> Perdidos
-            </TabsTrigger>
-            <TabsTrigger value="enviados" className="gap-1.5">
-              <Send className="w-4 h-4" /> Enviados
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="perdidos">
-            <DisparosTable leads={leads} />
-          </TabsContent>
-          <TabsContent value="enviados">
-            <EnviadosTable />
-          </TabsContent>
-        </Tabs>
-      </div>
-    );
-  }
-
   // If showing automation detail
   if (selectedAutomacao) {
     return (
