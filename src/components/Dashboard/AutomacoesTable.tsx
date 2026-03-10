@@ -64,8 +64,10 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
     audio_url: null,
     audios_vendedor: null,
   });
-  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingVendedor, setUploadingVendedor] = useState<string | null>(null);
+  const vendedores = ["Bernardo", "Thayssa"];
 
   const [comoConheceuOptions, setComoConheceuOptions] = useState<string[]>([]);
 
