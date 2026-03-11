@@ -417,7 +417,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                     <tr className="border-b border-border bg-muted/50">
                       <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Cliente</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendedor</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Data da Compra</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : "Data da Compra"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Data do Envio</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Dias Restantes</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
