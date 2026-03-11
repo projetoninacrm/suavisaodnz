@@ -68,6 +68,7 @@ export interface DayMetrics {
 }
 
 const MONTH_NAMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const PAGE_SIZE = 1000;
 
 // Helper para formatar data ISO para DD/MM/YYYY
 function formatDateToDDMMYYYY(dateStr: string): string {
@@ -85,24 +86,45 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
   const [acompanhamentos, setAcompanhamentos] = useState<AcompanhamentoDiario[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Buscar dados da tabela detalhado
+  // Buscar dados da tabela detalhado (com paginação para não truncar em 1000)
   useEffect(() => {
-    const fetchDetalhado = async () => {
-      const { data, error } = await supabase
-        .from("detalhado")
-        .select("*")
-        .order("created_at", { ascending: true });
+    let isMounted = true;
 
-      if (error) {
-        console.error("Erro ao buscar detalhado:", error);
-        return;
+    const fetchDetalhado = async () => {
+      const allDetalhados: Detalhado[] = [];
+      let from = 0;
+
+      while (true) {
+        const to = from + PAGE_SIZE - 1;
+        const { data, error } = await supabase
+          .from("detalhado")
+          .select("*")
+          .order("created_at", { ascending: true })
+          .range(from, to);
+
+        if (error) {
+          console.error("Erro ao buscar detalhado:", error);
+          return;
+        }
+
+        const chunk = (data || []) as Detalhado[];
+        allDetalhados.push(...chunk);
+
+        if (chunk.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
       }
 
-      console.log(`[useIndicadoresData] Detalhados carregados: ${data?.length || 0}`);
-      setDetalhados(data || []);
+      if (!isMounted) return;
+
+      console.log(`[useIndicadoresData] Detalhados carregados: ${allDetalhados.length}`);
+      setDetalhados(allDetalhados);
     };
 
     fetchDetalhado();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Buscar dados de acompanhamento diário (faturamento)
