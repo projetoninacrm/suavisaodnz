@@ -194,7 +194,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
     fetchData();
   }, [fetchData]);
 
-  const handleEnviarAgora = async (cliente: ClienteAgendado) => {
+  const handleEnviarAgora = async (cliente: ClienteAgendado, isRetry = false) => {
     const phone = cleanPhone(cliente.telefone);
     if (!phone) {
       toast({ title: "Telefone inválido", variant: "destructive" });
@@ -233,17 +233,27 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
 
       const status = error ? "erro" : "enviado";
 
-      await supabase.from("automacao_disparos").insert({
-        automacao_id: automacao.id,
-        lead_id: cliente.id,
-        nome_cliente: cliente.nome,
-        telefone: cliente.telefone,
-        mensagem_enviada: mensagem,
-        status,
-        data_envio: status === "enviado" ? new Date().toISOString() : null,
-        data_programada: new Date().toISOString().split("T")[0],
-        erro: error ? String(error) : null,
-      });
+      if (isRetry && cliente.disparo_id) {
+        // Update existing disparo record on retry
+        await supabase.from("automacao_disparos").update({
+          status,
+          data_envio: status === "enviado" ? new Date().toISOString() : null,
+          erro: error ? String(error) : null,
+          mensagem_enviada: mensagem,
+        }).eq("id", cliente.disparo_id);
+      } else {
+        await supabase.from("automacao_disparos").insert({
+          automacao_id: automacao.id,
+          lead_id: cliente.id,
+          nome_cliente: cliente.nome,
+          telefone: cliente.telefone,
+          mensagem_enviada: mensagem,
+          status,
+          data_envio: status === "enviado" ? new Date().toISOString() : null,
+          data_programada: new Date().toISOString().split("T")[0],
+          erro: error ? String(error) : null,
+        });
+      }
 
       if (status === "enviado") {
         await supabase
