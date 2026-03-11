@@ -544,6 +544,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
                       <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Cliente</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendedor</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : "Data da Compra"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Enviado em</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
@@ -559,6 +560,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                             <span className="block text-xs text-muted-foreground">{c.telefone}</span>
                           </div>
                         </td>
+                        <td className="px-4 py-3 text-center text-muted-foreground">{c.vendedor || "—"}</td>
                         <td className="px-4 py-3 text-center text-muted-foreground">{c.data_compra}</td>
                         <td className="px-4 py-3 text-center text-muted-foreground">
                           {c.data_envio_real || "—"}
