@@ -210,20 +210,32 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         .replace(/\{vendedor\}/g, cliente.vendedor || "")
         .replace(/\{medico\}/g, "");
 
+      // Send text message
+      const leadPayload = {
+        id: cliente.id,
+        nome: cliente.nome,
+        numero: cliente.telefone,
+        vendedor: cliente.vendedor || "",
+        medico: "",
+        canal: "",
+        data_registro: cliente.data_compra || "",
+      };
+
       const { data, error } = await supabase.functions.invoke("whatsapp-disparo", {
         body: {
-          phone: `55${phone}`,
-          message: mensagem,
+          leads: [leadPayload],
+          mensagem,
         },
       });
 
+      // Send audio if configured
       let audioOk = true;
       const audioUrl = (cliente.vendedor && automacao.audios_vendedor?.[cliente.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
       if (!error && audioUrl) {
         await new Promise(resolve => setTimeout(resolve, 1500));
         const { error: audioErr } = await supabase.functions.invoke("whatsapp-disparo", {
           body: {
-            phone: `55${phone}`,
+            leads: [leadPayload],
             mediaUrl: audioUrl,
             mediaType: "audio",
           },
