@@ -172,14 +172,14 @@ Deno.serve(async (req) => {
               status = "enviado";
               totalSent++;
 
-              // Step 2: Send audio if configured - pick by vendedor first, then fallback
-              const audioUrl = automacao.audios_vendedor?.[client.vendedor] || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
+              // Step 2: Send audio if configured - pick by vendedor first, then fallback to Thayssa
+              const audioUrl = (client.vendedor && automacao.audios_vendedor?.[client.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
               if (audioUrl) {
                 try {
                   await new Promise(resolve => setTimeout(resolve, 1500));
 
                   const audioResponse = await fetch(
-                    `${EVOLUTION_API_URL}/message/sendMedia/${EVOLUTION_INSTANCE}`,
+                    `${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${EVOLUTION_INSTANCE}`,
                     {
                       method: "POST",
                       headers: {
@@ -188,8 +188,7 @@ Deno.serve(async (req) => {
                       },
                       body: JSON.stringify({
                         number: `55${phone}`,
-                        mediatype: "audio",
-                        media: audioUrl,
+                        audio: audioUrl,
                       }),
                     }
                   );
