@@ -532,9 +532,10 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
                       <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Cliente</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Data da Compra</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : "Data da Compra"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Enviado em</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -551,9 +552,34 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                           {c.data_envio_real || "—"}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <Badge variant="outline" className={`gap-1 ${statusColor(c.status)}`}>
-                            {statusIcon(c.status)} {c.status}
-                          </Badge>
+                          <div className="flex flex-col items-center gap-1">
+                            <Badge variant="outline" className={`gap-1 ${statusColor(c.status)}`}>
+                              {statusIcon(c.status)} {c.status}
+                            </Badge>
+                            {c.erro && (
+                              <span className="text-[10px] text-muted-foreground max-w-[200px] truncate" title={c.erro}>
+                                {c.erro}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {c.status === "erro" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 text-xs h-7"
+                              disabled={sendingId === c.id}
+                              onClick={() => handleEnviarAgora(c, true)}
+                            >
+                              {sendingId === c.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Send className="w-3 h-3" />
+                              )}
+                              Reenviar
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     ))}
