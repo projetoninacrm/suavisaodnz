@@ -289,8 +289,20 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
     return `${String(day).padStart(2, "0")}/${monthAbbrev}`;
   }, []);
 
+  // Filtrar leads "Sua Visão" com orçamento "Sim" por dia
+  const getLeadsSuaVisaoOrcamentoForDay = useCallback((day: number, month: number): number => {
+    const dayStr = String(day).padStart(2, "0");
+    const monthStr = String(month).padStart(2, "0");
+    const dateKey = `${dayStr}/${monthStr}/${year}`;
+
+    return leads.filter(lead => {
+      const canal = (lead.canal || "").toLowerCase().trim();
+      const orcamento = (lead.orcamento || "").toLowerCase().trim();
+      return canal.includes("sua vis") && orcamento === "sim" && lead.data_registro === dateKey;
+    }).length;
+  }, [leads, year]);
+
   // Calcular métricas para um dia específico de um mês específico
-  // Agora usa combinedRecords (API + banco) igual ao Detalhado
   const getMetricsForDay = useCallback((day: number, month: number): DayMetrics => {
     // Filtrar registros combinados para este dia
     const dayCombinedRecords = combinedRecords.filter(record => {
@@ -312,10 +324,8 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
     // POTENCIAL (%) = Receitas / Atendimentos
     const potencial = atendimentos > 0 ? (receitas / atendimentos) * 100 : 0;
 
-    // VISITOU DNZ = registros com visitou_loja = "sim"
-    const visitou_dnz = dayCombinedRecords.filter(r => 
-      r.visitou_loja?.toLowerCase().trim() === "sim"
-    ).length;
+    // VISITOU DNZ = leads canal "Sua Visão" com orçamento "Sim" no dia
+    const visitou_dnz = getLeadsSuaVisaoOrcamentoForDay(day, month);
 
     // VENDAS = registros com venda = "sim"
     const vendas = dayCombinedRecords.filter(r => 
@@ -347,7 +357,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
       faturamento,
       ticket,
     };
-  }, [combinedRecords, acompanhamentos, year, parseDate, getAcompanhamentoDateKey]);
+  }, [combinedRecords, acompanhamentos, year, parseDate, getAcompanhamentoDateKey, getLeadsSuaVisaoOrcamentoForDay]);
 
   return {
     isLoading,
