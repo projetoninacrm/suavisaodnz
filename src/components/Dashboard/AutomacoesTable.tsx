@@ -192,11 +192,20 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 <select
                   className="text-sm border rounded px-2 py-1 bg-background w-full"
                   value={form.fonte}
-                  onChange={(e) => setForm({ ...form, fonte: e.target.value, filtro_como_conheceu: e.target.value === "detalhado" ? form.filtro_como_conheceu : null })}
+                  onChange={(e) => {
+                    const fonte = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      fonte,
+                      filtro_como_conheceu: fonte === "detalhado" ? prev.filtro_como_conheceu : null,
+                      dias_apos_venda: fonte === "detalhado_inativos" && prev.fonte !== "detalhado_inativos" ? 730 : prev.dias_apos_venda,
+                    }));
+                  }}
                 >
                   <option value="leads">Leads (com venda)</option>
                   <option value="perdidos">Leads (perdidos)</option>
                   <option value="detalhado">Detalhado (receita sem visita à loja)</option>
+                  <option value="detalhado_inativos">Detalhado (2+ anos sem atendimento)</option>
                 </select>
               </div>
               {form.fonte === "detalhado" && (
