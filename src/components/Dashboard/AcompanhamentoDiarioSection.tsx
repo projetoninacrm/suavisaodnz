@@ -256,25 +256,19 @@ export function AcompanhamentoDiarioSection({
                       // Determina a meta baseada no tipo do dia (completo ou meio)
                       const metaVendasDia = schedule.isDiaCompleto ? metaDiariaVendasCompleta : metaDiariaVendasMeio;
                       const metaFatDiaBase = schedule.isDiaCompleto ? metaFaturamentoDiarioCompleto : metaFaturamentoDiarioMeio;
-                      
-                      // Verifica se o dia já foi preenchido
-                      const diaPreenchido = registro !== undefined && registro.faturamento_realizado !== null;
-                      
-                      // Meta para dias não preenchidos usa a dinâmica (proporcional ao peso)
-                      const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
-                      const metaDiariaFatDia = diaPreenchido ? metaFatDiaBase : metaDinamicaBaseParaRestantes * pesoDia;
+                      const metaFatDia = metasFaturamentoPorDia[schedule.date] ?? metaFatDiaBase;
                       
                       const diferencaVendas = vendasReal - metaVendasDia;
                       const statusVendas = diferencaVendas >= 0 ? "ok" : "atras";
                       
-                      const diferencaFaturamento = faturamentoReal - metaDiariaFatDia;
+                      const diferencaFaturamento = faturamentoReal - metaFatDia;
                       const statusFaturamento = diferencaFaturamento >= 0 ? "ok" : "atras";
                       
                       // Calcula consolidado progressivo - considera preenchido se existe registro (mesmo com 0)
                       const temDados = registro !== undefined && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null);
                       if (temDados) {
                         acumuladoFaturamento += faturamentoReal;
-                        acumuladoMetaFat += metaFatDiaBase; // Usa meta base para o consolidado
+                        acumuladoMetaFat += metaFatDia;
                       }
                       const diferencaConsolidada = acumuladoFaturamento - acumuladoMetaFat;
 
