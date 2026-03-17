@@ -25,7 +25,7 @@ export function LeadGenderKanban({
     {
       title: "Mulheres",
       value: femaleCount,
-      subtitle: unknownCount > 0 ? `${unknownCount} sem identificação` : "Dentro do filtro atual",
+      subtitle: unknownCount > 0 ? `${unknownCount} casos ambíguos` : "Dentro do filtro atual",
       icon: UserRound,
       iconClassName: "bg-accent/10 text-accent",
     },
