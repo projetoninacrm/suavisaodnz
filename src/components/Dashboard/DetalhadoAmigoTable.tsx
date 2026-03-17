@@ -540,8 +540,6 @@ export function DetalhadoAmigoTable({
               <span className="text-xs font-medium text-muted-foreground">Receitas x Consultas</span>
             </div>
             <p className="text-2xl font-bold text-foreground">{metrics.receitasXConsultas}%</p>
-          </CardContent>
-        </Card>
             <p className="text-[10px] text-muted-foreground mt-1">Potencial ÷ Consultas</p>
           </CardContent>
         </Card>
