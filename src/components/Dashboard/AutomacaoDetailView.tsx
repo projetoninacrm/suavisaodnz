@@ -59,6 +59,46 @@ function cleanPhone(phone: string | null): string | null {
   return cleaned;
 }
 
+function normalizePatientKey(nome: string | null, telefone: string | null): string {
+  const normalizedPhone = cleanPhone(telefone);
+  if (normalizedPhone) return `phone:${normalizedPhone}`;
+
+  return `name:${(nome || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()}`;
+}
+
+function buildLatestDetalhadoClients(records: Array<{ id: string; nome: string | null; telefone: string | null; data: string | null }> | null) {
+  const latestMap = new Map<string, { id: string; nome: string; telefone: string; data_registro: string; vendedor?: string; medico?: string; parsedDate: Date }>();
+
+  for (const record of records || []) {
+    const parsedDate = parseDate(record.data);
+    const telefone = record.telefone || "";
+    const nome = record.nome || "Sem nome";
+
+    if (!parsedDate || !telefone) continue;
+
+    const key = normalizePatientKey(nome, telefone);
+    const existing = latestMap.get(key);
+
+    if (!existing || parsedDate > existing.parsedDate) {
+      latestMap.set(key, {
+        id: record.id,
+        nome,
+        telefone,
+        data_registro: record.data || "",
+        vendedor: undefined,
+        medico: undefined,
+        parsedDate,
+      });
+    }
+  }
+
+  return Array.from(latestMap.values()).map(({ parsedDate, ...client }) => client);
+}
+
 export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewProps) {
   const [clientes, setClientes] = useState<ClienteAgendado[]>([]);
   const [isLoading, setIsLoading] = useState(true);
