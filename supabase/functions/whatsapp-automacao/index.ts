@@ -246,9 +246,13 @@ Deno.serve(async (req) => {
           mensagem_enviada: mensagem,
           status,
           data_envio: status === "enviado" ? new Date().toISOString() : null,
-          data_programada: targetStr,
+          data_programada: automacao.fonte === "detalhado_inativos" ? todayStr : targetStr,
           erro,
         });
+
+        if (automacao.fonte === "detalhado_inativos") {
+          existingDispatchKeys.add(normalizePatientKey(client.nome, client.telefone));
+        }
 
         if (status === "enviado") {
           await supabase
