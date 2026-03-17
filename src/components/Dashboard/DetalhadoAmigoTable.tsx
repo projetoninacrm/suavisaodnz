@@ -122,6 +122,7 @@ export function DetalhadoAmigoTable({
         date: att.date,
         time: att.time || "", // Horário do atendimento
         patient_name: att.patient_name,
+        patient_age: att.patient_age,
         patient_phone: att.patient_phone,
         patient_know_by: att.patient_know_by,
         event_name: att.event_name || "",
