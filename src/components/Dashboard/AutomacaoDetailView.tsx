@@ -528,7 +528,11 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                         <td className="px-4 py-3 text-center">
                           <Badge variant="outline" className="gap-1 bg-yellow-500/10 text-yellow-600 border-yellow-200">
                             <Clock className="w-3 h-3" />
-                            {c.dias_faltam === 0 ? "Hoje" : `${c.dias_faltam}d`}
+                            {automacao.fonte === "detalhado_inativos"
+                              ? `${Math.abs(c.dias_faltam)}d em atraso`
+                              : c.dias_faltam === 0
+                                ? "Hoje"
+                                : `${c.dias_faltam}d`}
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
