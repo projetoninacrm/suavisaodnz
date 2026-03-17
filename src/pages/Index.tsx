@@ -11,11 +11,13 @@ import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { PerdasSection } from "@/components/Dashboard/PerdasSection";
 import { AnunciosTable } from "@/components/Dashboard/AnunciosTable";
 import { AutomacoesTable } from "@/components/Dashboard/AutomacoesTable";
+import { LeadGenderKanban } from "@/components/Dashboard/LeadGenderKanban";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
 import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
+import { useLeadsGenderStats } from "@/hooks/useLeadsGenderStats";
 
 const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações"];
 
@@ -53,6 +55,7 @@ const Index = () => {
   const detalhadoDb = useGenericTable("detalhado");
   
   const acompanhamento = useAcompanhamentoDiario();
+  const leadGenderStats = useLeadsGenderStats(leads.leads, leadsFilters, activeTab === "Leads");
   const isLoading = 
     activeTab === "Agenda" ? schedules.isLoading :
     activeTab === "Leads" ? leads.isLoading :
@@ -237,48 +240,57 @@ const Index = () => {
 
         {/* Stats for Leads tab - table format by channel */}
         {activeTab === "Leads" && (
-          <div className="mb-8 overflow-hidden rounded-lg border border-border bg-card">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Canal</th>
-                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Leads</th>
-                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Orçamentos</th>
-                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendas</th>
-                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Conversão</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors bg-primary/5">
-                  <td className="px-4 py-3 font-medium text-primary">Sua Visão</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.leads}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.orcamentos}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.vendas}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.conversao}%</td>
-                </tr>
-                <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-medium">Loja</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.leads}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.orcamentos}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.vendas}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.conversao}%</td>
-                </tr>
-                <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-medium">Internet</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.leads}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.orcamentos}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.vendas}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.conversao}%</td>
-                </tr>
-                <tr className="hover:bg-muted/30 transition-colors font-semibold bg-muted/20">
-                  <td className="px-4 py-3">Todos</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.leads}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.orcamentos}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.vendas}</td>
-                  <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.conversao}%</td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="mb-8 space-y-4">
+            <LeadGenderKanban
+              maleCount={leadGenderStats.stats.male}
+              femaleCount={leadGenderStats.stats.female}
+              unknownCount={leadGenderStats.stats.unknown}
+              isLoading={leadGenderStats.isLoading}
+            />
+
+            <div className="overflow-hidden rounded-lg border border-border bg-card">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Canal</th>
+                    <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Leads</th>
+                    <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Orçamentos</th>
+                    <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendas</th>
+                    <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Conversão</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors bg-primary/5">
+                    <td className="px-4 py-3 font-medium text-primary">Sua Visão</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.leads}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.orcamentos}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.vendas}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.conversao}%</td>
+                  </tr>
+                  <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-medium">Loja</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.leads}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.orcamentos}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.vendas}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.conversao}%</td>
+                  </tr>
+                  <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-medium">Internet</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.leads}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.orcamentos}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.vendas}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.conversao}%</td>
+                  </tr>
+                  <tr className="hover:bg-muted/30 transition-colors font-semibold bg-muted/20">
+                    <td className="px-4 py-3">Todos</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.leads}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.orcamentos}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.vendas}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.conversao}%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
