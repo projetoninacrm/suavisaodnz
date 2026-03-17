@@ -75,7 +75,7 @@ const mapGender = (value: string | null | undefined) => {
   return "unknown" as const;
 };
 
-export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters) {
+export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enabled = true) {
   const [genderByLeadId, setGenderByLeadId] = useState<Record<string, "male" | "female" | "unknown">>({});
   const [isLoading, setIsLoading] = useState(false);
   const cacheRef = useRef<Record<string, "male" | "female" | "unknown">>({});
@@ -96,6 +96,14 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters) {
     let ignore = false;
 
     const loadGenders = async () => {
+      if (!enabled) {
+        if (!ignore) {
+          setGenderByLeadId({});
+          setIsLoading(false);
+        }
+        return;
+      }
+
       const monthBounds = getMonthBounds(filters.data_registro);
       if (!monthBounds || filteredLeads.length === 0) {
         if (!ignore) setGenderByLeadId({});
@@ -153,13 +161,11 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters) {
           });
         });
 
-        const unresolvedLeadIds = uniqueLeadKeys
+        uniqueLeadKeys
           .filter((lead) => !matchedPatients.has(lead.id))
-          .map((lead) => lead.id);
-
-        unresolvedLeadIds.forEach((leadId) => {
-          cacheRef.current[leadId] = "unknown";
-        });
+          .forEach((lead) => {
+            cacheRef.current[lead.id] = "unknown";
+          });
 
         const patientRequests = Array.from(matchedPatients.entries())
           .filter(([leadId]) => !cacheRef.current[leadId])
@@ -208,7 +214,7 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters) {
     return () => {
       ignore = true;
     };
-  }, [filters.data_registro, filteredLeads.length, uniqueLeadKeys]);
+  }, [enabled, filters.data_registro, filteredLeads.length, uniqueLeadKeys]);
 
   const stats = useMemo<GenderStats>(() => {
     return filteredLeads.reduce(

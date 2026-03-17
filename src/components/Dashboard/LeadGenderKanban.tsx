@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Mars, Venus } from "lucide-react";
+import { Loader2, User, UserRound } from "lucide-react";
 
 interface LeadGenderKanbanProps {
   maleCount: number;
@@ -19,14 +19,14 @@ export function LeadGenderKanban({
       title: "Homens",
       value: maleCount,
       subtitle: "Dentro do filtro atual",
-      icon: Mars,
+      icon: User,
       iconClassName: "bg-primary/10 text-primary",
     },
     {
       title: "Mulheres",
       value: femaleCount,
       subtitle: unknownCount > 0 ? `${unknownCount} sem identificação` : "Dentro do filtro atual",
-      icon: Venus,
+      icon: UserRound,
       iconClassName: "bg-accent/10 text-accent",
     },
   ];
