@@ -61,31 +61,28 @@ export function AcompanhamentoDiarioSection({
     return map;
   }, [registros]);
 
-  // Calcula faturamento acumulado total e peso dos dias não preenchidos
-  const { faturamentoAcumulado, pesoNaoPreenchido } = useMemo(() => {
-    let acumulado = 0;
-    let pesoRestante = 0;
-    
+  // Calcula a meta dinâmica de faturamento por dia em ordem cronológica.
+  // A meta de cada linha é definida pelo que ainda falta atingir ANTES daquele dia,
+  // para não mudar incoerentemente após preencher o próprio dia.
+  const metasFaturamentoPorDia = useMemo(() => {
+    let metaRestante = metaMensalFaturamento;
+    let pesoRestante = pesoTotalDias;
+    const metas: Record<string, number> = {};
+
     diasComMedico.forEach((schedule) => {
-      const registro = registrosMap[schedule.date];
-      if (registro && registro.faturamento_realizado !== null) {
-        acumulado += registro.faturamento_realizado || 0;
-      } else {
-        // Dia não preenchido - adiciona peso correspondente
-        pesoRestante += schedule.isDiaCompleto ? 1 : 0.5;
+      const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
+      const metaBaseAtual = pesoRestante > 0 ? Math.max(0, metaRestante / pesoRestante) : 0;
+      metas[schedule.date] = metaBaseAtual * pesoDia;
+
+      const faturamentoRealizado = registrosMap[schedule.date]?.faturamento_realizado;
+      if (faturamentoRealizado !== null && faturamentoRealizado !== undefined) {
+        metaRestante = Math.max(0, metaRestante - faturamentoRealizado);
+        pesoRestante = Math.max(0, pesoRestante - pesoDia);
       }
     });
-    
-    return { faturamentoAcumulado: acumulado, pesoNaoPreenchido: pesoRestante };
-  }, [diasComMedico, registrosMap]);
 
-  // Meta dinâmica para dias não preenchidos: (Meta - Faturamento real) / Peso restante
-  // Retorna meta por unidade de peso (dia completo = 1, meio = 0.5)
-  const metaDinamicaBaseParaRestantes = useMemo(() => {
-    if (pesoNaoPreenchido <= 0) return 0;
-    const faltaParaMeta = metaMensalFaturamento - faturamentoAcumulado;
-    return Math.max(0, faltaParaMeta / pesoNaoPreenchido);
-  }, [metaMensalFaturamento, faturamentoAcumulado, pesoNaoPreenchido]);
+    return metas;
+  }, [diasComMedico, registrosMap, metaMensalFaturamento, pesoTotalDias]);
 
   // Cálculo do consolidado baseado nos dias preenchidos
   const consolidado = useMemo(() => {
@@ -99,7 +96,8 @@ export function AcompanhamentoDiarioSection({
       const registro = registrosMap[schedule.date];
       const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
       const metaVendasDia = schedule.isDiaCompleto ? metaDiariaVendasCompleta : metaDiariaVendasMeio;
-      const metaFatDia = schedule.isDiaCompleto ? metaFaturamentoDiarioCompleto : metaFaturamentoDiarioMeio;
+      const metaFatDiaBase = schedule.isDiaCompleto ? metaFaturamentoDiarioCompleto : metaFaturamentoDiarioMeio;
+      const metaFatDia = metasFaturamentoPorDia[schedule.date] ?? metaFatDiaBase;
       
       // Conta como preenchido se existe registro (mesmo com valores 0)
       if (registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null)) {
@@ -123,7 +121,7 @@ export function AcompanhamentoDiarioSection({
       diferencaVendas,
       diferencaFaturamento,
     };
-  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaDiariaVendasMeio, metaFaturamentoDiarioCompleto, metaFaturamentoDiarioMeio]);
+  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaDiariaVendasMeio, metaFaturamentoDiarioCompleto, metaFaturamentoDiarioMeio, metasFaturamentoPorDia]);
 
   const StatusBadge = ({ diferenca, tipo }: { diferenca: number; tipo: "vendas" | "faturamento" }) => {
     const isPositivo = diferenca >= 0;
