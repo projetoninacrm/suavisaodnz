@@ -55,6 +55,7 @@ const Index = () => {
   const detalhadoDb = useGenericTable("detalhado");
   
   const acompanhamento = useAcompanhamentoDiario();
+  const leadGenderStats = useLeadsGenderStats(leads.leads, leadsFilters, activeTab === "Leads");
   const isLoading = 
     activeTab === "Agenda" ? schedules.isLoading :
     activeTab === "Leads" ? leads.isLoading :
