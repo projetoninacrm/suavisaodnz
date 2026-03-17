@@ -10,6 +10,8 @@ interface GenderStats {
   matched: number;
 }
 
+type GenderValue = "male" | "female" | "unknown";
+
 const normalizeText = (value: string | null | undefined) =>
   (value || "")
     .normalize("NFD")
@@ -25,6 +27,23 @@ const parseLeadDateToIso = (value: string | null | undefined) => {
   if (!day || !month || !year) return null;
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 };
+
+const getFirstName = (value: string | null | undefined) => normalizeText(value).split(" ").filter(Boolean)[0] || "";
+
+const FEMALE_NAME_HINTS = [
+  "maria", "ana", "julia", "juliana", "beatriz", "bruna", "carla", "camila", "claudia", "daniela", "debora", "eduarda",
+  "eliane", "elisangela", "fernanda", "gabriela", "giovana", "isabela", "isabella", "jessica", "joana", "larissa", "leticia",
+  "luana", "luciana", "mariana", "michelle", "michele", "patricia", "paula", "raquel", "renata", "silvana", "tabata", "tatiane",
+  "thabata", "thayssa", "vitoria", "yasmin", "samara", "sabrina", "amanda", "karollyne", "cassia", "katia", "gisele", "giselly",
+  "rute", "eliane", "cintia", "eliana", "fatima", "aparecida", "raissa", "keren", "renya", "cintya"
+];
+
+const MALE_NAME_HINTS = [
+  "joao", "jose", "antonio", "carlos", "paulo", "marcos", "bruno", "lucas", "gabriel", "guilherme", "rafael", "mateus",
+  "matheus", "thiago", "diogo", "claudio", "sergio", "edgard", "jeferson", "jefferson", "andre", "andre", "moises", "kaio",
+  "elias", "davi", "renato", "daniel", "vinicius", "felipe", "rodrigo", "wander", "paulo", "denio", "guilherme", "edmar",
+  "erivelton", "jeferson", "claudio", "lorenzo", "diogo", "sergio", "jefferson", "guilherme", "moises", "jeferson", "edgard"
+];
 
 const isContactDateOverdue = (lead: Lead) => {
   if (!lead.entrar_em_contato) return false;
@@ -68,17 +87,27 @@ const getMonthBounds = (dates: string[]) => {
   };
 };
 
-const mapGender = (value: string | null | undefined) => {
+const mapGender = (value: string | null | undefined): GenderValue => {
   const normalized = normalizeText(value);
-  if (normalized.startsWith("masc")) return "male" as const;
-  if (normalized.startsWith("fem")) return "female" as const;
-  return "unknown" as const;
+  if (normalized.startsWith("masc")) return "male";
+  if (normalized.startsWith("fem")) return "female";
+  return "unknown";
+};
+
+const inferGenderByName = (name: string | null | undefined): GenderValue => {
+  const firstName = getFirstName(name);
+  if (!firstName) return "unknown";
+  if (FEMALE_NAME_HINTS.includes(firstName)) return "female";
+  if (MALE_NAME_HINTS.includes(firstName)) return "male";
+  if (firstName.endsWith("a") && !firstName.endsWith("ua")) return "female";
+  if (firstName.endsWith("o") || firstName.endsWith("r") || firstName.endsWith("s")) return "male";
+  return "unknown";
 };
 
 export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enabled = true) {
-  const [genderByLeadId, setGenderByLeadId] = useState<Record<string, "male" | "female" | "unknown">>({});
+  const [genderByLeadId, setGenderByLeadId] = useState<Record<string, GenderValue>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const cacheRef = useRef<Record<string, "male" | "female" | "unknown">>({});
+  const cacheRef = useRef<Record<string, GenderValue>>({});
 
   const filteredLeads = useMemo(() => applyLeadFilters(leads, filters), [leads, filters]);
 
@@ -86,7 +115,8 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enable
     () =>
       filteredLeads.map((lead) => ({
         id: lead.id,
-        name: normalizeText(lead.nome),
+        fullName: normalizeText(lead.nome),
+        firstName: getFirstName(lead.nome),
         phone: normalizePhone(lead.numero),
       })),
     [filteredLeads]
@@ -114,8 +144,8 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enable
       if (missingLeads.length === 0) {
         if (!ignore) {
           setGenderByLeadId(
-            uniqueLeadKeys.reduce<Record<string, "male" | "female" | "unknown">>((acc, lead) => {
-              acc[lead.id] = cacheRef.current[lead.id] || "unknown";
+            uniqueLeadKeys.reduce<Record<string, GenderValue>>((acc, lead) => {
+              acc[lead.id] = cacheRef.current[lead.id] || inferGenderByName(lead.firstName);
               return acc;
             }, {})
           );
@@ -142,7 +172,8 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enable
           patient?: { id?: number | string; name?: string; contact_cellphone?: string | null; contact_phone?: string | null };
         }>;
 
-        const matchedPatients = new Map<string, string>();
+        const phoneMatches = new Map<string, string>();
+        const nameMatches = new Map<string, string>();
 
         attendances.forEach((attendance) => {
           const patientId = attendance.patient?.id;
@@ -152,43 +183,53 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enable
           const attendancePhone = normalizePhone(attendance.patient?.contact_cellphone || attendance.patient?.contact_phone);
 
           uniqueLeadKeys.forEach((lead) => {
-            const samePhone = lead.phone && attendancePhone && lead.phone === attendancePhone;
-            const sameName = lead.name && attendanceName && lead.name === attendanceName;
+            if (!phoneMatches.has(lead.id) && lead.phone && attendancePhone && lead.phone === attendancePhone) {
+              phoneMatches.set(lead.id, String(patientId));
+              return;
+            }
 
-            if ((samePhone || sameName) && !matchedPatients.has(lead.id)) {
-              matchedPatients.set(lead.id, String(patientId));
+            if (!nameMatches.has(lead.id) && lead.fullName && attendanceName && lead.fullName === attendanceName) {
+              nameMatches.set(lead.id, String(patientId));
             }
           });
         });
 
-        uniqueLeadKeys
-          .filter((lead) => !matchedPatients.has(lead.id))
-          .forEach((lead) => {
-            cacheRef.current[lead.id] = "unknown";
-          });
+        const patientRequests = uniqueLeadKeys
+          .map((lead) => {
+            const patientId = phoneMatches.get(lead.id) || nameMatches.get(lead.id);
+            if (!patientId || cacheRef.current[lead.id]) return null;
 
-        const patientRequests = Array.from(matchedPatients.entries())
-          .filter(([leadId]) => !cacheRef.current[leadId])
-          .map(async ([leadId, patientId]) => {
-            const response = await supabase.functions.invoke("amigo-api", {
-              body: {
-                action: "patient",
-                params: { patientId },
-              },
-            });
+            return (async () => {
+              const response = await supabase.functions.invoke("amigo-api", {
+                body: {
+                  action: "patient",
+                  params: { patientId },
+                },
+              });
 
-            const gender = mapGender(response.data?.data?.data?.gender);
-            return { leadId, gender };
-          });
+              const apiGender = mapGender(response.data?.data?.data?.gender);
+              return {
+                leadId: lead.id,
+                gender: apiGender === "unknown" ? inferGenderByName(lead.firstName) : apiGender,
+              };
+            })();
+          })
+          .filter(Boolean) as Promise<{ leadId: string; gender: GenderValue }>[];
 
         const resolvedPatients = await Promise.all(patientRequests);
         resolvedPatients.forEach(({ leadId, gender }) => {
           cacheRef.current[leadId] = gender;
         });
 
+        uniqueLeadKeys.forEach((lead) => {
+          if (!cacheRef.current[lead.id]) {
+            cacheRef.current[lead.id] = inferGenderByName(lead.firstName);
+          }
+        });
+
         if (!ignore) {
           setGenderByLeadId(
-            uniqueLeadKeys.reduce<Record<string, "male" | "female" | "unknown">>((acc, lead) => {
+            uniqueLeadKeys.reduce<Record<string, GenderValue>>((acc, lead) => {
               acc[lead.id] = cacheRef.current[lead.id] || "unknown";
               return acc;
             }, {})
@@ -198,8 +239,8 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enable
         console.error("Erro ao carregar gênero dos leads:", error);
         if (!ignore) {
           setGenderByLeadId(
-            uniqueLeadKeys.reduce<Record<string, "male" | "female" | "unknown">>((acc, lead) => {
-              acc[lead.id] = cacheRef.current[lead.id] || "unknown";
+            uniqueLeadKeys.reduce<Record<string, GenderValue>>((acc, lead) => {
+              acc[lead.id] = cacheRef.current[lead.id] || inferGenderByName(lead.firstName);
               return acc;
             }, {})
           );
@@ -219,7 +260,7 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enable
   const stats = useMemo<GenderStats>(() => {
     return filteredLeads.reduce(
       (acc, lead) => {
-        const gender = genderByLeadId[lead.id] || "unknown";
+        const gender = genderByLeadId[lead.id] || inferGenderByName(lead.nome);
         if (gender === "male") acc.male += 1;
         else if (gender === "female") acc.female += 1;
         else acc.unknown += 1;
