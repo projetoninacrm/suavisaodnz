@@ -319,7 +319,7 @@ export function AcompanhamentoDiarioSection({
                             )}
                           </td>
                           <td className="px-3 py-2 text-center text-green-500 font-medium">
-                            R$ {metaDiariaFatDia.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                            R$ {metaFatDia.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                           </td>
                           <td className="px-3 py-2">
                             <Input
