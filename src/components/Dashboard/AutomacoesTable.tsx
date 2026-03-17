@@ -192,11 +192,20 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 <select
                   className="text-sm border rounded px-2 py-1 bg-background w-full"
                   value={form.fonte}
-                  onChange={(e) => setForm({ ...form, fonte: e.target.value, filtro_como_conheceu: e.target.value === "detalhado" ? form.filtro_como_conheceu : null })}
+                  onChange={(e) => {
+                    const fonte = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      fonte,
+                      filtro_como_conheceu: fonte === "detalhado" ? prev.filtro_como_conheceu : null,
+                      dias_apos_venda: fonte === "detalhado_inativos" && prev.fonte !== "detalhado_inativos" ? 730 : prev.dias_apos_venda,
+                    }));
+                  }}
                 >
                   <option value="leads">Leads (com venda)</option>
                   <option value="perdidos">Leads (perdidos)</option>
                   <option value="detalhado">Detalhado (receita sem visita à loja)</option>
+                  <option value="detalhado_inativos">Detalhado (2+ anos sem atendimento)</option>
                 </select>
               </div>
               {form.fonte === "detalhado" && (
@@ -235,7 +244,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
               )}
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  {form.fonte === "perdidos" ? "Disparar após quantos dias de marcado como perdido" : "Disparar após quantos dias da venda"}
+                  {form.fonte === "perdidos"
+                    ? "Disparar após quantos dias de marcado como perdido"
+                    : form.fonte === "detalhado_inativos"
+                      ? "Disparar após quantos dias desde o último atendimento"
+                      : "Disparar após quantos dias da venda"}
                 </label>
                 <Input
                   type="number"
@@ -243,6 +256,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   onChange={(e) => setForm({ ...form, dias_apos_venda: Number(e.target.value) })}
                   min={1}
                 />
+                {form.fonte === "detalhado_inativos" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Use 730 para alcançar pacientes com 2 anos ou mais sem atendimento.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Mensagem</label>
@@ -255,6 +273,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 <p className="text-xs text-muted-foreground mt-1">
                   Variáveis: {"{nome_cliente}"}, {"{data_compra}"}, {"{vendedor}"}, {"{medico}"}
                 </p>
+                {form.fonte === "detalhado_inativos" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nesta fonte, {"{data_compra}"} será a data do último atendimento na clínica.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">
@@ -375,7 +398,13 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant="outline" className="text-xs">
-                        {a.fonte === "detalhado" ? "Detalhado" : a.fonte === "perdidos" ? "Perdidos" : "Leads"}
+                        {a.fonte === "detalhado"
+                          ? "Detalhado"
+                          : a.fonte === "detalhado_inativos"
+                            ? "2+ anos"
+                            : a.fonte === "perdidos"
+                              ? "Perdidos"
+                              : "Leads"}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-center">

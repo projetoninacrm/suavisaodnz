@@ -59,6 +59,46 @@ function cleanPhone(phone: string | null): string | null {
   return cleaned;
 }
 
+function normalizePatientKey(nome: string | null, telefone: string | null): string {
+  const normalizedPhone = cleanPhone(telefone);
+  if (normalizedPhone) return `phone:${normalizedPhone}`;
+
+  return `name:${(nome || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()}`;
+}
+
+function buildLatestDetalhadoClients(records: Array<{ id: string; nome: string | null; telefone: string | null; data: string | null }> | null) {
+  const latestMap = new Map<string, { id: string; nome: string; telefone: string; data_registro: string; vendedor?: string; medico?: string; parsedDate: Date }>();
+
+  for (const record of records || []) {
+    const parsedDate = parseDate(record.data);
+    const telefone = record.telefone || "";
+    const nome = record.nome || "Sem nome";
+
+    if (!parsedDate || !telefone) continue;
+
+    const key = normalizePatientKey(nome, telefone);
+    const existing = latestMap.get(key);
+
+    if (!existing || parsedDate > existing.parsedDate) {
+      latestMap.set(key, {
+        id: record.id,
+        nome,
+        telefone,
+        data_registro: record.data || "",
+        vendedor: undefined,
+        medico: undefined,
+        parsedDate,
+      });
+    }
+  }
+
+  return Array.from(latestMap.values()).map(({ parsedDate, ...client }) => client);
+}
+
 export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewProps) {
   const [clientes, setClientes] = useState<ClienteAgendado[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,7 +117,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       .eq("automacao_id", automacao.id);
 
     const disparosMap = new Map<string, any>();
-    (disparosExistentes || []).forEach(d => disparosMap.set(d.lead_id, d));
+    (disparosExistentes || []).forEach((d) => {
+      const key = automacao.fonte === "detalhado_inativos"
+        ? normalizePatientKey(d.nome_cliente, d.telefone)
+        : d.lead_id;
+      disparosMap.set(key, d);
+    });
 
     let rawClients: { id: string; nome: string; telefone: string; data_registro: string; vendedor?: string; medico?: string }[] = [];
 
@@ -102,6 +147,14 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         vendedor: undefined,
         medico: undefined,
       }));
+    } else if (automacao.fonte === "detalhado_inativos") {
+      const { data } = await supabase
+        .from("detalhado")
+        .select("id, nome, telefone, data")
+        .not("telefone", "is", null)
+        .not("data", "is", null);
+
+      rawClients = buildLatestDetalhadoClients(data);
     } else if (automacao.fonte === "perdidos") {
       const { data } = await supabase
         .from("leads")
@@ -149,7 +202,10 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       const diffTime = targetDate.getTime() - today.getTime();
       const diasFaltam = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      const disparo = disparosMap.get(client.id);
+      const disparoKey = automacao.fonte === "detalhado_inativos"
+        ? normalizePatientKey(client.nome, client.telefone)
+        : client.id;
+      const disparo = disparosMap.get(disparoKey);
 
       if (disparo) {
         result.push({
@@ -165,17 +221,19 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
           erro: disparo.erro || undefined,
         });
-      } else if (diasFaltam >= 0) {
-        result.push({
-          id: client.id,
-          nome: client.nome,
-          telefone: client.telefone,
-          data_compra: client.data_registro,
-          data_envio_programada: formatDateBR(targetDate),
-          dias_faltam: diasFaltam,
-          status: "pendente",
-          vendedor: client.vendedor,
-        });
+      } else if (diasFaltam <= 0 || automacao.fonte !== "detalhado_inativos") {
+        if (diasFaltam >= 0 || automacao.fonte === "detalhado_inativos") {
+          result.push({
+            id: client.id,
+            nome: client.nome,
+            telefone: client.telefone,
+            data_compra: client.data_registro,
+            data_envio_programada: formatDateBR(targetDate),
+            dias_faltam: diasFaltam,
+            status: "pendente",
+            vendedor: client.vendedor,
+          });
+        }
       }
     }
 
@@ -339,7 +397,17 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         <div className="flex-1">
           <h3 className="font-semibold text-lg">{automacao.nome}</h3>
           <p className="text-sm text-muted-foreground">
-            {automacao.fonte === "detalhado" ? "Detalhado" : automacao.fonte === "perdidos" ? "Perdidos" : "Leads"} · {automacao.dias_apos_venda} dias após {automacao.fonte === "perdidos" ? "marcado como perdido" : "venda"}
+            {automacao.fonte === "detalhado"
+              ? "Detalhado"
+              : automacao.fonte === "detalhado_inativos"
+                ? "Detalhado · Último atendimento"
+                : automacao.fonte === "perdidos"
+                  ? "Perdidos"
+                  : "Leads"} · {automacao.dias_apos_venda} dias após {automacao.fonte === "perdidos"
+              ? "marcado como perdido"
+              : automacao.fonte === "detalhado_inativos"
+                ? "o último atendimento"
+                : "venda"}
           </p>
         </div>
         <Button
@@ -439,9 +507,9 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                     <tr className="border-b border-border bg-muted/50">
                       <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Cliente</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendedor</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : "Data da Compra"}</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : automacao.fonte === "detalhado_inativos" ? "Último Atendimento" : "Data da Compra"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Data do Envio</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Dias Restantes</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "detalhado_inativos" ? "Atraso" : "Dias Restantes"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
                     </tr>
                   </thead>
@@ -460,7 +528,11 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                         <td className="px-4 py-3 text-center">
                           <Badge variant="outline" className="gap-1 bg-yellow-500/10 text-yellow-600 border-yellow-200">
                             <Clock className="w-3 h-3" />
-                            {c.dias_faltam === 0 ? "Hoje" : `${c.dias_faltam}d`}
+                            {automacao.fonte === "detalhado_inativos"
+                              ? `${Math.abs(c.dias_faltam)}d em atraso`
+                              : c.dias_faltam === 0
+                                ? "Hoje"
+                                : `${c.dias_faltam}d`}
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
@@ -545,7 +617,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                     <tr className="border-b border-border bg-muted/50">
                       <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Cliente</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendedor</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : "Data da Compra"}</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : automacao.fonte === "detalhado_inativos" ? "Último Atendimento" : "Data da Compra"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Enviado em</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
