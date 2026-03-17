@@ -140,16 +140,22 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enable
         return;
       }
 
-      const missingLeads = uniqueLeadKeys.filter(({ id }) => !cacheRef.current[id]);
-      if (missingLeads.length === 0) {
-        if (!ignore) {
-          setGenderByLeadId(
-            uniqueLeadKeys.reduce<Record<string, GenderValue>>((acc, lead) => {
-              acc[lead.id] = cacheRef.current[lead.id] || inferGenderByName(lead.firstName);
-              return acc;
-            }, {})
-          );
-        }
+      const optimisticMap = uniqueLeadKeys.reduce<Record<string, GenderValue>>((acc, lead) => {
+        const cached = cacheRef.current[lead.id];
+        acc[lead.id] = cached && cached !== "unknown" ? cached : inferGenderByName(lead.firstName);
+        return acc;
+      }, {});
+
+      if (!ignore) {
+        setGenderByLeadId(optimisticMap);
+      }
+
+      const unresolvedLeads = uniqueLeadKeys.filter(({ id }) => {
+        const cached = cacheRef.current[id];
+        return !cached || cached === "unknown";
+      });
+
+      if (unresolvedLeads.length === 0) {
         return;
       }
 
@@ -182,7 +188,7 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enable
           const attendanceName = normalizeText(attendance.patient?.name);
           const attendancePhone = normalizePhone(attendance.patient?.contact_cellphone || attendance.patient?.contact_phone);
 
-          uniqueLeadKeys.forEach((lead) => {
+          unresolvedLeads.forEach((lead) => {
             if (!phoneMatches.has(lead.id) && lead.phone && attendancePhone && lead.phone === attendancePhone) {
               phoneMatches.set(lead.id, String(patientId));
               return;
@@ -194,10 +200,10 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enable
           });
         });
 
-        const patientRequests = uniqueLeadKeys
+        const patientRequests = unresolvedLeads
           .map((lead) => {
             const patientId = phoneMatches.get(lead.id) || nameMatches.get(lead.id);
-            if (!patientId || cacheRef.current[lead.id]) return null;
+            if (!patientId) return null;
 
             return (async () => {
               const response = await supabase.functions.invoke("amigo-api", {
@@ -221,26 +227,22 @@ export function useLeadsGenderStats(leads: Lead[], filters: LeadsFilters, enable
           cacheRef.current[leadId] = gender;
         });
 
-        uniqueLeadKeys.forEach((lead) => {
-          if (!cacheRef.current[lead.id]) {
-            cacheRef.current[lead.id] = inferGenderByName(lead.firstName);
-          }
-        });
+        const updatedMap = uniqueLeadKeys.reduce<Record<string, GenderValue>>((acc, lead) => {
+          const cached = cacheRef.current[lead.id];
+          acc[lead.id] = cached && cached !== "unknown" ? cached : inferGenderByName(lead.firstName);
+          return acc;
+        }, {});
 
         if (!ignore) {
-          setGenderByLeadId(
-            uniqueLeadKeys.reduce<Record<string, GenderValue>>((acc, lead) => {
-              acc[lead.id] = cacheRef.current[lead.id] || "unknown";
-              return acc;
-            }, {})
-          );
+          setGenderByLeadId(updatedMap);
         }
       } catch (error) {
         console.error("Erro ao carregar gênero dos leads:", error);
         if (!ignore) {
           setGenderByLeadId(
             uniqueLeadKeys.reduce<Record<string, GenderValue>>((acc, lead) => {
-              acc[lead.id] = cacheRef.current[lead.id] || inferGenderByName(lead.firstName);
+              const cached = cacheRef.current[lead.id];
+              acc[lead.id] = cached && cached !== "unknown" ? cached : inferGenderByName(lead.firstName);
               return acc;
             }, {})
           );
