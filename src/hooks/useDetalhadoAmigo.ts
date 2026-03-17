@@ -156,6 +156,7 @@ export function useDetalhadoAmigo() {
             ),
             patient_email: att.patient?.contact_email || att.patient?.email || null,
             patient_know_by: att.patient?.know_by || null,
+            patient_age: getPatientAge(att.patient?.born, startDateIso),
             event_name: att.agenda_event?.name || att.event?.name || "Sem tipo",
             doctor_name: att.doctor?.name || att.user?.name || null,
             place_name: att.place?.name || null,

@@ -667,6 +667,7 @@ export function DetalhadoAmigoTable({
               <thead>
                 <tr className="bg-table-header border-b border-table-border">
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[200px]">Nome</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Idade</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">Telefone</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Tipo</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[130px]">Como Conheceu</th>
@@ -687,6 +688,7 @@ export function DetalhadoAmigoTable({
                       style={{ animationDelay: `${index * 15}ms` }}
                     >
                       <td className="px-3 py-2 text-sm">{record.patient_name}</td>
+                      <td className="px-3 py-2 text-sm">{record.patient_age !== null ? `${record.patient_age} anos` : "-"}</td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1">
                           <span className="text-sm">{record.patient_phone || "-"}</span>
