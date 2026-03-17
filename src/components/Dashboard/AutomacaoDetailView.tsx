@@ -117,7 +117,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       .eq("automacao_id", automacao.id);
 
     const disparosMap = new Map<string, any>();
-    (disparosExistentes || []).forEach(d => disparosMap.set(d.lead_id, d));
+    (disparosExistentes || []).forEach((d) => {
+      const key = automacao.fonte === "detalhado_inativos"
+        ? normalizePatientKey(d.nome_cliente, d.telefone)
+        : d.lead_id;
+      disparosMap.set(key, d);
+    });
 
     let rawClients: { id: string; nome: string; telefone: string; data_registro: string; vendedor?: string; medico?: string }[] = [];
 
@@ -142,6 +147,14 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         vendedor: undefined,
         medico: undefined,
       }));
+    } else if (automacao.fonte === "detalhado_inativos") {
+      const { data } = await supabase
+        .from("detalhado")
+        .select("id, nome, telefone, data")
+        .not("telefone", "is", null)
+        .not("data", "is", null);
+
+      rawClients = buildLatestDetalhadoClients(data);
     } else if (automacao.fonte === "perdidos") {
       const { data } = await supabase
         .from("leads")
@@ -189,7 +202,10 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       const diffTime = targetDate.getTime() - today.getTime();
       const diasFaltam = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      const disparo = disparosMap.get(client.id);
+      const disparoKey = automacao.fonte === "detalhado_inativos"
+        ? normalizePatientKey(client.nome, client.telefone)
+        : client.id;
+      const disparo = disparosMap.get(disparoKey);
 
       if (disparo) {
         result.push({
@@ -205,17 +221,19 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
           erro: disparo.erro || undefined,
         });
-      } else if (diasFaltam >= 0) {
-        result.push({
-          id: client.id,
-          nome: client.nome,
-          telefone: client.telefone,
-          data_compra: client.data_registro,
-          data_envio_programada: formatDateBR(targetDate),
-          dias_faltam: diasFaltam,
-          status: "pendente",
-          vendedor: client.vendedor,
-        });
+      } else if (diasFaltam <= 0 || automacao.fonte !== "detalhado_inativos") {
+        if (diasFaltam >= 0 || automacao.fonte === "detalhado_inativos") {
+          result.push({
+            id: client.id,
+            nome: client.nome,
+            telefone: client.telefone,
+            data_compra: client.data_registro,
+            data_envio_programada: formatDateBR(targetDate),
+            dias_faltam,
+            status: "pendente",
+            vendedor: client.vendedor,
+          });
+        }
       }
     }
 

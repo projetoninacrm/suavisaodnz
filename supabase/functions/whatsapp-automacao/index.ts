@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
 
     for (const automacao of automacoes) {
       let clients: any[] = [];
+      const existingDispatchKeys = new Set<string>();
 
       if (automacao.fonte === "detalhado") {
         let query = supabase
@@ -77,6 +78,23 @@ Deno.serve(async (req) => {
           vendedor: null,
           medico: null,
         }));
+      } else if (automacao.fonte === "detalhado_inativos") {
+        const { data: detalhadoData } = await supabase
+          .from("detalhado")
+          .select("id, nome, telefone, data")
+          .not("telefone", "is", null)
+          .not("data", "is", null);
+
+        clients = buildLatestDetalhadoClients(detalhadoData);
+
+        const { data: existingDispatches } = await supabase
+          .from("automacao_disparos")
+          .select("nome_cliente, telefone")
+          .eq("automacao_id", automacao.id);
+
+        (existingDispatches || []).forEach((dispatch) => {
+          existingDispatchKeys.add(normalizePatientKey(dispatch.nome_cliente, dispatch.telefone));
+        });
       } else if (automacao.fonte === "perdidos") {
         const { data } = await supabase
           .from("leads")
@@ -119,17 +137,24 @@ Deno.serve(async (req) => {
         targetDate.setDate(targetDate.getDate() + automacao.dias_apos_venda);
         const targetStr = targetDate.toISOString().split("T")[0];
 
-        if (targetStr !== todayStr) continue;
+        if (automacao.fonte === "detalhado_inativos") {
+          if (targetDate > today) continue;
 
-        // Check if already dispatched
-        const { data: existing } = await supabase
-          .from("automacao_disparos")
-          .select("id")
-          .eq("automacao_id", automacao.id)
-          .eq("lead_id", client.id)
-          .limit(1);
+          const patientKey = normalizePatientKey(client.nome, client.telefone);
+          if (existingDispatchKeys.has(patientKey)) continue;
+        } else {
+          if (targetStr !== todayStr) continue;
 
-        if (existing && existing.length > 0) continue;
+          // Check if already dispatched
+          const { data: existing } = await supabase
+            .from("automacao_disparos")
+            .select("id")
+            .eq("automacao_id", automacao.id)
+            .eq("lead_id", client.id)
+            .limit(1);
+
+          if (existing && existing.length > 0) continue;
+        }
 
         const phone = cleanPhone(client.telefone);
         if (!phone) continue;
