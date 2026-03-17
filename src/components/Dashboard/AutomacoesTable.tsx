@@ -244,7 +244,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
               )}
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  {form.fonte === "perdidos" ? "Disparar após quantos dias de marcado como perdido" : "Disparar após quantos dias da venda"}
+                  {form.fonte === "perdidos"
+                    ? "Disparar após quantos dias de marcado como perdido"
+                    : form.fonte === "detalhado_inativos"
+                      ? "Disparar após quantos dias desde o último atendimento"
+                      : "Disparar após quantos dias da venda"}
                 </label>
                 <Input
                   type="number"
@@ -252,6 +256,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   onChange={(e) => setForm({ ...form, dias_apos_venda: Number(e.target.value) })}
                   min={1}
                 />
+                {form.fonte === "detalhado_inativos" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Use 730 para alcançar pacientes com 2 anos ou mais sem atendimento.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Mensagem</label>
@@ -264,6 +273,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 <p className="text-xs text-muted-foreground mt-1">
                   Variáveis: {"{nome_cliente}"}, {"{data_compra}"}, {"{vendedor}"}, {"{medico}"}
                 </p>
+                {form.fonte === "detalhado_inativos" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nesta fonte, {"{data_compra}"} será a data do último atendimento na clínica.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">

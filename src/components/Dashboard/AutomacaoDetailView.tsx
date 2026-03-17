@@ -229,7 +229,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
             telefone: client.telefone,
             data_compra: client.data_registro,
             data_envio_programada: formatDateBR(targetDate),
-            dias_faltam,
+            dias_faltam: diasFaltam,
             status: "pendente",
             vendedor: client.vendedor,
           });
