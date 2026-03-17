@@ -57,6 +57,7 @@ interface CombinedRecord {
   date: string;
   time: string; // Horário do atendimento para ordenação
   patient_name: string;
+  patient_age: number | null;
   patient_phone: string | null;
   patient_know_by: string | null;
   event_name: string; // Tipo de atendimento da API
