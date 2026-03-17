@@ -327,9 +327,16 @@ export function DetalhadoAmigoTable({
     ).length;
     
     // Vendas = registros com venda preenchida (sim)
-    const vendas = filteredRecords.filter(r => 
+    const vendasRecords = filteredRecords.filter(r => 
       r.venda?.toLowerCase() === "sim"
-    ).length;
+    );
+    const vendas = vendasRecords.length;
+
+    // Média de idade dos clientes que compraram
+    const vendasComIdade = vendasRecords.filter((r) => r.patient_age !== null);
+    const mediaIdadeCompradores = vendasComIdade.length > 0
+      ? (vendasComIdade.reduce((acc, record) => acc + (record.patient_age || 0), 0) / vendasComIdade.length).toFixed(1)
+      : "-";
     
     // Visitou a Loja = registros com visitou_loja = sim (com filtro como_conheceu)
     const visitouLoja = filteredRecords.filter(r => 
@@ -359,6 +366,7 @@ export function DetalhadoAmigoTable({
       visitouLoja,
       taxaPresenca,
       vendas,
+      mediaIdadeCompradores,
       conversao,
       receitasXConsultas
     };
