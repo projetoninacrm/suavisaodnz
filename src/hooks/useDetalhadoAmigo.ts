@@ -14,6 +14,7 @@ export interface AmigoAttendance {
   patient_phone: string | null;
   patient_email: string | null;
   patient_know_by: string | null;
+  patient_age: number | null;
   event_name: string;
   doctor_name: string | null;
   place_name: string | null;
@@ -30,6 +31,26 @@ const formatPhone = (phone: string | null): string | null => {
     return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
   }
   return phone;
+};
+
+const getPatientAge = (born?: string, referenceDate?: string): number | null => {
+  if (!born) return null;
+
+  const birthDate = new Date(born);
+  const baseDate = referenceDate ? new Date(referenceDate) : new Date();
+
+  if (Number.isNaN(birthDate.getTime()) || Number.isNaN(baseDate.getTime())) {
+    return null;
+  }
+
+  let age = baseDate.getFullYear() - birthDate.getFullYear();
+  const monthDiff = baseDate.getMonth() - birthDate.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && baseDate.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
 };
 
 const formatDate = (isoDate?: string): string => {
@@ -135,6 +156,7 @@ export function useDetalhadoAmigo() {
             ),
             patient_email: att.patient?.contact_email || att.patient?.email || null,
             patient_know_by: att.patient?.know_by || null,
+            patient_age: getPatientAge(att.patient?.born, startDateIso),
             event_name: att.agenda_event?.name || att.event?.name || "Sem tipo",
             doctor_name: att.doctor?.name || att.user?.name || null,
             place_name: att.place?.name || null,
