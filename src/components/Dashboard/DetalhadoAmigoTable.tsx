@@ -375,7 +375,7 @@ export function DetalhadoAmigoTable({
   return (
     <div className="space-y-4">
       {/* Métricas / Kanbans */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 animate-fade-in">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3 animate-fade-in">
         {/* Consultas (Total de Leads) */}
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="p-4">
@@ -506,6 +506,20 @@ export function DetalhadoAmigoTable({
           </CardContent>
         </Card>
 
+        {/* Média de Idade */}
+        <Card className="bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border-indigo-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-4 h-4 text-indigo-500" />
+              <span className="text-xs font-medium text-muted-foreground">Média de Idade</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">
+              {metrics.mediaIdadeCompradores === "-" ? "-" : `${metrics.mediaIdadeCompradores} anos`}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">Clientes com venda = sim</p>
+          </CardContent>
+        </Card>
+
         {/* Conversão */}
         <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
           <CardContent className="p-4">
@@ -526,6 +540,8 @@ export function DetalhadoAmigoTable({
               <span className="text-xs font-medium text-muted-foreground">Receitas x Consultas</span>
             </div>
             <p className="text-2xl font-bold text-foreground">{metrics.receitasXConsultas}%</p>
+          </CardContent>
+        </Card>
             <p className="text-[10px] text-muted-foreground mt-1">Potencial ÷ Consultas</p>
           </CardContent>
         </Card>
