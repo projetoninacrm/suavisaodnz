@@ -23,44 +23,73 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log("Webhook recebido:", JSON.stringify(body).substring(0, 1000));
+    console.log("Webhook payload keys:", Object.keys(body));
+    console.log("Webhook recebido:", JSON.stringify(body).substring(0, 2000));
 
-    // uazapi webhook format: { instance, event, data: { from, body, type, ... } }
-    // Also handles: { event: "message", data: { key: { fromMe, remoteJid }, message } }
-    const event = body.event || body.typeWebhook;
-    
-    // Only process incoming messages (not sent by us)
-    const isIncoming =
-      (event === "message" || event === "messages.upsert" || event === "incomingMessageReceived") &&
-      body.data?.key?.fromMe === false;
+    // Detect event type from multiple providers
+    const event = body.event || body.typeWebhook || body.EventType;
 
-    // Alternative: uazapi simple format
-    const isUazapiIncoming = event === "message" && body.data?.from && !body.data?.key?.fromMe;
+    // --- Detect if message is incoming (not sent by us) ---
+    let senderPhone: string | null = null;
+    let isIncoming = false;
 
-    if (!isIncoming && !isUazapiIncoming) {
-      console.log("Evento ignorado:", event);
+    // Format 1: Evolution API / standard
+    // { event: "message", data: { key: { fromMe: false, remoteJid: "55...@s.whatsapp.net" } } }
+    if (body.data?.key?.fromMe === false) {
+      isIncoming = true;
+      senderPhone = body.data.key.remoteJid?.replace(/@.*$/, "") || null;
+    }
+    // Format 2: uazapi simple
+    // { event: "message", data: { from: "55...", ... } }
+    else if (body.data?.from && !body.data?.key?.fromMe) {
+      isIncoming = true;
+      senderPhone = String(body.data.from);
+    }
+    // Format 3: Green API
+    else if (body.senderData?.sender) {
+      isIncoming = true;
+      senderPhone = body.senderData.sender.replace(/@.*$/, "");
+    }
+    // Format 4: uazapi webhook with EventType: "messages"
+    // { EventType: "messages", chat: { id: "..." }, message: {...} }
+    // The phone can be in: chat.id (as JID), message.key.remoteJid, or extracted from chat fields
+    else if (body.EventType === "messages") {
+      isIncoming = true;
+
+      // Try to get phone from message.key.remoteJid
+      if (body.message?.key?.remoteJid) {
+        senderPhone = body.message.key.remoteJid.replace(/@.*$/, "");
+        if (body.message.key.fromMe === true) isIncoming = false;
+      }
+      // Try chat.id as JID (e.g. "5531999999999@s.whatsapp.net")
+      else if (body.chat?.id && body.chat.id.includes("@")) {
+        senderPhone = body.chat.id.replace(/@.*$/, "");
+      }
+      // Try messages array
+      else if (body.messages?.[0]?.key?.remoteJid) {
+        senderPhone = body.messages[0].key.remoteJid.replace(/@.*$/, "");
+        if (body.messages[0].key.fromMe === true) isIncoming = false;
+      }
+      // Try from field directly
+      else if (body.from) {
+        senderPhone = String(body.from).replace(/@.*$/, "");
+      }
+      // Try chat.phone or chat.number
+      else if (body.chat?.phone) {
+        senderPhone = String(body.chat.phone);
+      }
+    }
+
+    if (!isIncoming) {
+      console.log("Evento ignorado (não é mensagem recebida):", event);
       return new Response(JSON.stringify({ received: true, action: "ignored" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Extract sender phone number
-    let senderPhone: string | null = null;
-    
-    if (body.data?.key?.remoteJid) {
-      // Evolution/standard format: 5531987097887@s.whatsapp.net
-      senderPhone = body.data.key.remoteJid.replace(/@.*$/, "");
-    } else if (body.data?.from) {
-      // uazapi simple format
-      senderPhone = String(body.data.from);
-    } else if (body.senderData?.sender) {
-      // Green API format
-      senderPhone = body.senderData.sender.replace(/@.*$/, "");
-    }
-
     if (!senderPhone) {
-      console.log("Telefone do remetente não encontrado");
+      console.log("Telefone do remetente não encontrado no payload");
       return new Response(JSON.stringify({ received: true, action: "no_phone" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -85,14 +114,12 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Find dispatches sent to this phone that haven't been responded to yet
-    // Match by cleaned phone digits (last 10-11 digits)
     const phoneVariants = [
       cleanedPhone,
       `55${cleanedPhone}`,
-      cleanedPhone.length === 11 ? cleanedPhone.substring(1) : null, // without area code 9th digit
+      cleanedPhone.length === 11 ? cleanedPhone.substring(1) : null,
     ].filter(Boolean);
 
-    // Build LIKE patterns for phone matching
     const likePatterns = phoneVariants.map(p => `%${p!.slice(-8)}%`);
 
     const { data: disparos, error } = await supabase
