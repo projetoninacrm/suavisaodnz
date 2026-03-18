@@ -426,10 +426,8 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 max-w-[300px] truncate text-muted-foreground">{a.mensagem}</td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge variant="outline" className="text-xs">
-                        {a.instancia === "dnz" ? "DNZ" : "Suavisão"}
-                      </Badge>
+                    <td className="px-4 py-3 text-center text-xs text-muted-foreground whitespace-nowrap">
+                      {a.instancia === "dnz" ? "(62) 98218-2Se" : "(62) 99146-8835"}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant={a.status === "Ativa" ? "default" : "secondary"}>
