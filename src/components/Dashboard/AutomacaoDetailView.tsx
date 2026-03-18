@@ -374,6 +374,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
             leads: [leadPayload],
             mediaUrl: audioUrl,
             mediaType: "audio",
+            instancia: automacao.instancia || "suavisao",
           },
         });
         if (audioErr) audioOk = false;
