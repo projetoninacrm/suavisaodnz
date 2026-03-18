@@ -130,7 +130,7 @@ serve(async (req) => {
     const patientsMap = new Map<string, {
       nome: string;
       telefone_formatted: string;
-      tipo_atendimento: string;
+      tipos_atendimento: string[];
       primeiro_atendimento: string;
       atendimentos_no_periodo: number;
       datas_periodo: string[];
@@ -154,15 +154,17 @@ serve(async (req) => {
         if (attDate && !existing.datas_periodo.includes(attDate)) {
           existing.datas_periodo.push(attDate);
         }
+        if (!existing.tipos_atendimento.includes(tipoAtendimento)) {
+          existing.tipos_atendimento.push(tipoAtendimento);
+        }
         if (attDate < existing.primeiro_atendimento) {
           existing.primeiro_atendimento = attDate;
-          existing.tipo_atendimento = tipoAtendimento;
         }
       } else {
         patientsMap.set(patientKey, {
           nome: att.patient?.name || "Sem nome",
           telefone_formatted: formatPhone(att.patient?.contact_cellphone ?? null),
-          tipo_atendimento: tipoAtendimento,
+          tipos_atendimento: [tipoAtendimento],
           primeiro_atendimento: attDate,
           atendimentos_no_periodo: 1,
           datas_periodo: [attDate],
@@ -225,7 +227,8 @@ serve(async (req) => {
         id: `pat-${idx++}`,
         nome: patient.nome,
         telefone: patient.telefone_formatted,
-        tipo_atendimento: patient.tipo_atendimento,
+        tipos_atendimento: patient.tipos_atendimento,
+        tipo_atendimento: patient.tipos_atendimento.join(", "),
         primeiro_atendimento: formatDateStr(patient.primeiro_atendimento),
         ultimo_atendimento: formatDateStr(ultimoAtendimento),
         atendimentos_no_periodo: patient.atendimentos_no_periodo,

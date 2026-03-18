@@ -11,6 +11,7 @@ interface PatientReturn {
   nome: string;
   telefone: string;
   tipo_atendimento: string;
+  tipos_atendimento: string[];
   primeiro_atendimento: string;
   ultimo_atendimento: string;
   total_atendimentos: number;
@@ -132,7 +133,8 @@ export function TaxaRetornoSection() {
   };
 
   const tipoOptions = useMemo(() => {
-    const set = new Set(patients.map((p) => p.tipo_atendimento).filter(Boolean));
+    const set = new Set<string>();
+    patients.forEach((p) => (p.tipos_atendimento || []).forEach((t: string) => set.add(t)));
     return Array.from(set).sort();
   }, [patients]);
 
@@ -153,7 +155,12 @@ export function TaxaRetornoSection() {
   const filteredPatients = useMemo(() => {
     return patients.filter((p) => {
       if (searchName.trim() && !p.nome.toLowerCase().includes(searchName.toLowerCase())) return false;
-      if (tipoFilter.size > 0 && !tipoFilter.has(p.tipo_atendimento)) return false;
+      // Tipo filter - check against ALL tipos the patient has
+      if (tipoFilter.size > 0) {
+        const patientTipos = p.tipos_atendimento || [p.tipo_atendimento];
+        const hasMatch = patientTipos.some((t: string) => tipoFilter.has(t));
+        if (!hasMatch) return false;
+      }
       if (retornouFilter.size > 0) {
         const val = p.retornou ? "Sim" : "Não";
         if (!retornouFilter.has(val)) return false;
@@ -164,12 +171,10 @@ export function TaxaRetornoSection() {
 
   // Card 1 must match Amigo "Finalizados": sum of attendances in selected period
   const stats = useMemo(() => {
-    const finalizadosNoPeriodo = filteredPatients.reduce((acc, p) => acc + p.atendimentos_no_periodo, 0);
-    const pacientesBase = filteredPatients.length;
+    const pacientesUnicos = filteredPatients.length;
     const retornaram = filteredPatients.filter((p) => p.retornou).length;
-    const taxa = pacientesBase > 0 ? Math.round((retornaram / pacientesBase) * 100) : 0;
-
-    return { finalizadosNoPeriodo, pacientesBase, retornaram, taxa };
+    const taxa = pacientesUnicos > 0 ? Math.round((retornaram / pacientesUnicos) * 100) : 0;
+    return { pacientesUnicos, retornaram, taxa };
   }, [filteredPatients]);
 
   const activeFiltersCount =
@@ -209,8 +214,8 @@ export function TaxaRetornoSection() {
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Finalizados no Período</p>
-              <p className="text-2xl font-bold text-foreground">{isLoading ? "..." : stats.finalizadosNoPeriodo}</p>
+              <p className="text-sm text-muted-foreground">Pacientes Únicos no Período</p>
+              <p className="text-2xl font-bold text-foreground">{isLoading ? "..." : stats.pacientesUnicos}</p>
             </div>
           </div>
         </div>
