@@ -170,6 +170,7 @@ export type Database = {
           filtro_como_conheceu: string[] | null
           fonte: string
           id: string
+          instancia: string
           mensagem: string
           nome: string
           status: string
@@ -184,6 +185,7 @@ export type Database = {
           filtro_como_conheceu?: string[] | null
           fonte?: string
           id?: string
+          instancia?: string
           mensagem: string
           nome: string
           status?: string
@@ -198,6 +200,7 @@ export type Database = {
           filtro_como_conheceu?: string[] | null
           fonte?: string
           id?: string
+          instancia?: string
           mensagem?: string
           nome?: string
           status?: string
