@@ -12,6 +12,7 @@ import { PerdasSection } from "@/components/Dashboard/PerdasSection";
 import { AnunciosTable } from "@/components/Dashboard/AnunciosTable";
 import { AutomacoesTable } from "@/components/Dashboard/AutomacoesTable";
 import { LeadGenderKanban } from "@/components/Dashboard/LeadGenderKanban";
+import { TaxaRetornoSection } from "@/components/Dashboard/TaxaRetornoSection";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
@@ -19,7 +20,7 @@ import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 import { useLeadsGenderStats } from "@/hooks/useLeadsGenderStats";
 
-const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações"];
+const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações", "Taxa de Retorno SV"];
 
 const INDICADORES_COLUMNS = [
   { key: "indicador", label: "Indicador", width: "200px" },
@@ -66,6 +67,7 @@ const Index = () => {
     activeTab === "Anúncios DNZ" ? false :
     activeTab === "Anúncios SV" ? false :
     activeTab === "Automações" ? false :
+    activeTab === "Taxa de Retorno SV" ? false :
     false;
 
   // Stats for Leads tab - by channel (filtered by date and vendedor if filters are active)
@@ -215,6 +217,8 @@ const Index = () => {
         return <AnunciosTable tipo="SV" />;
       case "Automações":
         return <AutomacoesTable leads={leads.leads} />;
+      case "Taxa de Retorno SV":
+        return <TaxaRetornoSection />;
       default:
         return null;
     }
