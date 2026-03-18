@@ -30,6 +30,7 @@ interface ClienteAgendado {
   disparo_id?: string;
   data_envio_real?: string;
   erro?: string;
+  resposta_cliente?: boolean;
 }
 
 interface AutomacaoDetailViewProps {
@@ -231,6 +232,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           disparo_id: disparo.id,
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
           erro: disparo.erro || undefined,
+          resposta_cliente: (disparo as any).resposta_cliente || false,
         });
       } else if (automacao.fonte === "detalhado_inativos") {
         // Only show clients within 30 days of threshold or already past it
@@ -762,6 +764,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : automacao.fonte === "detalhado_inativos" ? "Último Atendimento" : "Data da Compra"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Enviado em</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Resposta</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
                     </tr>
                   </thead>
@@ -790,6 +793,19 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                               </span>
                             )}
                           </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <Badge variant="outline" className={`gap-1 ${
+                            c.resposta_cliente
+                              ? "bg-green-500/10 text-green-600 border-green-200"
+                              : "bg-muted text-muted-foreground border-border"
+                          }`}>
+                            {c.resposta_cliente ? (
+                              <><CheckCircle className="w-3 h-3" /> Sim</>
+                            ) : (
+                              <><Clock className="w-3 h-3" /> Não</>
+                            )}
+                          </Badge>
                         </td>
                         <td className="px-4 py-3 text-center">
                           {c.status === "erro" && (
