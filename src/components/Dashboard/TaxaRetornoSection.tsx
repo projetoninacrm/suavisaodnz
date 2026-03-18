@@ -19,8 +19,6 @@ interface PatientReturn {
   atendimentos_apos_periodo: number;
 }
 
-type FilterKey = "tipo_atendimento" | "retornou";
-
 function MultiSelectColumnFilter({
   label,
   options,
@@ -35,7 +33,7 @@ function MultiSelectColumnFilter({
   onClear: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const filtered = options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
+  const filtered = options.filter((o) => o.toLowerCase().includes(search.toLowerCase()));
   const hasFilter = selected.size > 0 && selected.size < options.length;
 
   return (
@@ -71,7 +69,10 @@ function MultiSelectColumnFilter({
           )}
           <div className="max-h-48 overflow-y-auto space-y-1">
             {filtered.map((opt) => (
-              <label key={opt} className="flex items-center gap-2 text-xs py-1 px-1 rounded hover:bg-muted/50 cursor-pointer">
+              <label
+                key={opt}
+                className="flex items-center gap-2 text-xs py-1 px-1 rounded hover:bg-muted/50 cursor-pointer"
+              >
                 <Checkbox
                   checked={selected.has(opt)}
                   onCheckedChange={() => onToggle(opt)}
@@ -117,7 +118,6 @@ export function TaxaRetornoSection() {
 
       if (data?.success) {
         setPatients(data.data || []);
-        // Reset filters on new data
         setTipoFilter(new Set());
         setRetornouFilter(new Set());
       } else {
@@ -131,30 +131,29 @@ export function TaxaRetornoSection() {
     }
   };
 
-  // Extract unique values for filters
   const tipoOptions = useMemo(() => {
-    const set = new Set(patients.map(p => p.tipo_atendimento).filter(Boolean));
+    const set = new Set(patients.map((p) => p.tipo_atendimento).filter(Boolean));
     return Array.from(set).sort();
   }, [patients]);
 
   const retornouOptions = ["Sim", "Não"];
 
-  const toggleFilter = useCallback((setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) => {
-    setter(prev => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
-  }, []);
+  const toggleFilter = useCallback(
+    (setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) => {
+      setter((prev) => {
+        const next = new Set(prev);
+        if (next.has(value)) next.delete(value);
+        else next.add(value);
+        return next;
+      });
+    },
+    [],
+  );
 
   const filteredPatients = useMemo(() => {
-    return patients.filter(p => {
-      // Name search
+    return patients.filter((p) => {
       if (searchName.trim() && !p.nome.toLowerCase().includes(searchName.toLowerCase())) return false;
-      // Tipo filter
       if (tipoFilter.size > 0 && !tipoFilter.has(p.tipo_atendimento)) return false;
-      // Retornou filter
       if (retornouFilter.size > 0) {
         const val = p.retornou ? "Sim" : "Não";
         if (!retornouFilter.has(val)) return false;
@@ -163,19 +162,21 @@ export function TaxaRetornoSection() {
     });
   }, [patients, searchName, tipoFilter, retornouFilter]);
 
-  // Stats based on FILTERED patients
+  // Card 1 must match Amigo "Finalizados": sum of attendances in selected period
   const stats = useMemo(() => {
-    const total = filteredPatients.length;
-    const retornaram = filteredPatients.filter(p => p.retornou).length;
-    const taxa = total > 0 ? Math.round((retornaram / total) * 100) : 0;
-    return { total, retornaram, taxa };
+    const finalizadosNoPeriodo = filteredPatients.reduce((acc, p) => acc + p.atendimentos_no_periodo, 0);
+    const pacientesBase = filteredPatients.length;
+    const retornaram = filteredPatients.filter((p) => p.retornou).length;
+    const taxa = pacientesBase > 0 ? Math.round((retornaram / pacientesBase) * 100) : 0;
+
+    return { finalizadosNoPeriodo, pacientesBase, retornaram, taxa };
   }, [filteredPatients]);
 
-  const activeFiltersCount = (tipoFilter.size > 0 ? 1 : 0) + (retornouFilter.size > 0 ? 1 : 0) + (searchName.trim() ? 1 : 0);
+  const activeFiltersCount =
+    (tipoFilter.size > 0 ? 1 : 0) + (retornouFilter.size > 0 ? 1 : 0) + (searchName.trim() ? 1 : 0);
 
   return (
     <div className="space-y-6">
-      {/* Period Filter */}
       <div className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-card p-4">
         <div>
           <label className="text-sm font-medium text-muted-foreground mb-1 block">Data Início</label>
@@ -201,7 +202,6 @@ export function TaxaRetornoSection() {
         </Button>
       </div>
 
-      {/* Kanban Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-xl border border-border bg-card p-5 card-shadow">
           <div className="flex items-center gap-3">
@@ -209,8 +209,8 @@ export function TaxaRetornoSection() {
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Pacientes no Período</p>
-              <p className="text-2xl font-bold text-foreground">{isLoading ? "..." : stats.total}</p>
+              <p className="text-sm text-muted-foreground">Finalizados no Período</p>
+              <p className="text-2xl font-bold text-foreground">{isLoading ? "..." : stats.finalizadosNoPeriodo}</p>
             </div>
           </div>
         </div>
@@ -221,7 +221,7 @@ export function TaxaRetornoSection() {
               <UserCheck className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Retornaram</p>
+              <p className="text-sm text-muted-foreground">Pacientes que Retornaram</p>
               <p className="text-2xl font-bold text-foreground">{isLoading ? "..." : stats.retornaram}</p>
             </div>
           </div>
@@ -240,7 +240,6 @@ export function TaxaRetornoSection() {
         </div>
       </div>
 
-      {/* Search + active filters */}
       <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="Buscar por nome..."
@@ -249,8 +248,9 @@ export function TaxaRetornoSection() {
           className="max-w-xs"
         />
         <span className="text-sm text-muted-foreground">
-          {filteredPatients.length} paciente{filteredPatients.length !== 1 ? "s" : ""}
-          {activeFiltersCount > 0 && ` (${activeFiltersCount} filtro${activeFiltersCount > 1 ? "s" : ""} ativo${activeFiltersCount > 1 ? "s" : ""})`}
+          {filteredPatients.length} paciente{filteredPatients.length !== 1 ? "s" : ""} únicos
+          {activeFiltersCount > 0 &&
+            ` (${activeFiltersCount} filtro${activeFiltersCount > 1 ? "s" : ""} ativo${activeFiltersCount > 1 ? "s" : ""})`}
         </span>
         {activeFiltersCount > 0 && (
           <Button
@@ -268,7 +268,6 @@ export function TaxaRetornoSection() {
         )}
       </div>
 
-      {/* Table */}
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
