@@ -383,7 +383,8 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
           </Card>
         ) : (
           <div className="overflow-hidden rounded-lg border border-border bg-card">
-            <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Nome</th>
@@ -426,10 +427,8 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 max-w-[300px] truncate text-muted-foreground">{a.mensagem}</td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge variant="outline" className="text-xs">
-                        {a.instancia === "dnz" ? "DNZ" : "Suavisão"}
-                      </Badge>
+                    <td className="px-4 py-3 text-center text-xs text-muted-foreground whitespace-nowrap">
+                      {a.instancia === "dnz" ? "(62) 98218-2753" : "(62) 99146-8835"}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant={a.status === "Ativa" ? "default" : "secondary"}>
@@ -484,6 +483,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
