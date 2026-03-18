@@ -109,63 +109,6 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState("");
 
-  const handleImportHistorico = useCallback(async () => {
-    setIsImporting(true);
-    setImportProgress("Iniciando importação histórica...");
-
-    try {
-      const today = new Date();
-      const startYear = today.getFullYear() - 3; // Go back 3 years
-      let totalInserted = 0;
-      let totalSkipped = 0;
-
-      // Process month by month
-      for (let year = startYear; year <= today.getFullYear(); year++) {
-        const startMonth = year === startYear ? today.getMonth() : 0;
-        const endMonth = year === today.getFullYear() ? today.getMonth() : 11;
-
-        for (let month = startMonth; month <= endMonth; month++) {
-          const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-          const lastDay = new Date(year, month + 1, 0).getDate();
-          const endDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-
-          const monthLabel = `${String(month + 1).padStart(2, "0")}/${year}`;
-          setImportProgress(`Importando ${monthLabel}...`);
-
-          try {
-            const { data, error } = await supabase.functions.invoke("import-attendances", {
-              body: { start_date: startDate, end_date: endDate },
-            });
-
-            if (!error && data) {
-              totalInserted += data.total_inserted || 0;
-              totalSkipped += data.total_skipped || 0;
-            }
-          } catch (e) {
-            console.error(`Erro importando ${monthLabel}:`, e);
-          }
-
-          // Small delay to avoid overwhelming the API
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-
-      setImportProgress("");
-      toast({
-        title: "Importação concluída!",
-        description: `${totalInserted} novos registros importados, ${totalSkipped} já existentes.`,
-      });
-
-      // Refresh data
-      fetchData();
-    } catch (err) {
-      toast({ title: "Erro na importação", variant: "destructive" });
-    } finally {
-      setIsImporting(false);
-      setImportProgress("");
-    }
-  }, []);
-
   const fetchData = useCallback(async () => {
     setIsLoading(true);
 
