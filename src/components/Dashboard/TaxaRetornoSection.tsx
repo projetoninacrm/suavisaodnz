@@ -171,12 +171,10 @@ export function TaxaRetornoSection() {
 
   // Card 1 must match Amigo "Finalizados": sum of attendances in selected period
   const stats = useMemo(() => {
-    const finalizadosNoPeriodo = filteredPatients.reduce((acc, p) => acc + p.atendimentos_no_periodo, 0);
-    const pacientesBase = filteredPatients.length;
+    const pacientesUnicos = filteredPatients.length;
     const retornaram = filteredPatients.filter((p) => p.retornou).length;
-    const taxa = pacientesBase > 0 ? Math.round((retornaram / pacientesBase) * 100) : 0;
-
-    return { finalizadosNoPeriodo, pacientesBase, retornaram, taxa };
+    const taxa = pacientesUnicos > 0 ? Math.round((retornaram / pacientesUnicos) * 100) : 0;
+    return { pacientesUnicos, retornaram, taxa };
   }, [filteredPatients]);
 
   const activeFiltersCount =
