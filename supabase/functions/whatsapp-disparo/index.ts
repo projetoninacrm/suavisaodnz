@@ -15,13 +15,6 @@ Deno.serve(async (req) => {
   const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY");
   const EVOLUTION_INSTANCE = Deno.env.get("EVOLUTION_INSTANCE");
 
-  if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE) {
-    return new Response(
-      JSON.stringify({ error: "Evolution API não configurada" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
   try {
     const { leads, mensagem, mediaUrl, mediaType, instancia } = await req.json();
 
