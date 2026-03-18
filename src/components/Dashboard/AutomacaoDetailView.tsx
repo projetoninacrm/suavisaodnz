@@ -536,10 +536,18 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                         <td className="px-4 py-3 text-center text-muted-foreground">{c.data_compra}</td>
                         <td className="px-4 py-3 text-center text-muted-foreground">{c.data_envio_programada}</td>
                         <td className="px-4 py-3 text-center">
-                          <Badge variant="outline" className="gap-1 bg-yellow-500/10 text-yellow-600 border-yellow-200">
+                          <Badge variant="outline" className={`gap-1 ${
+                            automacao.fonte === "detalhado_inativos"
+                              ? c.dias_faltam <= 0
+                                ? "bg-red-500/10 text-red-600 border-red-200"
+                                : "bg-blue-500/10 text-blue-600 border-blue-200"
+                              : "bg-yellow-500/10 text-yellow-600 border-yellow-200"
+                          }`}>
                             <Clock className="w-3 h-3" />
                             {automacao.fonte === "detalhado_inativos"
-                              ? `${Math.abs(c.dias_faltam)}d em atraso`
+                              ? c.dias_faltam <= 0
+                                ? `${Math.abs(c.dias_faltam)}d em atraso`
+                                : `${c.dias_faltam}d restantes`
                               : c.dias_faltam === 0
                                 ? "Hoje"
                                 : `${c.dias_faltam}d`}
