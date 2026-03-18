@@ -20,7 +20,7 @@ import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 import { useLeadsGenderStats } from "@/hooks/useLeadsGenderStats";
 
-const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações"];
+const TABS = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações", "Taxa de Retorno SV"];
 
 const INDICADORES_COLUMNS = [
   { key: "indicador", label: "Indicador", width: "200px" },
