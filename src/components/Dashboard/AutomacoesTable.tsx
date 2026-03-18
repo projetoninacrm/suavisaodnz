@@ -62,7 +62,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
     filtro_como_conheceu: null,
     audio_url: null,
     audios_vendedor: null,
-    instancia: "suavisao",
   });
   const [isUploadingAudio, setIsUploadingAudio] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -86,7 +85,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   }, []);
 
   const resetForm = () => {
-    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null, audios_vendedor: null, instancia: "suavisao" });
+    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null, audios_vendedor: null });
     setEditingId(null);
     setShowForm(false);
   };
@@ -121,7 +120,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   };
 
   const handleEdit = (a: Automacao) => {
-    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu, audio_url: a.audio_url, audios_vendedor: a.audios_vendedor, instancia: a.instancia || "suavisao" });
+    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu, audio_url: a.audio_url, audios_vendedor: a.audios_vendedor });
     setEditingId(a.id);
     setShowForm(true);
   };
@@ -338,17 +337,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                 </p>
               </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">Número de envio</label>
-                <select
-                  className="text-sm border rounded px-2 py-1 bg-background w-full"
-                  value={form.instancia}
-                  onChange={(e) => setForm({ ...form, instancia: e.target.value })}
-                >
-                  <option value="suavisao">Suavisão</option>
-                  <option value="dnz">DNZ</option>
-                </select>
-              </div>
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium">Status:</label>
                 <select
@@ -383,15 +371,13 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
           </Card>
         ) : (
           <div className="overflow-hidden rounded-lg border border-border bg-card">
-              <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Nome</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Fonte</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Dias</th>
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Mensagem</th>
-                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Número</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Envios</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
@@ -427,9 +413,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 max-w-[300px] truncate text-muted-foreground">{a.mensagem}</td>
-                    <td className="px-4 py-3 text-center text-xs text-muted-foreground whitespace-nowrap">
-                      {a.instancia === "dnz" ? "(62) 98218-2753" : "(62) 99146-8835"}
-                    </td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant={a.status === "Ativa" ? "default" : "secondary"}>
                         {a.status}
@@ -483,7 +466,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 ))}
               </tbody>
             </table>
-            </div>
           </div>
         )}
       </div>
