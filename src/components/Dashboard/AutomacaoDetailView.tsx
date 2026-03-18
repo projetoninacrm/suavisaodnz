@@ -360,6 +360,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         body: {
           leads: [leadPayload],
           mensagem,
+          instancia: automacao.instancia || "suavisao",
         },
       });
 
@@ -373,6 +374,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
             leads: [leadPayload],
             mediaUrl: audioUrl,
             mediaType: "audio",
+            instancia: automacao.instancia || "suavisao",
           },
         });
         if (audioErr) audioOk = false;
