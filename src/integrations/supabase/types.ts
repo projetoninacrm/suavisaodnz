@@ -560,6 +560,19 @@ export type Database = {
           ultimo_atendimento: string
         }[]
       }
+      get_return_rate_patients: {
+        Args: { data_fim?: string; data_inicio?: string }
+        Returns: {
+          atendimentos_apos_periodo: number
+          atendimentos_no_periodo: number
+          id: string
+          nome: string
+          primeiro_atendimento: string
+          retornou: boolean
+          telefone: string
+          total_atendimentos: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
