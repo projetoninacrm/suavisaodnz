@@ -338,17 +338,19 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                 </p>
               </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">Instância WhatsApp</label>
-                <select
-                  className="text-sm border rounded px-2 py-1 bg-background w-full"
-                  value={form.instancia || "suavisao"}
-                  onChange={(e) => setForm({ ...form, instancia: e.target.value })}
-                >
-                  <option value="suavisao">Suavisão (Evolution API)</option>
-                  <option value="dnz">DNZ (uazapi)</option>
-                </select>
-              </div>
+              {editingId && (
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Número WhatsApp</label>
+                  <select
+                    className="text-sm border rounded px-2 py-1 bg-background w-full"
+                    value={form.instancia || "suavisao"}
+                    onChange={(e) => setForm({ ...form, instancia: e.target.value })}
+                  >
+                    <option value="suavisao">(31) 7175-9662 — Suavisão</option>
+                    <option value="dnz">(31) 7109-3682 — DNZ</option>
+                  </select>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium">Status:</label>
                 <select
@@ -410,8 +412,8 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Badge variant="outline" className={`text-xs ${a.instancia === "dnz" ? "border-orange-300 text-orange-600" : "border-blue-300 text-blue-600"}`}>
-                        {a.instancia === "dnz" ? "DNZ" : "Suavisão"}
+                      <Badge variant="outline" className={`text-xs font-mono ${a.instancia === "dnz" ? "border-orange-300 text-orange-600" : "border-blue-300 text-blue-600"}`}>
+                        {a.instancia === "dnz" ? "(31) 7109-3682" : "(31) 7175-9662"}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-center">
