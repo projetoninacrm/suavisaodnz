@@ -172,72 +172,108 @@ Deno.serve(async (req) => {
         let status = "pendente";
         let erro: string | null = null;
 
-        if (EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE) {
-          try {
-            // Step 1: Send text message
-            const textResponse = await fetch(
-              `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
-              {
+        const useUazapi = automacao.instancia === "uazapi";
+
+        if (useUazapi) {
+          // --- UAZAPI ---
+          if (!UAZAPI_URL || !UAZAPI_TOKEN) {
+            status = "erro";
+            erro = "UAZAPI não configurada";
+            totalErrors++;
+          } else {
+            try {
+              const textResponse = await fetch(`${UAZAPI_URL}/sendText`, {
                 method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  apikey: EVOLUTION_API_KEY,
-                },
-                body: JSON.stringify({
-                  number: `55${phone}`,
-                  text: mensagem,
-                }),
-              }
-            );
+                headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
+                body: JSON.stringify({ number: `55${phone}`, text: mensagem }),
+              });
 
-            if (!textResponse.ok) {
-              const errBody = await textResponse.text();
-              status = "erro";
-              erro = `HTTP ${textResponse.status}: ${errBody.substring(0, 200)}`;
-              totalErrors++;
-            } else {
-              status = "enviado";
-              totalSent++;
+              if (!textResponse.ok) {
+                const errBody = await textResponse.text();
+                status = "erro";
+                erro = `HTTP ${textResponse.status}: ${errBody.substring(0, 200)}`;
+                totalErrors++;
+              } else {
+                status = "enviado";
+                totalSent++;
 
-              // Step 2: Send audio if configured - pick by vendedor first, then fallback to Thayssa
-              const audioUrl = (client.vendedor && automacao.audios_vendedor?.[client.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
-              if (audioUrl) {
-                try {
-                  await new Promise(resolve => setTimeout(resolve, 1500));
-
-                  const audioResponse = await fetch(
-                    `${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${EVOLUTION_INSTANCE}`,
-                    {
+                const audioUrl = (client.vendedor && automacao.audios_vendedor?.[client.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
+                if (audioUrl) {
+                  try {
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    const audioResponse = await fetch(`${UAZAPI_URL}/sendAudio`, {
                       method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        apikey: EVOLUTION_API_KEY,
-                      },
-                      body: JSON.stringify({
-                        number: `55${phone}`,
-                        audio: audioUrl,
-                      }),
+                      headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
+                      body: JSON.stringify({ number: `55${phone}`, audio: audioUrl }),
+                    });
+                    if (!audioResponse.ok) {
+                      const errBody = await audioResponse.text();
+                      console.error(`Audio send failed (uazapi) for ${client.nome}: ${errBody}`);
                     }
-                  );
-
-                  if (!audioResponse.ok) {
-                    const errBody = await audioResponse.text();
-                    console.error(`Audio send failed for ${client.nome}: ${errBody}`);
+                  } catch (audioErr) {
+                    console.error(`Audio send error (uazapi) for ${client.nome}:`, audioErr);
                   }
-                } catch (audioErr) {
-                  console.error(`Audio send error for ${client.nome}:`, audioErr);
                 }
               }
+            } catch (e) {
+              status = "erro";
+              erro = e instanceof Error ? e.message : "Erro desconhecido";
+              totalErrors++;
             }
-          } catch (e) {
-            status = "erro";
-            erro = e instanceof Error ? e.message : "Erro desconhecido";
-            totalErrors++;
           }
         } else {
-          status = "erro";
-          erro = "Evolution API não configurada";
-          totalErrors++;
+          // --- EVOLUTION API (default) ---
+          if (EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE) {
+            try {
+              const textResponse = await fetch(
+                `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
+                  body: JSON.stringify({ number: `55${phone}`, text: mensagem }),
+                }
+              );
+
+              if (!textResponse.ok) {
+                const errBody = await textResponse.text();
+                status = "erro";
+                erro = `HTTP ${textResponse.status}: ${errBody.substring(0, 200)}`;
+                totalErrors++;
+              } else {
+                status = "enviado";
+                totalSent++;
+
+                const audioUrl = (client.vendedor && automacao.audios_vendedor?.[client.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
+                if (audioUrl) {
+                  try {
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    const audioResponse = await fetch(
+                      `${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${EVOLUTION_INSTANCE}`,
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
+                        body: JSON.stringify({ number: `55${phone}`, audio: audioUrl }),
+                      }
+                    );
+                    if (!audioResponse.ok) {
+                      const errBody = await audioResponse.text();
+                      console.error(`Audio send failed for ${client.nome}: ${errBody}`);
+                    }
+                  } catch (audioErr) {
+                    console.error(`Audio send error for ${client.nome}:`, audioErr);
+                  }
+                }
+              }
+            } catch (e) {
+              status = "erro";
+              erro = e instanceof Error ? e.message : "Erro desconhecido";
+              totalErrors++;
+            }
+          } else {
+            status = "erro";
+            erro = "Evolution API não configurada";
+            totalErrors++;
+          }
         }
 
         await supabase.from("automacao_disparos").insert({
