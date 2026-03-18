@@ -62,6 +62,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
     filtro_como_conheceu: null,
     audio_url: null,
     audios_vendedor: null,
+    instancia: "suavisao",
   });
   const [isUploadingAudio, setIsUploadingAudio] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -85,7 +86,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   }, []);
 
   const resetForm = () => {
-    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null, audios_vendedor: null });
+    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null, audios_vendedor: null, instancia: "suavisao" });
     setEditingId(null);
     setShowForm(false);
   };
@@ -120,7 +121,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   };
 
   const handleEdit = (a: Automacao) => {
-    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu, audio_url: a.audio_url, audios_vendedor: a.audios_vendedor });
+    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu, audio_url: a.audio_url, audios_vendedor: a.audios_vendedor, instancia: a.instancia || "suavisao" });
     setEditingId(a.id);
     setShowForm(true);
   };
@@ -337,16 +338,29 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Status:</label>
-                <select
-                  className="text-sm border rounded px-2 py-1 bg-background"
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                >
-                  <option value="Ativa">Ativa</option>
-                  <option value="Inativa">Inativa</option>
-                </select>
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Status:</label>
+                  <select
+                    className="text-sm border rounded px-2 py-1 bg-background"
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  >
+                    <option value="Ativa">Ativa</option>
+                    <option value="Inativa">Inativa</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Número WhatsApp:</label>
+                  <select
+                    className="text-sm border rounded px-2 py-1 bg-background"
+                    value={form.instancia}
+                    onChange={(e) => setForm({ ...form, instancia: e.target.value })}
+                  >
+                    <option value="suavisao">DNZ Óticas (principal)</option>
+                    <option value="uazapi">Sua Visão Oftalmologia</option>
+                  </select>
+                </div>
               </div>
             </div>
             <DialogFooter>

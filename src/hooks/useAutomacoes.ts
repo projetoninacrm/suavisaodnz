@@ -13,6 +13,7 @@ export interface Automacao {
   filtro_como_conheceu: string[] | null;
   audio_url: string | null;
   audios_vendedor: Record<string, string> | null;
+  instancia: string;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ export interface NewAutomacaoData {
   filtro_como_conheceu: string[] | null;
   audio_url: string | null;
   audios_vendedor: Record<string, string> | null;
+  instancia: string;
 }
 
 export function useAutomacoes() {
@@ -61,6 +63,7 @@ export function useAutomacoes() {
       setAutomacoes((data || []).map(d => ({
         ...d,
         audios_vendedor: (d.audios_vendedor as Record<string, string>) || null,
+        instancia: d.instancia || "suavisao",
       })));
     }
     setIsLoading(false);
