@@ -483,6 +483,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
