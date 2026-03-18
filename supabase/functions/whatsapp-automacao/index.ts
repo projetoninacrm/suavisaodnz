@@ -6,81 +6,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// --- API Adapters ---
-
-interface SendTextParams {
-  phone: string;
-  text: string;
-}
-
-interface SendAudioParams {
-  phone: string;
-  audioUrl: string;
-}
-
-async function sendTextEvolution(params: SendTextParams, env: Record<string, string>) {
-  const res = await fetch(`${env.EVOLUTION_API_URL}/message/sendText/${env.EVOLUTION_INSTANCE}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: env.EVOLUTION_API_KEY },
-    body: JSON.stringify({ number: `55${params.phone}`, text: params.text }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).substring(0, 200)}`);
-}
-
-async function sendAudioEvolution(params: SendAudioParams, env: Record<string, string>) {
-  const res = await fetch(`${env.EVOLUTION_API_URL}/message/sendWhatsAppAudio/${env.EVOLUTION_INSTANCE}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: env.EVOLUTION_API_KEY },
-    body: JSON.stringify({ number: `55${params.phone}`, audio: params.audioUrl }),
-  });
-  if (!res.ok) throw new Error(`Audio HTTP ${res.status}: ${(await res.text()).substring(0, 200)}`);
-}
-
-async function sendTextUazapi(params: SendTextParams, env: Record<string, string>) {
-  const res = await fetch(`${env.UAZAPI_URL}/sendText/${env.UAZAPI_TOKEN}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ number: `55${params.phone}`, text: params.text }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).substring(0, 200)}`);
-}
-
-async function sendAudioUazapi(params: SendAudioParams, env: Record<string, string>) {
-  const res = await fetch(`${env.UAZAPI_URL}/sendAudio/${env.UAZAPI_TOKEN}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ number: `55${params.phone}`, audio: params.audioUrl }),
-  });
-  if (!res.ok) throw new Error(`Audio HTTP ${res.status}: ${(await res.text()).substring(0, 200)}`);
-}
-
-function getSender(instancia: string) {
-  if (instancia === "dnz") {
-    const env = {
-      UAZAPI_URL: Deno.env.get("UAZAPI_URL") || "",
-      UAZAPI_TOKEN: Deno.env.get("UAZAPI_TOKEN") || "",
-    };
-    if (!env.UAZAPI_URL || !env.UAZAPI_TOKEN) return null;
-    return {
-      sendText: (p: SendTextParams) => sendTextUazapi(p, env),
-      sendAudio: (p: SendAudioParams) => sendAudioUazapi(p, env),
-    };
-  }
-  // default: suavisao (Evolution API)
-  const env = {
-    EVOLUTION_API_URL: Deno.env.get("EVOLUTION_API_URL") || "",
-    EVOLUTION_API_KEY: Deno.env.get("EVOLUTION_API_KEY") || "",
-    EVOLUTION_INSTANCE: Deno.env.get("EVOLUTION_INSTANCE") || "",
-  };
-  if (!env.EVOLUTION_API_URL || !env.EVOLUTION_API_KEY || !env.EVOLUTION_INSTANCE) return null;
-  return {
-    sendText: (p: SendTextParams) => sendTextEvolution(p, env),
-    sendAudio: (p: SendAudioParams) => sendAudioEvolution(p, env),
-  };
-}
-
-// --- Main ---
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -88,6 +13,10 @@ Deno.serve(async (req) => {
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const EVOLUTION_API_URL = Deno.env.get("EVOLUTION_API_URL");
+  const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY");
+  const EVOLUTION_INSTANCE = Deno.env.get("EVOLUTION_INSTANCE");
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
@@ -125,9 +54,6 @@ Deno.serve(async (req) => {
     let totalErrors = 0;
 
     for (const automacao of automacoes) {
-      const instancia = automacao.instancia || "suavisao";
-      const sender = getSender(instancia);
-
       let clients: any[] = [];
       const existingDispatchKeys = new Set<string>();
 
@@ -145,7 +71,12 @@ Deno.serve(async (req) => {
 
         const { data } = await query;
         clients = (data || []).map(d => ({
-          id: d.id, nome: d.nome, telefone: d.telefone, data_registro: d.data, vendedor: null, medico: null,
+          id: d.id,
+          nome: d.nome,
+          telefone: d.telefone,
+          data_registro: d.data,
+          vendedor: null,
+          medico: null,
         }));
       } else if (automacao.fonte === "detalhado_inativos") {
         const { data: detalhadoData } = await supabase
@@ -172,9 +103,12 @@ Deno.serve(async (req) => {
           .not("numero", "is", null);
 
         clients = (data || []).map(l => ({
-          id: l.id, nome: l.nome, telefone: l.numero,
+          id: l.id,
+          nome: l.nome,
+          telefone: l.numero,
           data_registro: l.updated_at ? new Date(l.updated_at).toLocaleDateString("pt-BR") : null,
-          vendedor: l.vendedor, medico: l.medico,
+          vendedor: l.vendedor,
+          medico: l.medico,
         }));
       } else {
         const { data } = await supabase
@@ -184,8 +118,12 @@ Deno.serve(async (req) => {
           .not("numero", "is", null);
 
         clients = (data || []).map(l => ({
-          id: l.id, nome: l.nome, telefone: l.numero,
-          data_registro: l.data_registro, vendedor: l.vendedor, medico: l.medico,
+          id: l.id,
+          nome: l.nome,
+          telefone: l.numero,
+          data_registro: l.data_registro,
+          vendedor: l.vendedor,
+          medico: l.medico,
         }));
       }
 
@@ -201,16 +139,20 @@ Deno.serve(async (req) => {
 
         if (automacao.fonte === "detalhado_inativos") {
           if (targetDate > today) continue;
+
           const patientKey = normalizePatientKey(client.nome, client.telefone);
           if (existingDispatchKeys.has(patientKey)) continue;
         } else {
           if (targetStr !== todayStr) continue;
+
+          // Check if already dispatched
           const { data: existing } = await supabase
             .from("automacao_disparos")
             .select("id")
             .eq("automacao_id", automacao.id)
             .eq("lead_id", client.id)
             .limit(1);
+
           if (existing && existing.length > 0) continue;
         }
 
@@ -228,22 +170,61 @@ Deno.serve(async (req) => {
         let status = "pendente";
         let erro: string | null = null;
 
-        if (sender) {
+        if (EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE) {
           try {
-            await sender.sendText({ phone, text: mensagem });
-            status = "enviado";
-            totalSent++;
+            // Step 1: Send text message
+            const textResponse = await fetch(
+              `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  apikey: EVOLUTION_API_KEY,
+                },
+                body: JSON.stringify({
+                  number: `55${phone}`,
+                  text: mensagem,
+                }),
+              }
+            );
 
-            // Send audio if configured
-            const audioUrl = (client.vendedor && automacao.audios_vendedor?.[client.vendedor])
-              || automacao.audios_vendedor?.["Thayssa"]
-              || automacao.audio_url;
-            if (audioUrl) {
-              try {
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                await sender.sendAudio({ phone, audioUrl });
-              } catch (audioErr) {
-                console.error(`Audio send error for ${client.nome}:`, audioErr);
+            if (!textResponse.ok) {
+              const errBody = await textResponse.text();
+              status = "erro";
+              erro = `HTTP ${textResponse.status}: ${errBody.substring(0, 200)}`;
+              totalErrors++;
+            } else {
+              status = "enviado";
+              totalSent++;
+
+              // Step 2: Send audio if configured - pick by vendedor first, then fallback to Thayssa
+              const audioUrl = (client.vendedor && automacao.audios_vendedor?.[client.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
+              if (audioUrl) {
+                try {
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+
+                  const audioResponse = await fetch(
+                    `${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${EVOLUTION_INSTANCE}`,
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        apikey: EVOLUTION_API_KEY,
+                      },
+                      body: JSON.stringify({
+                        number: `55${phone}`,
+                        audio: audioUrl,
+                      }),
+                    }
+                  );
+
+                  if (!audioResponse.ok) {
+                    const errBody = await audioResponse.text();
+                    console.error(`Audio send failed for ${client.nome}: ${errBody}`);
+                  }
+                } catch (audioErr) {
+                  console.error(`Audio send error for ${client.nome}:`, audioErr);
+                }
               }
             }
           } catch (e) {
@@ -253,7 +234,7 @@ Deno.serve(async (req) => {
           }
         } else {
           status = "erro";
-          erro = `API não configurada para instância "${instancia}"`;
+          erro = "Evolution API não configurada";
           totalErrors++;
         }
 
@@ -300,12 +281,12 @@ Deno.serve(async (req) => {
   }
 });
 
-// --- Helpers ---
-
 function parseDate(dateStr: string | null): Date | null {
   if (!dateStr) return null;
   const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (match) return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+  if (match) {
+    return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+  }
   const d = new Date(dateStr);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -314,14 +295,23 @@ function cleanPhone(phone: string | null): string | null {
   if (!phone) return null;
   const cleaned = phone.replace(/\D/g, "");
   if (cleaned.length < 10) return null;
-  if (cleaned.startsWith("55") && cleaned.length >= 12) return cleaned.substring(2);
+  if (cleaned.startsWith("55") && cleaned.length >= 12) {
+    return cleaned.substring(2);
+  }
   return cleaned;
 }
 
 function normalizePatientKey(nome: string | null, telefone: string | null): string {
   const normalizedPhone = cleanPhone(telefone);
-  if (normalizedPhone) return `phone:${normalizedPhone}`;
-  return `name:${(nome || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()}`;
+  if (normalizedPhone) {
+    return `phone:${normalizedPhone}`;
+  }
+
+  return `name:${(nome || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()}`;
 }
 
 function buildLatestDetalhadoClients(records: Array<{ id: string; nome: string | null; telefone: string | null; data: string | null }> | null) {
@@ -330,10 +320,20 @@ function buildLatestDetalhadoClients(records: Array<{ id: string; nome: string |
   for (const record of records || []) {
     const parsedDate = parseDate(record.data);
     if (!parsedDate || !record.telefone) continue;
+
     const key = normalizePatientKey(record.nome, record.telefone);
     const existing = latestMap.get(key);
+
     if (!existing || parsedDate > existing.parsedDate) {
-      latestMap.set(key, { id: record.id, nome: record.nome, telefone: record.telefone, data_registro: record.data, vendedor: null, medico: null, parsedDate });
+      latestMap.set(key, {
+        id: record.id,
+        nome: record.nome,
+        telefone: record.telefone,
+        data_registro: record.data,
+        vendedor: null,
+        medico: null,
+        parsedDate,
+      });
     }
   }
 

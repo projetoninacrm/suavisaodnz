@@ -62,7 +62,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
     filtro_como_conheceu: null,
     audio_url: null,
     audios_vendedor: null,
-    instancia: "suavisao",
   });
   const [isUploadingAudio, setIsUploadingAudio] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -86,7 +85,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   }, []);
 
   const resetForm = () => {
-    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null, audios_vendedor: null, instancia: "suavisao" });
+    setForm({ nome: "", dias_apos_venda: 7, mensagem: "", status: "Ativa", fonte: "leads", filtro_como_conheceu: null, audio_url: null, audios_vendedor: null });
     setEditingId(null);
     setShowForm(false);
   };
@@ -121,7 +120,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   };
 
   const handleEdit = (a: Automacao) => {
-    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu, audio_url: a.audio_url, audios_vendedor: a.audios_vendedor, instancia: a.instancia || "suavisao" });
+    setForm({ nome: a.nome, dias_apos_venda: a.dias_apos_venda, mensagem: a.mensagem, status: a.status, fonte: a.fonte, filtro_como_conheceu: a.filtro_como_conheceu, audio_url: a.audio_url, audios_vendedor: a.audios_vendedor });
     setEditingId(a.id);
     setShowForm(true);
   };
@@ -338,19 +337,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                 </p>
               </div>
-              {editingId && (
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Número WhatsApp</label>
-                  <select
-                    className="text-sm border rounded px-2 py-1 bg-background w-full"
-                    value={form.instancia || "suavisao"}
-                    onChange={(e) => setForm({ ...form, instancia: e.target.value })}
-                  >
-                    <option value="suavisao">(31) 7175-9662 — Suavisão</option>
-                    <option value="dnz">(31) 7109-3682 — DNZ</option>
-                  </select>
-                </div>
-              )}
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium">Status:</label>
                 <select
@@ -389,7 +375,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
               <thead>
                 <tr className="border-b border-border bg-muted/50">
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Nome</th>
-                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Nº</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Fonte</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Dias</th>
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Mensagem</th>
@@ -410,11 +395,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                         {a.nome}
                         {(a.audio_url || (a.audios_vendedor && Object.keys(a.audios_vendedor).length > 0)) && <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge variant="outline" className={`text-xs font-mono ${a.instancia === "dnz" ? "border-orange-300 text-orange-600" : "border-blue-300 text-blue-600"}`}>
-                        {a.instancia === "dnz" ? "(31) 7109-3682" : "(31) 7175-9662"}
-                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant="outline" className="text-xs">

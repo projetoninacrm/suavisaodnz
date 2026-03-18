@@ -13,7 +13,6 @@ export interface Automacao {
   filtro_como_conheceu: string[] | null;
   audio_url: string | null;
   audios_vendedor: Record<string, string> | null;
-  instancia: string;
   created_at: string;
   updated_at: string;
 }
@@ -41,7 +40,6 @@ export interface NewAutomacaoData {
   filtro_como_conheceu: string[] | null;
   audio_url: string | null;
   audios_vendedor: Record<string, string> | null;
-  instancia?: string;
 }
 
 export function useAutomacoes() {
