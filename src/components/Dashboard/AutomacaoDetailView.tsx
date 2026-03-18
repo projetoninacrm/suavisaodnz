@@ -221,19 +221,29 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
           erro: disparo.erro || undefined,
         });
-      } else if (diasFaltam <= 0 || automacao.fonte !== "detalhado_inativos") {
-        if (diasFaltam >= 0 || automacao.fonte === "detalhado_inativos") {
-          result.push({
-            id: client.id,
-            nome: client.nome,
-            telefone: client.telefone,
-            data_compra: client.data_registro,
-            data_envio_programada: formatDateBR(targetDate),
-            dias_faltam: diasFaltam,
-            status: "pendente",
-            vendedor: client.vendedor,
-          });
-        }
+      } else if (automacao.fonte === "detalhado_inativos") {
+        // Show ALL clients for inativos — those past threshold AND approaching it
+        result.push({
+          id: client.id,
+          nome: client.nome,
+          telefone: client.telefone,
+          data_compra: client.data_registro,
+          data_envio_programada: formatDateBR(targetDate),
+          dias_faltam: diasFaltam,
+          status: "pendente",
+          vendedor: client.vendedor,
+        });
+      } else if (diasFaltam >= 0) {
+        result.push({
+          id: client.id,
+          nome: client.nome,
+          telefone: client.telefone,
+          data_compra: client.data_registro,
+          data_envio_programada: formatDateBR(targetDate),
+          dias_faltam: diasFaltam,
+          status: "pendente",
+          vendedor: client.vendedor,
+        });
       }
     }
 
