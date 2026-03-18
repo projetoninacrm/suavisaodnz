@@ -63,6 +63,7 @@ export function useAutomacoes() {
       setAutomacoes((data || []).map(d => ({
         ...d,
         audios_vendedor: (d.audios_vendedor as Record<string, string>) || null,
+        instancia: d.instancia || "suavisao",
       })));
     }
     setIsLoading(false);
