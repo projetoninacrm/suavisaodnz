@@ -216,6 +216,8 @@ const Index = () => {
         return <AnunciosTable tipo="SV" />;
       case "Automações":
         return <AutomacoesTable leads={leads.leads} />;
+      case "Taxa de Retorno SV":
+        return <TaxaRetornoSection />;
       default:
         return null;
     }
