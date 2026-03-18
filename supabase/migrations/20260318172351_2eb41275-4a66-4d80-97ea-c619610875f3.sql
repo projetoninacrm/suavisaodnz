@@ -1,0 +1,1 @@
+ALTER TABLE public.automacao_disparos ADD COLUMN IF NOT EXISTS resposta_cliente boolean NOT NULL DEFAULT false;
