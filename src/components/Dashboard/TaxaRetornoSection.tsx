@@ -155,7 +155,12 @@ export function TaxaRetornoSection() {
   const filteredPatients = useMemo(() => {
     return patients.filter((p) => {
       if (searchName.trim() && !p.nome.toLowerCase().includes(searchName.toLowerCase())) return false;
-      if (tipoFilter.size > 0 && !tipoFilter.has(p.tipo_atendimento)) return false;
+      // Tipo filter - check against ALL tipos the patient has
+      if (tipoFilter.size > 0) {
+        const patientTipos = p.tipos_atendimento || [p.tipo_atendimento];
+        const hasMatch = patientTipos.some((t: string) => tipoFilter.has(t));
+        if (!hasMatch) return false;
+      }
       if (retornouFilter.size > 0) {
         const val = p.retornou ? "Sim" : "Não";
         if (!retornouFilter.has(val)) return false;
