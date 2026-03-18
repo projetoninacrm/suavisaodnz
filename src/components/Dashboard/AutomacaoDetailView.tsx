@@ -232,6 +232,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           disparo_id: disparo.id,
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
           erro: disparo.erro || undefined,
+          resposta_cliente: (disparo as any).resposta_cliente || false,
         });
       } else if (automacao.fonte === "detalhado_inativos") {
         // Only show clients within 30 days of threshold or already past it
