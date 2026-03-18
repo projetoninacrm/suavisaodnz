@@ -331,6 +331,44 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
     fetchData();
   }, [fetchData]);
 
+  // Realtime subscription for resposta_cliente updates
+  useEffect(() => {
+    const channel = supabase
+      .channel(`disparos-${automacao.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'automacao_disparos',
+          filter: `automacao_id=eq.${automacao.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as any;
+          setClientes((prev) =>
+            prev.map((c) =>
+              c.disparo_id === updated.id
+                ? {
+                    ...c,
+                    resposta_cliente: updated.resposta_cliente,
+                    status: updated.status,
+                    erro: updated.erro || undefined,
+                    data_envio_real: updated.data_envio
+                      ? new Date(updated.data_envio).toLocaleString("pt-BR")
+                      : c.data_envio_real,
+                  }
+                : c
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [automacao.id]);
+
   const handleEnviarAgora = async (cliente: ClienteAgendado, isRetry = false) => {
     const phone = cleanPhone(cliente.telefone);
     if (!phone) {
