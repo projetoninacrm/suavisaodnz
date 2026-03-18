@@ -519,7 +519,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendedor</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : automacao.fonte === "detalhado_inativos" ? "Último Atendimento" : "Data da Compra"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Data do Envio</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "detalhado_inativos" ? "Atraso" : "Dias Restantes"}</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "detalhado_inativos" ? "Tempo" : "Dias Restantes"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
                     </tr>
                   </thead>
