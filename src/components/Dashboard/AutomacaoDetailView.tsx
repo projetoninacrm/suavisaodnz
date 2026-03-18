@@ -316,7 +316,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
     }
   }, [fetchData]);
 
-
+  useEffect(() => {
     fetchData();
   }, [fetchData]);
 
