@@ -12,6 +12,7 @@ import { PerdasSection } from "@/components/Dashboard/PerdasSection";
 import { AnunciosTable } from "@/components/Dashboard/AnunciosTable";
 import { AutomacoesTable } from "@/components/Dashboard/AutomacoesTable";
 import { LeadGenderKanban } from "@/components/Dashboard/LeadGenderKanban";
+import { TaxaRetornoSection } from "@/components/Dashboard/TaxaRetornoSection";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
