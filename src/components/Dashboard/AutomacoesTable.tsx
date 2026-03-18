@@ -209,6 +209,20 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   <option value="detalhado_inativos">Detalhado (2+ anos sem atendimento)</option>
                 </select>
               </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Número WhatsApp de envio</label>
+                <select
+                  className="text-sm border rounded px-2 py-1 bg-background w-full"
+                  value={form.instancia}
+                  onChange={(e) => setForm({ ...form, instancia: e.target.value })}
+                >
+                  <option value="suavisao">DNZ Óticas (principal)</option>
+                  <option value="uazapi">Sua Visão Oftalmologia</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Escolha por qual número esta automação vai enviar as mensagens.
+                </p>
+              </div>
               {form.fonte === "detalhado" && (
                 <div>
                   <label className="text-sm font-medium mb-1 block">
