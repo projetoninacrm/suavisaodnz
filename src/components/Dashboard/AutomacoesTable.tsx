@@ -338,16 +338,29 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Status:</label>
-                <select
-                  className="text-sm border rounded px-2 py-1 bg-background"
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                >
-                  <option value="Ativa">Ativa</option>
-                  <option value="Inativa">Inativa</option>
-                </select>
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Status:</label>
+                  <select
+                    className="text-sm border rounded px-2 py-1 bg-background"
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  >
+                    <option value="Ativa">Ativa</option>
+                    <option value="Inativa">Inativa</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Número WhatsApp:</label>
+                  <select
+                    className="text-sm border rounded px-2 py-1 bg-background"
+                    value={form.instancia}
+                    onChange={(e) => setForm({ ...form, instancia: e.target.value })}
+                  >
+                    <option value="suavisao">DNZ Óticas (principal)</option>
+                    <option value="uazapi">Sua Visão Oftalmologia</option>
+                  </select>
+                </div>
               </div>
             </div>
             <DialogFooter>
