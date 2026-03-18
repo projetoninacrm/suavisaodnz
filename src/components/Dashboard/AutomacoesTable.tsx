@@ -427,6 +427,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                     </td>
                     <td className="px-4 py-3 max-w-[300px] truncate text-muted-foreground">{a.mensagem}</td>
                     <td className="px-4 py-3 text-center">
+                      <Badge variant="outline" className="text-xs">
+                        {a.instancia === "dnz" ? "DNZ" : "Suavisão"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-center">
                       <Badge variant={a.status === "Ativa" ? "default" : "secondary"}>
                         {a.status}
                       </Badge>
