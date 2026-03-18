@@ -23,7 +23,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { leads, mensagem, mediaUrl, mediaType } = await req.json();
+    const { leads, mensagem, mediaUrl, mediaType, instancia } = await req.json();
+
+    const useUazapi = instancia === "uazapi";
+    const UAZAPI_URL = Deno.env.get("UAZAPI_URL");
+    const UAZAPI_TOKEN = Deno.env.get("UAZAPI_TOKEN");
+
+    if (useUazapi && (!UAZAPI_URL || !UAZAPI_TOKEN)) {
+      return new Response(
+        JSON.stringify({ error: "UAZAPI não configurada" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!useUazapi && (!EVOLUTION_API_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE)) {
+      return new Response(
+        JSON.stringify({ error: "Evolution API não configurada" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!leads || !Array.isArray(leads) || leads.length === 0) {
       return new Response(

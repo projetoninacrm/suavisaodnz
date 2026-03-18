@@ -360,6 +360,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         body: {
           leads: [leadPayload],
           mensagem,
+          instancia: automacao.instancia || "suavisao",
         },
       });
 
