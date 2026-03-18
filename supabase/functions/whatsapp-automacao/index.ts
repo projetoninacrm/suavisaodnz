@@ -190,8 +190,6 @@ Deno.serve(async (req) => {
         let status = "pendente";
         let erro: string | null = null;
 
-        const useUazapi = automacao.instancia === "uazapi";
-
         if (useUazapi) {
           // --- UAZAPI ---
           if (!UAZAPI_URL || !UAZAPI_TOKEN) {
