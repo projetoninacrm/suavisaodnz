@@ -550,7 +550,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_inactive_patients: {
+        Args: { dias_janela?: number; dias_limite?: number }
+        Returns: {
+          dias_desde_ultimo: number
+          id: string
+          nome: string
+          telefone: string
+          ultimo_atendimento: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

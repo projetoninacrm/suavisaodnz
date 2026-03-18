@@ -150,13 +150,22 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         medico: undefined,
       }));
     } else if (automacao.fonte === "detalhado_inativos") {
-      const { data } = await supabase
-        .from("detalhado")
-        .select("id, nome, telefone, data")
-        .not("telefone", "is", null)
-        .not("data", "is", null);
+      // Use server-side function for fast deduplication and filtering
+      const { data, error } = await supabase.rpc("get_inactive_patients", {
+        dias_limite: automacao.dias_apos_venda,
+        dias_janela: 30,
+      });
 
-      rawClients = buildLatestDetalhadoClients(data);
+      if (!error && data) {
+        rawClients = (data as any[]).map(d => ({
+          id: d.id,
+          nome: d.nome || "Sem nome",
+          telefone: d.telefone || "",
+          data_registro: d.ultimo_atendimento || "",
+          vendedor: undefined,
+          medico: undefined,
+        }));
+      }
     } else if (automacao.fonte === "perdidos") {
       const { data } = await supabase
         .from("leads")
