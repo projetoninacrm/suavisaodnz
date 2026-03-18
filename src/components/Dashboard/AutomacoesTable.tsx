@@ -175,7 +175,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
               <Plus className="w-4 h-4" /> Nova automação
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto scrollbar-visible">
             <DialogHeader>
               <DialogTitle>{editingId ? "Editar automação" : "Nova automação"}</DialogTitle>
             </DialogHeader>
