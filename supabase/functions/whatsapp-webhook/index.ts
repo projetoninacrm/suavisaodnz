@@ -16,6 +16,12 @@ function cleanPhone(phone: string | null): string | null {
   return cleaned;
 }
 
+function parseFromMe(value: unknown): boolean | null {
+  if (value === true || value === "true" || value === 1 || value === "1") return true;
+  if (value === false || value === "false" || value === 0 || value === "0") return false;
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -34,14 +40,33 @@ Deno.serve(async (req) => {
     let isIncoming = false;
 
     // Format 1: Evolution API / standard
-    // { event: "message", data: { key: { fromMe: false, remoteJid: "55...@s.whatsapp.net" } } }
-    if (body.data?.key?.fromMe === false) {
-      isIncoming = true;
-      senderPhone = body.data.key.remoteJid?.replace(/@.*$/, "") || null;
+    // { event: "messages.upsert", data: { key: { fromMe: false, remoteJid: "55...@s.whatsapp.net" } } }
+    if (body.data?.key?.remoteJid) {
+      const fromMe = parseFromMe(body.data.key.fromMe);
+      if (fromMe !== true) {
+        isIncoming = true;
+        senderPhone = body.data.key.remoteJid.replace(/@.*$/, "") || null;
+      }
+    }
+    // Format 1.1: Evolution API with nested key
+    else if (body.data?.message?.key?.remoteJid) {
+      const fromMe = parseFromMe(body.data.message.key.fromMe);
+      if (fromMe !== true) {
+        isIncoming = true;
+        senderPhone = body.data.message.key.remoteJid.replace(/@.*$/, "") || null;
+      }
+    }
+    // Format 1.2: Evolution API with batched messages array
+    else if (body.data?.messages?.[0]?.key?.remoteJid) {
+      const fromMe = parseFromMe(body.data.messages[0].key.fromMe);
+      if (fromMe !== true) {
+        isIncoming = true;
+        senderPhone = body.data.messages[0].key.remoteJid.replace(/@.*$/, "") || null;
+      }
     }
     // Format 2: uazapi simple
     // { event: "message", data: { from: "55...", ... } }
-    else if (body.data?.from && !body.data?.key?.fromMe) {
+    else if (body.data?.from && parseFromMe(body.data?.key?.fromMe) !== true) {
       isIncoming = true;
       senderPhone = String(body.data.from);
     }
@@ -59,7 +84,7 @@ Deno.serve(async (req) => {
       // Try to get phone from message.key.remoteJid
       if (body.message?.key?.remoteJid) {
         senderPhone = body.message.key.remoteJid.replace(/@.*$/, "");
-        if (body.message.key.fromMe === true) isIncoming = false;
+        if (parseFromMe(body.message.key.fromMe) === true) isIncoming = false;
       }
       // Try chat.id as JID (e.g. "5531999999999@s.whatsapp.net")
       else if (body.chat?.id && body.chat.id.includes("@")) {
@@ -68,7 +93,7 @@ Deno.serve(async (req) => {
       // Try messages array
       else if (body.messages?.[0]?.key?.remoteJid) {
         senderPhone = body.messages[0].key.remoteJid.replace(/@.*$/, "");
-        if (body.messages[0].key.fromMe === true) isIncoming = false;
+        if (parseFromMe(body.messages[0].key.fromMe) === true) isIncoming = false;
       }
       // Try from field directly
       else if (body.from) {

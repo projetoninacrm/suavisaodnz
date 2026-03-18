@@ -1,3 +1,5 @@
+import { ensureEvolutionWebhookConfigured } from "../_shared/evolution-webhook.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -12,6 +14,7 @@ Deno.serve(async (req) => {
   const EVOLUTION_API_URL = Deno.env.get("EVOLUTION_API_URL");
   const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY");
   const EVOLUTION_INSTANCE = Deno.env.get("EVOLUTION_INSTANCE");
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 
   try {
     const { leads, mensagem, mediaUrl, mediaType, instancia } = await req.json();
@@ -27,11 +30,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!useUazapi && (!EVOLUTION_API_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE)) {
+    if (!useUazapi && (!EVOLUTION_API_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE || !SUPABASE_URL)) {
       return new Response(
-        JSON.stringify({ error: "Evolution API não configurada" }),
+        JSON.stringify({ error: "Evolution API ou backend não configurados" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    if (!useUazapi) {
+      try {
+        await ensureEvolutionWebhookConfigured({
+          evolutionApiUrl: EVOLUTION_API_URL!,
+          evolutionApiKey: EVOLUTION_API_KEY!,
+          instance: EVOLUTION_INSTANCE!,
+          webhookUrl: `${SUPABASE_URL}/functions/v1/whatsapp-webhook`,
+        });
+      } catch (webhookError) {
+        console.error("Falha ao configurar webhook da Evolution:", webhookError);
+      }
     }
 
     if (!leads || !Array.isArray(leads) || leads.length === 0) {
