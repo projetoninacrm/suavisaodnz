@@ -345,7 +345,6 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         .replace(/\{vendedor\}/g, cliente.vendedor || "")
         .replace(/\{medico\}/g, "");
 
-      // Send text message
       const leadPayload = {
         id: cliente.id,
         nome: cliente.nome,
@@ -356,6 +355,24 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         data_registro: cliente.data_compra || "",
       };
 
+      if (automacao.fonte === "detalhado" || automacao.fonte === "detalhado_inativos") {
+        const { error: ensureLeadError } = await supabase.from("leads").upsert(
+          {
+            id: cliente.id,
+            nome: cliente.nome,
+            numero: cliente.telefone,
+            venda: "Não",
+            status: "Ativo",
+            data_registro: cliente.data_compra || undefined,
+          },
+          { onConflict: "id" }
+        );
+
+        if (ensureLeadError) {
+          throw new Error(`Erro ao preparar lead para histórico de disparo: ${ensureLeadError.message}`);
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke("whatsapp-disparo", {
         body: {
           leads: [leadPayload],
@@ -364,12 +381,15 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         },
       });
 
-      // Send audio if configured
+      const sendResult = (data as { results?: Array<{ status?: string; erro?: string }> } | null)?.results?.[0];
+      const textSent = !error && sendResult?.status === "enviado";
+      const textError = error ? String(error.message || error) : (sendResult?.erro || null);
+
       let audioOk = true;
       const audioUrl = (cliente.vendedor && automacao.audios_vendedor?.[cliente.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
-      if (!error && audioUrl) {
+      if (textSent && audioUrl) {
         await new Promise(resolve => setTimeout(resolve, 1500));
-        const { error: audioErr } = await supabase.functions.invoke("whatsapp-disparo", {
+        const { data: audioData, error: audioErr } = await supabase.functions.invoke("whatsapp-disparo", {
           body: {
             leads: [leadPayload],
             mediaUrl: audioUrl,
@@ -377,21 +397,31 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
             instancia: automacao.instancia || "suavisao",
           },
         });
-        if (audioErr) audioOk = false;
+
+        const audioResult = (audioData as { results?: Array<{ status?: string }> } | null)?.results?.[0];
+        if (audioErr || audioResult?.status !== "enviado") {
+          audioOk = false;
+        }
       }
 
-      const status = error ? "erro" : "enviado";
+      const status = textSent ? "enviado" : "erro";
+      const erroMensagem = status === "erro"
+        ? (textError || "Falha ao enviar mensagem")
+        : (!audioOk ? "Mensagem enviada, mas o áudio falhou" : null);
 
       if (isRetry && cliente.disparo_id) {
-        // Update existing disparo record on retry
-        await supabase.from("automacao_disparos").update({
+        const { error: updateError } = await supabase.from("automacao_disparos").update({
           status,
           data_envio: status === "enviado" ? new Date().toISOString() : null,
-          erro: error ? String(error) : null,
+          erro: erroMensagem,
           mensagem_enviada: mensagem,
         }).eq("id", cliente.disparo_id);
+
+        if (updateError) {
+          throw new Error(`Erro ao atualizar disparo: ${updateError.message}`);
+        }
       } else {
-        await supabase.from("automacao_disparos").insert({
+        const { error: insertError } = await supabase.from("automacao_disparos").insert({
           automacao_id: automacao.id,
           lead_id: cliente.id,
           nome_cliente: cliente.nome,
@@ -400,8 +430,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           status,
           data_envio: status === "enviado" ? new Date().toISOString() : null,
           data_programada: new Date().toISOString().split("T")[0],
-          erro: error ? String(error) : null,
+          erro: erroMensagem,
         });
+
+        if (insertError) {
+          throw new Error(`Erro ao salvar histórico do disparo: ${insertError.message}`);
+        }
       }
 
       if (status === "enviado") {
@@ -411,10 +445,19 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           .eq("id", automacao.id);
       }
 
-      toast({ title: status === "enviado" ? "Mensagem enviada!" : "Erro no envio", variant: status === "erro" ? "destructive" : "default" });
+      toast({
+        title: status === "enviado" ? "Mensagem enviada!" : "Erro no envio",
+        description: erroMensagem || undefined,
+        variant: status === "erro" ? "destructive" : "default",
+      });
+
       fetchData();
     } catch (err) {
-      toast({ title: "Erro ao enviar", variant: "destructive" });
+      toast({
+        title: "Erro ao enviar",
+        description: err instanceof Error ? err.message : "Erro inesperado",
+        variant: "destructive",
+      });
     } finally {
       setSendingId(null);
     }
