@@ -338,6 +338,17 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                 </p>
               </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Número de envio</label>
+                <select
+                  className="text-sm border rounded px-2 py-1 bg-background w-full"
+                  value={form.instancia}
+                  onChange={(e) => setForm({ ...form, instancia: e.target.value })}
+                >
+                  <option value="suavisao">Suavisão</option>
+                  <option value="dnz">DNZ</option>
+                </select>
+              </div>
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium">Status:</label>
                 <select
