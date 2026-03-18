@@ -149,13 +149,7 @@ serve(async (req) => {
       const postAttendances = await fetchAttendancesRange(dayAfterEnd, today, apiToken);
       console.log(`Post-period attendances: ${postAttendances.length}`);
 
-      // Filter SUA VISAO
-      const postFiltered = postAttendances.filter((att: any) => {
-        const placeName = att.place?.name || '';
-        return placeName.toUpperCase().includes('SUA VIS');
-      });
-
-      for (const att of postFiltered) {
+      for (const att of postAttendances) {
         const phone = cleanPhone(att.patient?.contact_cellphone);
         if (!phone || phone.length < 10) continue;
         const normalizedPhone = phone.length === 13 && phone.startsWith('55') ? phone.slice(2) : phone;
