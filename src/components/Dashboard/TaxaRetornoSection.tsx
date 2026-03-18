@@ -1,15 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, UserCheck, Percent, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { format } from "date-fns";
 
 interface PatientReturn {
   id: string;
   nome: string;
   telefone: string;
+  tipo_atendimento: string;
   primeiro_atendimento: string;
+  ultimo_atendimento: string;
   total_atendimentos: number;
   retornou: boolean;
   atendimentos_no_periodo: number;
@@ -22,16 +23,14 @@ export function TaxaRetornoSection() {
   const [patients, setPatients] = useState<PatientReturn[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchName, setSearchName] = useState("");
+  const [loadingMessage, setLoadingMessage] = useState("");
 
   const fetchData = async () => {
     setIsLoading(true);
+    setLoadingMessage("Buscando atendimentos na API... isso pode levar alguns segundos.");
     try {
-      const inicio = format(new Date(dataInicio + "T12:00:00"), "dd/MM/yyyy");
-      const fim = format(new Date(dataFim + "T12:00:00"), "dd/MM/yyyy");
-
-      const { data, error } = await supabase.rpc("get_return_rate_patients", {
-        data_inicio: inicio,
-        data_fim: fim,
+      const { data, error } = await supabase.functions.invoke("return-rate", {
+        body: { start_date: dataInicio, end_date: dataFim },
       });
 
       if (error) {
@@ -39,17 +38,18 @@ export function TaxaRetornoSection() {
         return;
       }
 
-      setPatients((data as any[]) || []);
+      if (data?.success) {
+        setPatients(data.data || []);
+      } else {
+        console.error("API error:", data?.error);
+      }
     } catch (err) {
       console.error("Error:", err);
     } finally {
       setIsLoading(false);
+      setLoadingMessage("");
     }
   };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const filteredPatients = useMemo(() => {
     if (!searchName.trim()) return patients;
@@ -151,34 +151,40 @@ export function TaxaRetornoSection() {
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Paciente</th>
+                <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Tipo de Atendimento</th>
                 <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Telefone</th>
                 <th className="px-4 py-3 text-center font-semibold text-muted-foreground">1º Atendimento</th>
+                <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Último Atendimento</th>
                 <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Atend. no Período</th>
                 <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Atend. Após Período</th>
-                <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Total Atendimentos</th>
+                <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Total</th>
                 <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Retornou?</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                     <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
-                    Carregando...
+                    {loadingMessage || "Carregando..."}
                   </td>
                 </tr>
               ) : filteredPatients.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                    Nenhum paciente encontrado no período selecionado.
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                    {patients.length === 0
+                      ? "Clique em 'Consultar' para buscar os dados da API."
+                      : "Nenhum paciente encontrado."}
                   </td>
                 </tr>
               ) : (
                 filteredPatients.map((patient) => (
                   <tr key={patient.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 font-medium">{patient.nome}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{patient.tipo_atendimento}</td>
                     <td className="px-4 py-3 text-muted-foreground">{patient.telefone}</td>
                     <td className="px-4 py-3 text-center">{patient.primeiro_atendimento}</td>
+                    <td className="px-4 py-3 text-center">{patient.ultimo_atendimento}</td>
                     <td className="px-4 py-3 text-center">{patient.atendimentos_no_periodo}</td>
                     <td className="px-4 py-3 text-center">{patient.atendimentos_apos_periodo}</td>
                     <td className="px-4 py-3 text-center font-semibold">{patient.total_atendimentos}</td>
