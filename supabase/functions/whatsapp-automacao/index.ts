@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
                 if (audioUrl) {
                   try {
                     await new Promise(resolve => setTimeout(resolve, 1500));
-                    const audioResponse = await fetch(`${UAZAPI_URL}/sendAudio`, {
+                    const audioResponse = await fetch(`${UAZAPI_URL}/send/audio`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
                       body: JSON.stringify({ number: `55${phone}`, audio: audioUrl }),
