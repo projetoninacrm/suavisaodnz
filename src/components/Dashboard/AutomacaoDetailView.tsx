@@ -221,19 +221,29 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
           erro: disparo.erro || undefined,
         });
-      } else if (diasFaltam <= 0 || automacao.fonte !== "detalhado_inativos") {
-        if (diasFaltam >= 0 || automacao.fonte === "detalhado_inativos") {
-          result.push({
-            id: client.id,
-            nome: client.nome,
-            telefone: client.telefone,
-            data_compra: client.data_registro,
-            data_envio_programada: formatDateBR(targetDate),
-            dias_faltam: diasFaltam,
-            status: "pendente",
-            vendedor: client.vendedor,
-          });
-        }
+      } else if (automacao.fonte === "detalhado_inativos") {
+        // Show ALL clients for inativos — those past threshold AND approaching it
+        result.push({
+          id: client.id,
+          nome: client.nome,
+          telefone: client.telefone,
+          data_compra: client.data_registro,
+          data_envio_programada: formatDateBR(targetDate),
+          dias_faltam: diasFaltam,
+          status: "pendente",
+          vendedor: client.vendedor,
+        });
+      } else if (diasFaltam >= 0) {
+        result.push({
+          id: client.id,
+          nome: client.nome,
+          telefone: client.telefone,
+          data_compra: client.data_registro,
+          data_envio_programada: formatDateBR(targetDate),
+          dias_faltam: diasFaltam,
+          status: "pendente",
+          vendedor: client.vendedor,
+        });
       }
     }
 
@@ -509,7 +519,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendedor</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : automacao.fonte === "detalhado_inativos" ? "Último Atendimento" : "Data da Compra"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Data do Envio</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "detalhado_inativos" ? "Atraso" : "Dias Restantes"}</th>
+                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "detalhado_inativos" ? "Tempo" : "Dias Restantes"}</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
                     </tr>
                   </thead>
@@ -526,10 +536,18 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                         <td className="px-4 py-3 text-center text-muted-foreground">{c.data_compra}</td>
                         <td className="px-4 py-3 text-center text-muted-foreground">{c.data_envio_programada}</td>
                         <td className="px-4 py-3 text-center">
-                          <Badge variant="outline" className="gap-1 bg-yellow-500/10 text-yellow-600 border-yellow-200">
+                          <Badge variant="outline" className={`gap-1 ${
+                            automacao.fonte === "detalhado_inativos"
+                              ? c.dias_faltam <= 0
+                                ? "bg-red-500/10 text-red-600 border-red-200"
+                                : "bg-blue-500/10 text-blue-600 border-blue-200"
+                              : "bg-yellow-500/10 text-yellow-600 border-yellow-200"
+                          }`}>
                             <Clock className="w-3 h-3" />
                             {automacao.fonte === "detalhado_inativos"
-                              ? `${Math.abs(c.dias_faltam)}d em atraso`
+                              ? c.dias_faltam <= 0
+                                ? `${Math.abs(c.dias_faltam)}d em atraso`
+                                : `${c.dias_faltam}d restantes`
                               : c.dias_faltam === 0
                                 ? "Hoje"
                                 : `${c.dias_faltam}d`}
