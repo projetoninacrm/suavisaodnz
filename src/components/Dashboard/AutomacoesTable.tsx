@@ -390,6 +390,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Fonte</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Dias</th>
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Mensagem</th>
+                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Número</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Envios</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
