@@ -222,17 +222,19 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           erro: disparo.erro || undefined,
         });
       } else if (automacao.fonte === "detalhado_inativos") {
-        // Show ALL clients for inativos — those past threshold AND approaching it
-        result.push({
-          id: client.id,
-          nome: client.nome,
-          telefone: client.telefone,
-          data_compra: client.data_registro,
-          data_envio_programada: formatDateBR(targetDate),
-          dias_faltam: diasFaltam,
-          status: "pendente",
-          vendedor: client.vendedor,
-        });
+        // Only show clients within 30 days of threshold or already past it
+        if (diasFaltam <= 30) {
+          result.push({
+            id: client.id,
+            nome: client.nome,
+            telefone: client.telefone,
+            data_compra: client.data_registro,
+            data_envio_programada: formatDateBR(targetDate),
+            dias_faltam: diasFaltam,
+            status: "pendente",
+            vendedor: client.vendedor,
+          });
+        }
       } else if (diasFaltam >= 0) {
         result.push({
           id: client.id,
