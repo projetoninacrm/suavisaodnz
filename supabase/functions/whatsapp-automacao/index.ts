@@ -55,10 +55,27 @@ Deno.serve(async (req) => {
     let totalProcessed = 0;
     let totalSent = 0;
     let totalErrors = 0;
+    let evolutionWebhookChecked = false;
 
     for (const automacao of automacoes) {
       let clients: any[] = [];
       const existingDispatchKeys = new Set<string>();
+      const useUazapi = automacao.instancia === "uazapi";
+
+      if (!useUazapi && !evolutionWebhookChecked && EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE) {
+        try {
+          await ensureEvolutionWebhookConfigured({
+            evolutionApiUrl: EVOLUTION_API_URL,
+            evolutionApiKey: EVOLUTION_API_KEY,
+            instance: EVOLUTION_INSTANCE,
+            webhookUrl: `${SUPABASE_URL}/functions/v1/whatsapp-webhook`,
+          });
+        } catch (webhookError) {
+          console.error("Falha ao configurar webhook da Evolution:", webhookError);
+        } finally {
+          evolutionWebhookChecked = true;
+        }
+      }
 
       if (automacao.fonte === "detalhado") {
         let query = supabase
