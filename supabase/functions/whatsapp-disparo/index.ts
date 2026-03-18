@@ -77,90 +77,97 @@ Deno.serve(async (req) => {
         : "";
 
       try {
-        // Send media if attached
-        if (mediaUrl) {
-          const mediaEndpoint = mediaType === "audio"
-            ? `${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${EVOLUTION_INSTANCE}`
-            : `${EVOLUTION_API_URL}/message/sendMedia/${EVOLUTION_INSTANCE}`;
+        if (useUazapi) {
+          // --- UAZAPI ---
+          if (mediaUrl) {
+            const mediaEndpoint = mediaType === "audio"
+              ? `${UAZAPI_URL}/send/audio`
+              : `${UAZAPI_URL}/send/video`;
 
-          const mediaBody = mediaType === "audio"
-            ? {
-                number: `55${phone}`,
-                audio: mediaUrl,
-              }
-            : {
-                number: `55${phone}`,
-                mediatype: "video",
-                media: mediaUrl,
-                caption: msg || undefined,
-              };
+            const mediaBody = mediaType === "audio"
+              ? { number: `55${phone}`, audio: mediaUrl }
+              : { number: `55${phone}`, video: mediaUrl, caption: msg || undefined };
 
-          const mediaResponse = await fetch(mediaEndpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: EVOLUTION_API_KEY,
-            },
-            body: JSON.stringify(mediaBody),
-          });
-
-          if (!mediaResponse.ok) {
-            const errBody = await mediaResponse.text();
-            results.push({
-              leadId: lead.id,
-              nome: lead.nome || "—",
-              status: "erro",
-              erro: `Mídia HTTP ${mediaResponse.status}: ${errBody.substring(0, 200)}`,
-            });
-            continue;
-          }
-
-          // If audio, send text separately (audio doesn't support caption)
-          if (mediaType === "audio" && msg) {
-            await fetch(
-              `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  apikey: EVOLUTION_API_KEY,
-                },
-                body: JSON.stringify({
-                  number: `55${phone}`,
-                  text: msg,
-                }),
-              }
-            );
-          }
-
-          results.push({ leadId: lead.id, nome: lead.nome || "—", status: "enviado" });
-        } else {
-          // Text-only message
-          const response = await fetch(
-            `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
-            {
+            const mediaResponse = await fetch(mediaEndpoint, {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                apikey: EVOLUTION_API_KEY,
-              },
-              body: JSON.stringify({
-                number: `55${phone}`,
-                text: msg,
-              }),
-            }
-          );
+              headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN! },
+              body: JSON.stringify(mediaBody),
+            });
 
-          if (response.ok) {
+            if (!mediaResponse.ok) {
+              const errBody = await mediaResponse.text();
+              results.push({ leadId: lead.id, nome: lead.nome || "—", status: "erro", erro: `Mídia HTTP ${mediaResponse.status}: ${errBody.substring(0, 200)}` });
+              continue;
+            }
+
+            if (mediaType === "audio" && msg) {
+              await fetch(`${UAZAPI_URL}/send/text`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN! },
+                body: JSON.stringify({ number: `55${phone}`, text: msg }),
+              });
+            }
+
             results.push({ leadId: lead.id, nome: lead.nome || "—", status: "enviado" });
           } else {
-            const errBody = await response.text();
-            results.push({
-              leadId: lead.id,
-              nome: lead.nome || "—",
-              status: "erro",
-              erro: `HTTP ${response.status}: ${errBody.substring(0, 200)}`,
+            const response = await fetch(`${UAZAPI_URL}/send/text`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN! },
+              body: JSON.stringify({ number: `55${phone}`, text: msg }),
             });
+
+            if (response.ok) {
+              results.push({ leadId: lead.id, nome: lead.nome || "—", status: "enviado" });
+            } else {
+              const errBody = await response.text();
+              results.push({ leadId: lead.id, nome: lead.nome || "—", status: "erro", erro: `HTTP ${response.status}: ${errBody.substring(0, 200)}` });
+            }
+          }
+        } else {
+          // --- EVOLUTION API ---
+          if (mediaUrl) {
+            const mediaEndpoint = mediaType === "audio"
+              ? `${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${EVOLUTION_INSTANCE}`
+              : `${EVOLUTION_API_URL}/message/sendMedia/${EVOLUTION_INSTANCE}`;
+
+            const mediaBody = mediaType === "audio"
+              ? { number: `55${phone}`, audio: mediaUrl }
+              : { number: `55${phone}`, mediatype: "video", media: mediaUrl, caption: msg || undefined };
+
+            const mediaResponse = await fetch(mediaEndpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY! },
+              body: JSON.stringify(mediaBody),
+            });
+
+            if (!mediaResponse.ok) {
+              const errBody = await mediaResponse.text();
+              results.push({ leadId: lead.id, nome: lead.nome || "—", status: "erro", erro: `Mídia HTTP ${mediaResponse.status}: ${errBody.substring(0, 200)}` });
+              continue;
+            }
+
+            if (mediaType === "audio" && msg) {
+              await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY! },
+                body: JSON.stringify({ number: `55${phone}`, text: msg }),
+              });
+            }
+
+            results.push({ leadId: lead.id, nome: lead.nome || "—", status: "enviado" });
+          } else {
+            const response = await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY! },
+              body: JSON.stringify({ number: `55${phone}`, text: msg }),
+            });
+
+            if (response.ok) {
+              results.push({ leadId: lead.id, nome: lead.nome || "—", status: "enviado" });
+            } else {
+              const errBody = await response.text();
+              results.push({ leadId: lead.id, nome: lead.nome || "—", status: "erro", erro: `HTTP ${response.status}: ${errBody.substring(0, 200)}` });
+            }
           }
         }
       } catch (e) {
