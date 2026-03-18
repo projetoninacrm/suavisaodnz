@@ -1,0 +1,1 @@
+UPDATE automacoes SET instancia = 'uazapi' WHERE id = 'b3f6794f-4fa3-422d-bb91-0ad184dfa838';
