@@ -410,6 +410,11 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
+                      <Badge variant="outline" className={`text-xs ${a.instancia === "dnz" ? "border-orange-300 text-orange-600" : "border-blue-300 text-blue-600"}`}>
+                        {a.instancia === "dnz" ? "DNZ" : "Suavisão"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-center">
                       <Badge variant="outline" className="text-xs">
                         {a.fonte === "detalhado"
                           ? "Detalhado"
