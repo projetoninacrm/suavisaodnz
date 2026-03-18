@@ -133,7 +133,8 @@ export function TaxaRetornoSection() {
   };
 
   const tipoOptions = useMemo(() => {
-    const set = new Set(patients.map((p) => p.tipo_atendimento).filter(Boolean));
+    const set = new Set<string>();
+    patients.forEach((p) => (p.tipos_atendimento || []).forEach((t: string) => set.add(t)));
     return Array.from(set).sort();
   }, [patients]);
 
