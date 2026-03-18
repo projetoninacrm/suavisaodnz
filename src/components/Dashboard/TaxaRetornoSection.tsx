@@ -214,8 +214,8 @@ export function TaxaRetornoSection() {
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Finalizados no Período</p>
-              <p className="text-2xl font-bold text-foreground">{isLoading ? "..." : stats.finalizadosNoPeriodo}</p>
+              <p className="text-sm text-muted-foreground">Pacientes Únicos no Período</p>
+              <p className="text-2xl font-bold text-foreground">{isLoading ? "..." : stats.pacientesUnicos}</p>
             </div>
           </div>
         </div>
