@@ -1,0 +1,1 @@
+ALTER TABLE public.automacoes ADD COLUMN instancia text NOT NULL DEFAULT 'suavisao';
