@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp, Search, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -106,6 +106,8 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState("");
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -222,17 +224,19 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           erro: disparo.erro || undefined,
         });
       } else if (automacao.fonte === "detalhado_inativos") {
-        // Show ALL clients for inativos — those past threshold AND approaching it
-        result.push({
-          id: client.id,
-          nome: client.nome,
-          telefone: client.telefone,
-          data_compra: client.data_registro,
-          data_envio_programada: formatDateBR(targetDate),
-          dias_faltam: diasFaltam,
-          status: "pendente",
-          vendedor: client.vendedor,
-        });
+        // Only show clients within 30 days of threshold or already past it
+        if (diasFaltam <= 30) {
+          result.push({
+            id: client.id,
+            nome: client.nome,
+            telefone: client.telefone,
+            data_compra: client.data_registro,
+            data_envio_programada: formatDateBR(targetDate),
+            dias_faltam: diasFaltam,
+            status: "pendente",
+            vendedor: client.vendedor,
+          });
+        }
       } else if (diasFaltam >= 0) {
         result.push({
           id: client.id,
@@ -257,6 +261,60 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
     setClientes(result);
     setIsLoading(false);
   }, [automacao]);
+
+  const handleImportHistorico = useCallback(async () => {
+    setIsImporting(true);
+    setImportProgress("Iniciando importação histórica...");
+
+    try {
+      const today = new Date();
+      const startYear = today.getFullYear() - 3;
+      let totalInserted = 0;
+      let totalSkipped = 0;
+
+      for (let year = startYear; year <= today.getFullYear(); year++) {
+        const startMonth = year === startYear ? today.getMonth() : 0;
+        const endMonth = year === today.getFullYear() ? today.getMonth() : 11;
+
+        for (let month = startMonth; month <= endMonth; month++) {
+          const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+          const lastDay = new Date(year, month + 1, 0).getDate();
+          const endDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+          const monthLabel = `${String(month + 1).padStart(2, "0")}/${year}`;
+          setImportProgress(`Importando ${monthLabel}...`);
+
+          try {
+            const { data, error } = await supabase.functions.invoke("import-attendances", {
+              body: { start_date: startDate, end_date: endDate },
+            });
+
+            if (!error && data) {
+              totalInserted += data.total_inserted || 0;
+              totalSkipped += data.total_skipped || 0;
+            }
+          } catch (e) {
+            console.error(`Erro importando ${monthLabel}:`, e);
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      setImportProgress("");
+      toast({
+        title: "Importação concluída!",
+        description: `${totalInserted} novos registros importados, ${totalSkipped} já existentes.`,
+      });
+
+      fetchData();
+    } catch (err) {
+      toast({ title: "Erro na importação", variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+      setImportProgress("");
+    }
+  }, [fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -420,6 +478,18 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                 : "venda"}
           </p>
         </div>
+        {automacao.fonte === "detalhado_inativos" && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleImportHistorico}
+            disabled={isImporting}
+          >
+            {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {isImporting ? importProgress || "Importando..." : "Importar histórico"}
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
