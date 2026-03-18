@@ -22,13 +22,31 @@ Deno.serve(async (req) => {
   try {
     const { number, text } = await req.json();
 
-    console.log(`Enviando via uazapi para ${number}: ${text}`);
+    // Try multiple endpoint formats
+    const endpoints = [
+      `${UAZAPI_URL}/chat/send/text`,
+      `${UAZAPI_URL}/message/sendText`,
+      `${UAZAPI_URL}/send/text`,
+    ];
 
-    const response = await fetch(`${UAZAPI_URL}/sendText`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
-      body: JSON.stringify({ number, text }),
-    });
+    let lastResponse: any = null;
+    for (const endpoint of endpoints) {
+      console.log(`Tentando: ${endpoint}`);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
+        body: JSON.stringify({ number, text }),
+      });
+      const body = await response.text();
+      console.log(`Resposta: ${response.status} - ${body.substring(0, 300)}`);
+      lastResponse = { endpoint, status: response.status, ok: response.ok, body };
+      if (response.ok) break;
+    }
+
+    return new Response(
+      JSON.stringify(lastResponse),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
 
     const body = await response.text();
     console.log(`Resposta uazapi: ${response.status} - ${body}`);
