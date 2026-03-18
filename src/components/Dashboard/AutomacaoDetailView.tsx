@@ -480,6 +480,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                 ? "o último atendimento"
                 : "venda"}
           </p>
+        </div>
         {automacao.fonte === "detalhado_inativos" && (
           <Button
             variant="outline"
