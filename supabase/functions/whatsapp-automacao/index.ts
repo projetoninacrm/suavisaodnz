@@ -276,7 +276,27 @@ Deno.serve(async (req) => {
           }
         }
 
-        await supabase.from("automacao_disparos").insert({
+        if (automacao.fonte === "detalhado" || automacao.fonte === "detalhado_inativos") {
+          const { error: ensureLeadError } = await supabase.from("leads").upsert(
+            {
+              id: client.id,
+              nome: client.nome,
+              numero: client.telefone,
+              venda: "Não",
+              status: "Ativo",
+              data_registro: client.data_registro || null,
+            },
+            { onConflict: "id" }
+          );
+
+          if (ensureLeadError) {
+            console.error(`Erro ao preparar lead ${client.id} para disparo:`, ensureLeadError.message);
+            totalErrors++;
+            continue;
+          }
+        }
+
+        const { error: insertDisparoError } = await supabase.from("automacao_disparos").insert({
           automacao_id: automacao.id,
           lead_id: client.id,
           nome_cliente: client.nome,
@@ -287,6 +307,12 @@ Deno.serve(async (req) => {
           data_programada: automacao.fonte === "detalhado_inativos" ? todayStr : targetStr,
           erro,
         });
+
+        if (insertDisparoError) {
+          console.error(`Erro ao salvar disparo ${client.id}:`, insertDisparoError.message);
+          totalErrors++;
+          continue;
+        }
 
         if (automacao.fonte === "detalhado_inativos") {
           existingDispatchKeys.add(normalizePatientKey(client.nome, client.telefone));

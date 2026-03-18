@@ -209,6 +209,20 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   <option value="detalhado_inativos">Detalhado (2+ anos sem atendimento)</option>
                 </select>
               </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Número WhatsApp de envio</label>
+                <select
+                  className="text-sm border rounded px-2 py-1 bg-background w-full"
+                  value={form.instancia}
+                  onChange={(e) => setForm({ ...form, instancia: e.target.value })}
+                >
+                  <option value="suavisao">DNZ Óticas (principal)</option>
+                  <option value="uazapi">Sua Visão Oftalmologia</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Escolha por qual número esta automação vai enviar as mensagens.
+                </p>
+              </div>
               {form.fonte === "detalhado" && (
                 <div>
                   <label className="text-sm font-medium mb-1 block">
@@ -338,29 +352,16 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                 </p>
               </div>
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium">Status:</label>
-                  <select
-                    className="text-sm border rounded px-2 py-1 bg-background"
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  >
-                    <option value="Ativa">Ativa</option>
-                    <option value="Inativa">Inativa</option>
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium">Número WhatsApp:</label>
-                  <select
-                    className="text-sm border rounded px-2 py-1 bg-background"
-                    value={form.instancia}
-                    onChange={(e) => setForm({ ...form, instancia: e.target.value })}
-                  >
-                    <option value="suavisao">DNZ Óticas (principal)</option>
-                    <option value="uazapi">Sua Visão Oftalmologia</option>
-                  </select>
-                </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Status:</label>
+                <select
+                  className="text-sm border rounded px-2 py-1 bg-background"
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value })}
+                >
+                  <option value="Ativa">Ativa</option>
+                  <option value="Inativa">Inativa</option>
+                </select>
               </div>
             </div>
             <DialogFooter>
