@@ -90,12 +90,9 @@ serve(async (req) => {
     const periodAttendances = await fetchAttendancesRange(start_date, end_date, apiToken);
     console.log(`Period attendances (DONE): ${periodAttendances.length}`);
 
-    // Filter only SUA VISAO place
-    const periodFiltered = periodAttendances.filter((att: any) => {
-      const placeName = att.place?.name || '';
-      return placeName.toUpperCase().includes('SUA VIS');
-    });
-    console.log(`Period filtered (SUA VISAO): ${periodFiltered.length}`);
+    // All DONE attendances are from the company - no need to filter by place
+    const periodFiltered = periodAttendances;
+    console.log(`Period attendances (DONE): ${periodFiltered.length}`);
 
     // 2. Build unique patients map from period (by cleaned phone)
     const patientsMap = new Map<string, {
