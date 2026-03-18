@@ -795,6 +795,19 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
+                          <Badge variant="outline" className={`gap-1 ${
+                            c.resposta_cliente
+                              ? "bg-green-500/10 text-green-600 border-green-200"
+                              : "bg-muted text-muted-foreground border-border"
+                          }`}>
+                            {c.resposta_cliente ? (
+                              <><CheckCircle className="w-3 h-3" /> Sim</>
+                            ) : (
+                              <><Clock className="w-3 h-3" /> Não</>
+                            )}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-center">
                           {c.status === "erro" && (
                             <Button
                               variant="outline"
