@@ -11,6 +11,7 @@ interface PatientReturn {
   nome: string;
   telefone: string;
   tipo_atendimento: string;
+  tipos_atendimento: string[];
   primeiro_atendimento: string;
   ultimo_atendimento: string;
   total_atendimentos: number;
