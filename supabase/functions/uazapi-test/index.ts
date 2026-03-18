@@ -48,13 +48,6 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-    const body = await response.text();
-    console.log(`Resposta uazapi: ${response.status} - ${body}`);
-
-    return new Response(
-      JSON.stringify({ status: response.status, ok: response.ok, body: JSON.parse(body) }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   } catch (error) {
     console.error("Erro:", error);
     return new Response(
