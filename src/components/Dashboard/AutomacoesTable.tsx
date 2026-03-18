@@ -62,6 +62,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
     filtro_como_conheceu: null,
     audio_url: null,
     audios_vendedor: null,
+    instancia: "suavisao",
   });
   const [isUploadingAudio, setIsUploadingAudio] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
