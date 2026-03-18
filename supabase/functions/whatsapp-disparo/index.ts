@@ -71,19 +71,13 @@ Deno.serve(async (req) => {
         if (useUazapi) {
           // --- UAZAPI ---
           if (mediaUrl) {
-            const mediaEndpoint = mediaType === "audio"
-              ? `${UAZAPI_URL}/send/audio`
-              : `${UAZAPI_URL}/send/video`;
+            const mediaPath = mediaType === "audio" ? "/send/audio" : "/send/video";
 
             const mediaBody = mediaType === "audio"
               ? { number: `55${phone}`, audio: mediaUrl }
               : { number: `55${phone}`, video: mediaUrl, caption: msg || undefined };
 
-            const mediaResponse = await fetch(mediaEndpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN! },
-              body: JSON.stringify(mediaBody),
-            });
+            const mediaResponse = await sendUazapiRequest(UAZAPI_URL!, UAZAPI_TOKEN!, mediaPath, mediaBody);
 
             if (!mediaResponse.ok) {
               const errBody = await mediaResponse.text();
@@ -92,19 +86,17 @@ Deno.serve(async (req) => {
             }
 
             if (mediaType === "audio" && msg) {
-              await fetch(`${UAZAPI_URL}/send/text`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN! },
-                body: JSON.stringify({ number: `55${phone}`, text: msg }),
+              await sendUazapiRequest(UAZAPI_URL!, UAZAPI_TOKEN!, "/send/text", {
+                number: `55${phone}`,
+                text: msg,
               });
             }
 
             results.push({ leadId: lead.id, nome: lead.nome || "—", status: "enviado" });
           } else {
-            const response = await fetch(`${UAZAPI_URL}/send/text`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN! },
-              body: JSON.stringify({ number: `55${phone}`, text: msg }),
+            const response = await sendUazapiRequest(UAZAPI_URL!, UAZAPI_TOKEN!, "/send/text", {
+              number: `55${phone}`,
+              text: msg,
             });
 
             if (response.ok) {
@@ -186,6 +178,68 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+async function sendUazapiRequest(
+  baseUrl: string,
+  token: string,
+  path: string,
+  payload: unknown,
+): Promise<Response> {
+  const normalizedBase = baseUrl.replace(/\/+$/, "");
+  const requestBody = JSON.stringify(payload);
+  const encodedToken = encodeURIComponent(token);
+
+  const attempts: Array<{ url: string; headers: Record<string, string> }> = [
+    {
+      url: `${normalizedBase}${path}`,
+      headers: { "Content-Type": "application/json", token },
+    },
+    {
+      url: `${normalizedBase}${path}`,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    },
+    {
+      url: `${normalizedBase}${path}?token=${encodedToken}`,
+      headers: { "Content-Type": "application/json" },
+    },
+    {
+      url: `${normalizedBase}${path}?admintoken=${encodedToken}&token=${encodedToken}`,
+      headers: { "Content-Type": "application/json" },
+    },
+  ];
+
+  let lastResponse: Response | null = null;
+  let lastError: unknown = null;
+
+  for (const attempt of attempts) {
+    try {
+      const response = await fetch(attempt.url, {
+        method: "POST",
+        headers: attempt.headers,
+        body: requestBody,
+      });
+
+      if (response.ok) {
+        return response;
+      }
+
+      lastResponse = response;
+      if (response.status !== 401 && response.status !== 403) {
+        return response;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastResponse) {
+    return lastResponse;
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Falha ao conectar com UAZAPI");
+}
 
 function cleanPhone(phone: string | null): string | null {
   if (!phone) return null;

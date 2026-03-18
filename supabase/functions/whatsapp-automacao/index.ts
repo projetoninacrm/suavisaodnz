@@ -182,10 +182,9 @@ Deno.serve(async (req) => {
             totalErrors++;
           } else {
             try {
-              const textResponse = await fetch(`${UAZAPI_URL}/send/text`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
-                body: JSON.stringify({ number: `55${phone}`, text: mensagem }),
+              const textResponse = await sendUazapiRequest(UAZAPI_URL, UAZAPI_TOKEN, "/send/text", {
+                number: `55${phone}`,
+                text: mensagem,
               });
 
               if (!textResponse.ok) {
@@ -201,10 +200,9 @@ Deno.serve(async (req) => {
                 if (audioUrl) {
                   try {
                     await new Promise(resolve => setTimeout(resolve, 1500));
-                    const audioResponse = await fetch(`${UAZAPI_URL}/send/audio`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
-                      body: JSON.stringify({ number: `55${phone}`, audio: audioUrl }),
+                    const audioResponse = await sendUazapiRequest(UAZAPI_URL, UAZAPI_TOKEN, "/send/audio", {
+                      number: `55${phone}`,
+                      audio: audioUrl,
                     });
                     if (!audioResponse.ok) {
                       const errBody = await audioResponse.text();
@@ -344,6 +342,68 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+async function sendUazapiRequest(
+  baseUrl: string,
+  token: string,
+  path: string,
+  payload: unknown,
+): Promise<Response> {
+  const normalizedBase = baseUrl.replace(/\/+$/, "");
+  const requestBody = JSON.stringify(payload);
+  const encodedToken = encodeURIComponent(token);
+
+  const attempts: Array<{ url: string; headers: Record<string, string> }> = [
+    {
+      url: `${normalizedBase}${path}`,
+      headers: { "Content-Type": "application/json", token },
+    },
+    {
+      url: `${normalizedBase}${path}`,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    },
+    {
+      url: `${normalizedBase}${path}?token=${encodedToken}`,
+      headers: { "Content-Type": "application/json" },
+    },
+    {
+      url: `${normalizedBase}${path}?admintoken=${encodedToken}&token=${encodedToken}`,
+      headers: { "Content-Type": "application/json" },
+    },
+  ];
+
+  let lastResponse: Response | null = null;
+  let lastError: unknown = null;
+
+  for (const attempt of attempts) {
+    try {
+      const response = await fetch(attempt.url, {
+        method: "POST",
+        headers: attempt.headers,
+        body: requestBody,
+      });
+
+      if (response.ok) {
+        return response;
+      }
+
+      lastResponse = response;
+      if (response.status !== 401 && response.status !== 403) {
+        return response;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastResponse) {
+    return lastResponse;
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Falha ao conectar com UAZAPI");
+}
 
 function parseDate(dateStr: string | null): Date | null {
   if (!dateStr) return null;
