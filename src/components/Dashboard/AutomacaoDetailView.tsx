@@ -661,7 +661,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   };
 
   const pendentes = filterBySearch(clientes.filter(c => c.status === "pendente"));
-  const processados = filterBySearch(clientes.filter(c => c.status !== "pendente"));
+  const processadosAll = filterBySearch(clientes.filter(c => c.status !== "pendente"));
+  const processados = respostaFilter === "todos" 
+    ? processadosAll 
+    : respostaFilter === "sim" 
+      ? processadosAll.filter(c => c.resposta_cliente === true) 
+      : processadosAll.filter(c => !c.resposta_cliente);
 
   const statusIcon = (s: string) => {
     switch (s) {
