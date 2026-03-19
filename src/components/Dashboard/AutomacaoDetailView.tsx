@@ -802,9 +802,49 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
             </div>
           ) : (
             <div>
-              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">
-                Pendentes ({pendentes.length})
-              </h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Pendentes ({pendentes.length})
+                </h4>
+                {pendentesEmAtraso.length > 0 && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={isBulkSending}
+                      >
+                        {isBulkSending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            {bulkProgress.sent + bulkProgress.errors}/{bulkProgress.total}
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Enviar todos em atraso ({pendentesEmAtraso.length})
+                          </>
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Enviar para todos em atraso</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja enviar a mensagem para {pendentesEmAtraso.length} cliente(s) em atraso? O envio será feito um a um com intervalo de 2 segundos entre cada.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleEnviarTodosEmAtraso}>
+                          Confirmar envio em massa
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
               <div className="overflow-hidden rounded-lg border border-border bg-card">
                 <table className="w-full text-sm">
                   <thead>
