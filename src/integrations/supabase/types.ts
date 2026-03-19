@@ -579,6 +579,12 @@ export type Database = {
           total_atendimentos: number
         }[]
       }
+      match_disparo_by_phone: {
+        Args: { phone_suffix: string }
+        Returns: {
+          id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

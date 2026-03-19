@@ -139,27 +139,71 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Find dispatches sent to this phone that haven't been responded to yet
-    const phoneVariants = [
-      cleanedPhone,
-      `55${cleanedPhone}`,
-      cleanedPhone.length === 11 ? cleanedPhone.substring(1) : null,
-    ].filter(Boolean);
+    // Use last 8 digits for flexible matching
+    const last8 = cleanedPhone.slice(-8);
 
-    const likePatterns = phoneVariants.map(p => `%${p!.slice(-8)}%`);
-
+    // Query using SQL to strip non-digits from telefone column for comparison
     const { data: disparos, error } = await supabase
-      .from("automacao_disparos")
-      .select("id, telefone, resposta_cliente")
-      .eq("status", "enviado")
-      .eq("resposta_cliente", false)
-      .or(likePatterns.map(p => `telefone.like.${p}`).join(","));
+      .rpc("match_disparo_by_phone", { phone_suffix: last8 });
 
     if (error) {
-      console.error("Erro ao buscar disparos:", error.message);
-      return new Response(JSON.stringify({ received: true, action: "db_error" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("Erro ao buscar disparos (tentando fallback):", error.message);
+      
+      // Fallback: try direct query with multiple patterns
+      const phoneVariants = [
+        cleanedPhone,
+        `55${cleanedPhone}`,
+        cleanedPhone.length === 11 ? cleanedPhone.substring(1) : null,
+      ].filter(Boolean);
+
+      // Build patterns that account for formatting characters
+      const digitPatterns: string[] = [];
+      for (const variant of phoneVariants) {
+        const last = variant!.slice(-8);
+        // Create pattern with % between each digit to match formatted phones
+        const wildcardPattern = `%${last.split("").join("%")}%`;
+        digitPatterns.push(wildcardPattern);
+      }
+
+      const { data: fallbackDisparos, error: fallbackError } = await supabase
+        .from("automacao_disparos")
+        .select("id, telefone, resposta_cliente")
+        .eq("status", "enviado")
+        .eq("resposta_cliente", false)
+        .or(digitPatterns.map(p => `telefone.like.${p}`).join(","));
+
+      if (fallbackError) {
+        console.error("Erro no fallback:", fallbackError.message);
+        return new Response(JSON.stringify({ received: true, action: "db_error" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!fallbackDisparos || fallbackDisparos.length === 0) {
+        console.log(`Nenhum disparo pendente encontrado para ${cleanedPhone}`);
+        return new Response(JSON.stringify({ received: true, action: "no_match" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const ids = fallbackDisparos.map(d => d.id);
+      console.log(`[fallback] Marcando ${ids.length} disparo(s) como respondido(s): ${ids.join(", ")}`);
+
+      const { error: updateError } = await supabase
+        .from("automacao_disparos")
+        .update({ resposta_cliente: true, updated_at: new Date().toISOString() })
+        .in("id", ids);
+
+      if (updateError) {
+        console.error("Erro ao atualizar disparos:", updateError.message);
+      }
+
+      return new Response(
+        JSON.stringify({ received: true, action: "marked_responded", count: ids.length }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (!disparos || disparos.length === 0) {
@@ -171,7 +215,7 @@ Deno.serve(async (req) => {
     }
 
     // Mark all matching dispatches as responded
-    const ids = disparos.map(d => d.id);
+    const ids = disparos.map((d: any) => d.id);
     console.log(`Marcando ${ids.length} disparo(s) como respondido(s): ${ids.join(", ")}`);
 
     const { error: updateError } = await supabase
