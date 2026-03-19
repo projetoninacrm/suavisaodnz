@@ -107,6 +107,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [respostaFilter, setRespostaFilter] = useState<"todos" | "sim" | "nao">("todos");
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState("");
   const [isBulkSending, setIsBulkSending] = useState(false);
