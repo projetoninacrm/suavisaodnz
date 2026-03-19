@@ -525,6 +525,134 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
     setCancellingId(null);
   };
 
+  const pendentesEmAtraso = useMemo(() => {
+    return clientes.filter(c => c.status === "pendente" && c.dias_faltam <= 0);
+  }, [clientes]);
+
+  const handleEnviarTodosEmAtraso = async () => {
+    const emAtraso = pendentesEmAtraso;
+    if (emAtraso.length === 0) {
+      toast({ title: "Nenhum cliente em atraso para enviar" });
+      return;
+    }
+
+    setIsBulkSending(true);
+    setBulkProgress({ sent: 0, errors: 0, total: emAtraso.length });
+
+    let sent = 0;
+    let errors = 0;
+
+    for (const cliente of emAtraso) {
+      const phone = cleanPhone(cliente.telefone);
+      if (!phone) {
+        errors++;
+        setBulkProgress({ sent, errors, total: emAtraso.length });
+        continue;
+      }
+
+      try {
+        const mensagem = automacao.mensagem
+          .replace(/\{nome_cliente\}/g, cliente.nome || "Cliente")
+          .replace(/\{data_compra\}/g, cliente.data_compra || "")
+          .replace(/\{vendedor\}/g, cliente.vendedor || "")
+          .replace(/\{medico\}/g, "");
+
+        const leadPayload = {
+          id: cliente.id,
+          nome: cliente.nome,
+          numero: cliente.telefone,
+          vendedor: cliente.vendedor || "",
+          medico: "",
+          canal: "",
+          data_registro: cliente.data_compra || "",
+        };
+
+        if (automacao.fonte === "detalhado" || automacao.fonte === "detalhado_inativos") {
+          await supabase.from("leads").upsert(
+            {
+              id: cliente.id,
+              nome: cliente.nome,
+              numero: cliente.telefone,
+              venda: "Não",
+              status: "Ativo",
+              data_registro: cliente.data_compra || undefined,
+            },
+            { onConflict: "id" }
+          );
+        }
+
+        const { data, error } = await supabase.functions.invoke("whatsapp-disparo", {
+          body: {
+            leads: [leadPayload],
+            mensagem,
+            instancia: automacao.instancia || "suavisao",
+          },
+        });
+
+        const sendResult = (data as { results?: Array<{ status?: string; erro?: string }> } | null)?.results?.[0];
+        const textSent = !error && sendResult?.status === "enviado";
+        const textError = error ? String(error.message || error) : (sendResult?.erro || null);
+
+        let audioOk = true;
+        const audioUrl = (cliente.vendedor && automacao.audios_vendedor?.[cliente.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
+        if (textSent && audioUrl) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          const { data: audioData, error: audioErr } = await supabase.functions.invoke("whatsapp-disparo", {
+            body: {
+              leads: [leadPayload],
+              mediaUrl: audioUrl,
+              mediaType: "audio",
+              instancia: automacao.instancia || "suavisao",
+            },
+          });
+          const audioResult = (audioData as { results?: Array<{ status?: string }> } | null)?.results?.[0];
+          if (audioErr || audioResult?.status !== "enviado") audioOk = false;
+        }
+
+        const status = textSent ? "enviado" : "erro";
+        const erroMensagem = status === "erro"
+          ? (textError || "Falha ao enviar mensagem")
+          : (!audioOk ? "Mensagem enviada, mas o áudio falhou" : null);
+
+        await supabase.from("automacao_disparos").insert({
+          automacao_id: automacao.id,
+          lead_id: cliente.id,
+          nome_cliente: cliente.nome,
+          telefone: cliente.telefone,
+          mensagem_enviada: mensagem,
+          status,
+          data_envio: status === "enviado" ? new Date().toISOString() : null,
+          data_programada: new Date().toISOString().split("T")[0],
+          erro: erroMensagem,
+        });
+
+        if (status === "enviado") sent++;
+        else errors++;
+      } catch {
+        errors++;
+      }
+
+      setBulkProgress({ sent, errors, total: emAtraso.length });
+
+      // Small delay between sends to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    if (sent > 0) {
+      await supabase
+        .from("automacoes")
+        .update({ total_envios: automacao.total_envios + sent })
+        .eq("id", automacao.id);
+    }
+
+    setIsBulkSending(false);
+    toast({
+      title: `Envio em massa concluído`,
+      description: `${sent} enviado(s), ${errors} erro(s) de ${emAtraso.length} total.`,
+    });
+    fetchData();
+  };
+
   const filterBySearch = (list: ClienteAgendado[]) => {
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
