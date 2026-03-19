@@ -107,6 +107,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [respostaFilter, setRespostaFilter] = useState<"todos" | "sim" | "nao">("todos");
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState("");
   const [isBulkSending, setIsBulkSending] = useState(false);
@@ -660,7 +661,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   };
 
   const pendentes = filterBySearch(clientes.filter(c => c.status === "pendente"));
-  const processados = filterBySearch(clientes.filter(c => c.status !== "pendente"));
+  const processadosAll = filterBySearch(clientes.filter(c => c.status !== "pendente"));
+  const processados = respostaFilter === "todos" 
+    ? processadosAll 
+    : respostaFilter === "sim" 
+      ? processadosAll.filter(c => c.resposta_cliente === true) 
+      : processadosAll.filter(c => !c.resposta_cliente);
 
   const statusIcon = (s: string) => {
     switch (s) {
@@ -960,9 +966,29 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
             </div>
           ) : (
             <div>
-              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">
-                Enviados ({processados.length})
-              </h4>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Enviados ({processados.length}{respostaFilter !== "todos" ? ` de ${processadosAll.length}` : ""})
+                </h4>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground mr-1">Resposta:</span>
+                  {([
+                    { key: "todos", label: "Todos" },
+                    { key: "sim", label: "Sim" },
+                    { key: "nao", label: "Não" },
+                  ] as const).map(({ key, label }) => (
+                    <Button
+                      key={key}
+                      variant={respostaFilter === key ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 text-xs px-3"
+                      onClick={() => setRespostaFilter(key)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               <div className="overflow-hidden rounded-lg border border-border bg-card">
                 <table className="w-full text-sm">
                   <thead>
