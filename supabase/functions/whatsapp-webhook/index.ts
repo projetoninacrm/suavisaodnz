@@ -79,14 +79,23 @@ Deno.serve(async (req) => {
     // { EventType: "messages", chat: { id: "..." }, message: {...} }
     // The phone can be in: chat.id (as JID), message.key.remoteJid, or extracted from chat fields
     else if (body.EventType === "messages") {
-      isIncoming = true;
+      // Check fromMe at message level first (uazapi direct format)
+      const messageFromMe = parseFromMe(body.message?.fromMe);
+      if (messageFromMe === true) {
+        isIncoming = false;
+      } else {
+        isIncoming = true;
+      }
 
       // Try to get phone from message.key.remoteJid
       if (body.message?.key?.remoteJid) {
         senderPhone = body.message.key.remoteJid.replace(/@.*$/, "");
         if (parseFromMe(body.message.key.fromMe) === true) isIncoming = false;
       }
-      // Try chat.id as JID (e.g. "5531999999999@s.whatsapp.net")
+      // Try chat.wa_chatid or chat.id as JID
+      else if (body.chat?.wa_chatid) {
+        senderPhone = body.chat.wa_chatid.replace(/@.*$/, "");
+      }
       else if (body.chat?.id && body.chat.id.includes("@")) {
         senderPhone = body.chat.id.replace(/@.*$/, "");
       }
@@ -95,13 +104,13 @@ Deno.serve(async (req) => {
         senderPhone = body.messages[0].key.remoteJid.replace(/@.*$/, "");
         if (parseFromMe(body.messages[0].key.fromMe) === true) isIncoming = false;
       }
-      // Try from field directly
-      else if (body.from) {
-        senderPhone = String(body.from).replace(/@.*$/, "");
-      }
       // Try chat.phone or chat.number
       else if (body.chat?.phone) {
         senderPhone = String(body.chat.phone);
+      }
+      // Try message.chatid
+      else if (body.message?.chatid) {
+        senderPhone = body.message.chatid.replace(/@.*$/, "");
       }
     }
 
