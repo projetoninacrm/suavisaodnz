@@ -966,9 +966,29 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
             </div>
           ) : (
             <div>
-              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">
-                Enviados ({processados.length})
-              </h4>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Enviados ({processados.length}{respostaFilter !== "todos" ? ` de ${processadosAll.length}` : ""})
+                </h4>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground mr-1">Resposta:</span>
+                  {([
+                    { key: "todos", label: "Todos" },
+                    { key: "sim", label: "Sim" },
+                    { key: "nao", label: "Não" },
+                  ] as const).map(({ key, label }) => (
+                    <Button
+                      key={key}
+                      variant={respostaFilter === key ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 text-xs px-3"
+                      onClick={() => setRespostaFilter(key)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               <div className="overflow-hidden rounded-lg border border-border bg-card">
                 <table className="w-full text-sm">
                   <thead>
