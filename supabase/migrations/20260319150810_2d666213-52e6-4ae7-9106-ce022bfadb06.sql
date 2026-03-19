@@ -1,0 +1,1 @@
+UPDATE automacao_disparos SET status = 'enviado', erro = NULL, data_envio = now(), updated_at = now() WHERE id IN ('d651f45c-6e5a-4791-87fd-28fb1feba13d', 'f2cca80d-4bfd-40d7-997d-9367190cd379');
