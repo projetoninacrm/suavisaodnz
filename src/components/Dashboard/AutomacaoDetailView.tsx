@@ -109,6 +109,8 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   const [searchQuery, setSearchQuery] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState("");
+  const [isBulkSending, setIsBulkSending] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ sent: 0, errors: 0, total: 0 });
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
