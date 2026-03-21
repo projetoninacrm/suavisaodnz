@@ -112,6 +112,7 @@ export type Database = {
           lead_id: string
           mensagem_enviada: string | null
           nome_cliente: string | null
+          observacao: string | null
           resposta_cliente: boolean
           status: string
           telefone: string | null
@@ -127,6 +128,7 @@ export type Database = {
           lead_id: string
           mensagem_enviada?: string | null
           nome_cliente?: string | null
+          observacao?: string | null
           resposta_cliente?: boolean
           status?: string
           telefone?: string | null
@@ -142,6 +144,7 @@ export type Database = {
           lead_id?: string
           mensagem_enviada?: string | null
           nome_cliente?: string | null
+          observacao?: string | null
           resposta_cliente?: boolean
           status?: string
           telefone?: string | null
