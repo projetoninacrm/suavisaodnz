@@ -172,40 +172,50 @@ function RelatorioTab({ clientes }: { clientes: ClienteAgendado[] }) {
     );
   }
 
+  const maxVal = Math.max(...chartData.map(d => d.quantidade));
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-muted-foreground">
-          Motivos de não fechamento ({totalObs} de {totalClientes} clientes)
+        <h4 className="text-sm font-semibold text-foreground">
+          Motivos de não fechamento
         </h4>
+        <span className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+          {totalObs} de {totalClientes} clientes
+        </span>
       </div>
-      <div className="rounded-lg border border-border bg-card p-4">
-        <ResponsiveContainer width="100%" height={Math.max(300, chartData.length * 45)}>
-          <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis type="number" allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-            <YAxis
-              type="category"
-              dataKey="motivo"
-              width={200}
-              tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
-            />
-            <Tooltip
-              contentStyle={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-                color: "hsl(var(--foreground))",
-              }}
-              formatter={(value: number) => [`${value} cliente(s)`, "Quantidade"]}
-            />
-            <Bar dataKey="quantidade" radius={[0, 4, 4, 0]}>
-              {chartData.map((_, index) => (
-                <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+
+      <div className="space-y-2.5">
+        {chartData.map((item, index) => {
+          const pct = maxVal > 0 ? (item.quantidade / maxVal) * 100 : 0;
+          const pctTotal = totalObs > 0 ? ((item.quantidade / totalObs) * 100).toFixed(0) : "0";
+          return (
+            <div key={index} className="group">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm text-foreground font-medium truncate max-w-[70%]" title={item.motivo}>
+                  {item.motivo}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground">
+                    {item.quantidade}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ({pctTotal}%)
+                  </span>
+                </div>
+              </div>
+              <div className="w-full h-7 bg-muted/50 rounded-md overflow-hidden">
+                <div
+                  className="h-full rounded-md transition-all duration-500 ease-out"
+                  style={{
+                    width: `${Math.max(pct, 3)}%`,
+                    backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
