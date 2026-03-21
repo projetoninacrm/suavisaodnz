@@ -1065,6 +1065,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                             )}
                           </Badge>
                         </td>
+                        <td className="px-4 py-3">
+                          <ObservacaoCell
+                            value={c.observacao || ""}
+                            onSave={(val) => c.disparo_id && handleUpdateObservacao(c.disparo_id, val)}
+                          />
+                        </td>
                         <td className="px-4 py-3 text-center">
                           {c.status === "erro" && (
                             <Button
@@ -1090,6 +1096,10 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="relatorio">
+          <RelatorioTab clientes={processadosAll} />
         </TabsContent>
       </Tabs>
     </div>
