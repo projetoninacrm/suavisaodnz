@@ -814,6 +814,9 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           <TabsTrigger value="enviados" className="gap-1.5">
             <Send className="w-4 h-4" /> Enviados
           </TabsTrigger>
+          <TabsTrigger value="relatorio" className="gap-1.5">
+            <BarChart3 className="w-4 h-4" /> Relatório
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pendentes">
