@@ -102,7 +102,121 @@ function buildLatestDetalhadoClients(records: Array<{ id: string; nome: string |
   return Array.from(latestMap.values()).map(({ parsedDate, ...client }) => client);
 }
 
-export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewProps) {
+const CHART_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "#f59e0b",
+  "#10b981",
+  "#6366f1",
+  "#ec4899",
+  "#8b5cf6",
+  "#14b8a6",
+];
+
+function ObservacaoCell({ value, onSave }: { value: string; onSave: (val: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setText(value); }, [value]);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  const handleSave = () => {
+    setEditing(false);
+    if (text !== value) onSave(text);
+  };
+
+  if (!editing) {
+    return (
+      <div
+        className="cursor-pointer text-sm text-muted-foreground hover:text-foreground min-h-[24px] px-1 py-0.5 rounded hover:bg-muted/50 transition-colors"
+        onClick={() => setEditing(true)}
+        title="Clique para editar"
+      >
+        {value || <span className="italic text-muted-foreground/50">Clique para adicionar...</span>}
+      </div>
+    );
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      className="w-full text-sm border border-border rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={handleSave}
+      onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") { setText(value); setEditing(false); } }}
+    />
+  );
+}
+
+function RelatorioTab({ clientes }: { clientes: ClienteAgendado[] }) {
+  const chartData = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of clientes) {
+      const obs = (c.observacao || "").trim();
+      if (!obs) continue;
+      const key = obs.length > 40 ? obs.substring(0, 40) + "…" : obs;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([motivo, quantidade]) => ({ motivo, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade);
+  }, [clientes]);
+
+  const totalObs = chartData.reduce((s, d) => s + d.quantidade, 0);
+  const totalClientes = clientes.length;
+
+  if (chartData.length === 0) {
+    return (
+      <div className="py-12 text-center text-muted-foreground">
+        <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-40" />
+        <p>Nenhuma observação registrada ainda.</p>
+        <p className="text-xs mt-1">Preencha a coluna "Observação" na aba Enviados para ver o relatório.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-muted-foreground">
+          Motivos de não fechamento ({totalObs} de {totalClientes} clientes)
+        </h4>
+      </div>
+      <div className="rounded-lg border border-border bg-card p-4">
+        <ResponsiveContainer width="100%" height={Math.max(300, chartData.length * 45)}>
+          <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis type="number" allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+            <YAxis
+              type="category"
+              dataKey="motivo"
+              width={200}
+              tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
+            />
+            <Tooltip
+              contentStyle={{
+                background: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "8px",
+                color: "hsl(var(--foreground))",
+              }}
+              formatter={(value: number) => [`${value} cliente(s)`, "Quantidade"]}
+            />
+            <Bar dataKey="quantidade" radius={[0, 4, 4, 0]}>
+              {chartData.map((_, index) => (
+                <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+
   const [clientes, setClientes] = useState<ClienteAgendado[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sendingId, setSendingId] = useState<string | null>(null);
