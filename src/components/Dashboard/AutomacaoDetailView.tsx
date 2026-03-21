@@ -550,6 +550,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
     }
   };
 
+  const handleEnviarTodosEmAtraso = async () => {
     const emAtraso = pendentesEmAtraso;
     if (emAtraso.length === 0) {
       toast({ title: "Nenhum cliente em atraso para enviar" });
