@@ -32,6 +32,7 @@ interface ClienteAgendado {
   data_envio_real?: string;
   erro?: string;
   resposta_cliente?: boolean;
+  observacao?: string;
 }
 
 interface AutomacaoDetailViewProps {
