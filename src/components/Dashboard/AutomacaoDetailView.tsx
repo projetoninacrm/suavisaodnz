@@ -1022,6 +1022,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Enviado em</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Resposta</th>
+                      <th className="px-4 py-3 text-left font-semibold text-muted-foreground min-w-[200px]">Observação</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
                     </tr>
                   </thead>
