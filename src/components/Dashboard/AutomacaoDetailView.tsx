@@ -359,6 +359,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                     resposta_cliente: updated.resposta_cliente,
                     status: updated.status,
                     erro: updated.erro || undefined,
+                    observacao: updated.observacao || undefined,
                     data_envio_real: updated.data_envio
                       ? new Date(updated.data_envio).toLocaleString("pt-BR")
                       : c.data_envio_real,
