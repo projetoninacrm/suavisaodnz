@@ -534,7 +534,22 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
     return clientes.filter(c => c.status === "pendente" && c.dias_faltam <= 0);
   }, [clientes]);
 
-  const handleEnviarTodosEmAtraso = async () => {
+  const handleUpdateObservacao = async (disparoId: string, value: string) => {
+    const { error } = await supabase
+      .from("automacao_disparos")
+      .update({ observacao: value || null } as any)
+      .eq("id", disparoId);
+    if (error) {
+      toast({ title: "Erro ao salvar observação", variant: "destructive" });
+    } else {
+      setClientes((prev) =>
+        prev.map((c) =>
+          c.disparo_id === disparoId ? { ...c, observacao: value || undefined } : c
+        )
+      );
+    }
+  };
+
     const emAtraso = pendentesEmAtraso;
     if (emAtraso.length === 0) {
       toast({ title: "Nenhum cliente em atraso para enviar" });
