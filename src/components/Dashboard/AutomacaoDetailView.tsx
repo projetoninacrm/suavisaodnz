@@ -216,7 +216,7 @@ function RelatorioTab({ clientes }: { clientes: ClienteAgendado[] }) {
   );
 }
 
-
+export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewProps) {
   const [clientes, setClientes] = useState<ClienteAgendado[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sendingId, setSendingId] = useState<string | null>(null);
