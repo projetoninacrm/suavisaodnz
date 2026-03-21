@@ -145,13 +145,37 @@ function ObservacaoCell({ value, onSave }: { value: string; onSave: (val: string
   );
 }
 
+function extractMainReason(obs: string): string {
+  const text = obs.toLowerCase().trim();
+  const keywords: [string[], string][] = [
+    [["preço", "preco", "caro", "valor", "barato", "custo", "orçamento", "orcamento", "dinheiro", "pagar"], "Preço"],
+    [["distância", "distancia", "longe", "localização", "localizacao", "perto"], "Distância"],
+    [["concorrência", "concorrencia", "outra ótica", "outra otica", "outro lugar", "já tem", "ja tem", "costume", "sempre foi"], "Já tem outra ótica"],
+    [["tempo", "agenda", "horário", "horario", "ocupado", "sem tempo", "disponibilidade"], "Sem tempo/agenda"],
+    [["não precisa", "nao precisa", "não quer", "nao quer", "desistiu", "não quis", "nao quis", "não quero", "nao quero"], "Não quis"],
+    [["mudou", "cidade", "viajou", "mudança", "mudanca"], "Mudou de cidade"],
+    [["convênio", "convenio", "plano", "sus"], "Usa convênio/plano"],
+    [["não respondeu", "nao respondeu", "sem resposta", "não atende", "nao atende", "ignorou"], "Não respondeu"],
+    [["já comprou", "ja comprou", "já fez", "ja fez", "já realizou", "ja realizou"], "Já comprou em outro lugar"],
+    [["prazo", "parcela", "condição", "condicao", "pagamento"], "Condição de pagamento"],
+  ];
+
+  for (const [terms, label] of keywords) {
+    if (terms.some(t => text.includes(t))) return label;
+  }
+
+  // Fallback: capitalize first ~30 chars
+  const short = obs.length > 30 ? obs.substring(0, 30).trim() + "…" : obs;
+  return short.charAt(0).toUpperCase() + short.slice(1);
+}
+
 function RelatorioTab({ clientes }: { clientes: ClienteAgendado[] }) {
   const chartData = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of clientes) {
       const obs = (c.observacao || "").trim();
       if (!obs) continue;
-      const key = obs.length > 40 ? obs.substring(0, 40) + "…" : obs;
+      const key = extractMainReason(obs);
       counts.set(key, (counts.get(key) || 0) + 1);
     }
     return Array.from(counts.entries())
