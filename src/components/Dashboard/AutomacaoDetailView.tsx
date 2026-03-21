@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp, Search, Download } from "lucide-react";
+import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp, Search, Download, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -31,6 +32,7 @@ interface ClienteAgendado {
   data_envio_real?: string;
   erro?: string;
   resposta_cliente?: boolean;
+  observacao?: string;
 }
 
 interface AutomacaoDetailViewProps {
@@ -98,6 +100,120 @@ function buildLatestDetalhadoClients(records: Array<{ id: string; nome: string |
   }
 
   return Array.from(latestMap.values()).map(({ parsedDate, ...client }) => client);
+}
+
+const CHART_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "#f59e0b",
+  "#10b981",
+  "#6366f1",
+  "#ec4899",
+  "#8b5cf6",
+  "#14b8a6",
+];
+
+function ObservacaoCell({ value, onSave }: { value: string; onSave: (val: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setText(value); }, [value]);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  const handleSave = () => {
+    setEditing(false);
+    if (text !== value) onSave(text);
+  };
+
+  if (!editing) {
+    return (
+      <div
+        className="cursor-pointer text-sm text-muted-foreground hover:text-foreground min-h-[24px] px-1 py-0.5 rounded hover:bg-muted/50 transition-colors"
+        onClick={() => setEditing(true)}
+        title="Clique para editar"
+      >
+        {value || <span className="italic text-muted-foreground/50">Clique para adicionar...</span>}
+      </div>
+    );
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      className="w-full text-sm border border-border rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={handleSave}
+      onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") { setText(value); setEditing(false); } }}
+    />
+  );
+}
+
+function RelatorioTab({ clientes }: { clientes: ClienteAgendado[] }) {
+  const chartData = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of clientes) {
+      const obs = (c.observacao || "").trim();
+      if (!obs) continue;
+      const key = obs.length > 40 ? obs.substring(0, 40) + "…" : obs;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([motivo, quantidade]) => ({ motivo, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade);
+  }, [clientes]);
+
+  const totalObs = chartData.reduce((s, d) => s + d.quantidade, 0);
+  const totalClientes = clientes.length;
+
+  if (chartData.length === 0) {
+    return (
+      <div className="py-12 text-center text-muted-foreground">
+        <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-40" />
+        <p>Nenhuma observação registrada ainda.</p>
+        <p className="text-xs mt-1">Preencha a coluna "Observação" na aba Enviados para ver o relatório.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-muted-foreground">
+          Motivos de não fechamento ({totalObs} de {totalClientes} clientes)
+        </h4>
+      </div>
+      <div className="rounded-lg border border-border bg-card p-4">
+        <ResponsiveContainer width="100%" height={Math.max(300, chartData.length * 45)}>
+          <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis type="number" allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+            <YAxis
+              type="category"
+              dataKey="motivo"
+              width={200}
+              tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
+            />
+            <Tooltip
+              contentStyle={{
+                background: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "8px",
+                color: "hsl(var(--foreground))",
+              }}
+              formatter={(value: number) => [`${value} cliente(s)`, "Quantidade"]}
+            />
+            <Bar dataKey="quantidade" radius={[0, 4, 4, 0]}>
+              {chartData.map((_, index) => (
+                <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
 }
 
 export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewProps) {
@@ -236,6 +352,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
           erro: disparo.erro || undefined,
           resposta_cliente: (disparo as any).resposta_cliente || false,
+          observacao: (disparo as any).observacao || undefined,
         });
       } else if (automacao.fonte === "detalhado_inativos") {
         // Only show clients within 30 days of threshold or already past it
@@ -356,6 +473,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                     resposta_cliente: updated.resposta_cliente,
                     status: updated.status,
                     erro: updated.erro || undefined,
+                    observacao: updated.observacao || undefined,
                     data_envio_real: updated.data_envio
                       ? new Date(updated.data_envio).toLocaleString("pt-BR")
                       : c.data_envio_real,
@@ -529,6 +647,22 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   const pendentesEmAtraso = useMemo(() => {
     return clientes.filter(c => c.status === "pendente" && c.dias_faltam <= 0);
   }, [clientes]);
+
+  const handleUpdateObservacao = async (disparoId: string, value: string) => {
+    const { error } = await supabase
+      .from("automacao_disparos")
+      .update({ observacao: value || null } as any)
+      .eq("id", disparoId);
+    if (error) {
+      toast({ title: "Erro ao salvar observação", variant: "destructive" });
+    } else {
+      setClientes((prev) =>
+        prev.map((c) =>
+          c.disparo_id === disparoId ? { ...c, observacao: value || undefined } : c
+        )
+      );
+    }
+  };
 
   const handleEnviarTodosEmAtraso = async () => {
     const emAtraso = pendentesEmAtraso;
@@ -794,6 +928,9 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           <TabsTrigger value="enviados" className="gap-1.5">
             <Send className="w-4 h-4" /> Enviados
           </TabsTrigger>
+          <TabsTrigger value="relatorio" className="gap-1.5">
+            <BarChart3 className="w-4 h-4" /> Relatório
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pendentes">
@@ -989,7 +1126,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                   ))}
                 </div>
               </div>
-              <div className="overflow-hidden rounded-lg border border-border bg-card">
+              <div className="overflow-x-auto rounded-lg border border-border bg-card">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
@@ -999,6 +1136,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Enviado em</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Resposta</th>
+                      <th className="px-4 py-3 text-left font-semibold text-muted-foreground min-w-[200px]">Observação</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
                     </tr>
                   </thead>
@@ -1041,6 +1179,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                             )}
                           </Badge>
                         </td>
+                        <td className="px-4 py-3">
+                          <ObservacaoCell
+                            value={c.observacao || ""}
+                            onSave={(val) => c.disparo_id && handleUpdateObservacao(c.disparo_id, val)}
+                          />
+                        </td>
                         <td className="px-4 py-3 text-center">
                           {c.status === "erro" && (
                             <Button
@@ -1066,6 +1210,10 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="relatorio">
+          <RelatorioTab clientes={processadosAll} />
         </TabsContent>
       </Tabs>
     </div>
