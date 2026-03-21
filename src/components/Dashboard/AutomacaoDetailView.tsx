@@ -103,14 +103,9 @@ function buildLatestDetalhadoClients(records: Array<{ id: string; nome: string |
 }
 
 const CHART_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--accent))",
-  "#f59e0b",
-  "#10b981",
-  "#6366f1",
-  "#ec4899",
-  "#8b5cf6",
-  "#14b8a6",
+  "#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd",
+  "#818cf8", "#7c3aed", "#5b21b6", "#4f46e5",
+  "#10b981", "#f59e0b", "#ec4899", "#14b8a6",
 ];
 
 function ObservacaoCell({ value, onSave }: { value: string; onSave: (val: string) => void }) {
