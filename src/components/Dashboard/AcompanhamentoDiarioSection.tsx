@@ -105,10 +105,8 @@ export function AcompanhamentoDiarioSection({
       }
     });
 
-    // Meta de faturamento proporcional ao peso preenchido (usa meta mensal configurada)
-    const metaAcumuladaFaturamento = pesoTotalDias > 0
-      ? metaMensalFaturamento * (pesoPreenchido / pesoTotalDias)
-      : 0;
+    // Meta de faturamento é exatamente o valor configurado no mês
+    const metaAcumuladaFaturamento = metaMensalFaturamento;
 
     const diferencaVendas = realAcumuladoVendas - metaAcumuladaVendas;
     const diferencaFaturamento = realAcumuladoFaturamento - metaAcumuladaFaturamento;
