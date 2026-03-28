@@ -88,7 +88,6 @@ export function AcompanhamentoDiarioSection({
   const consolidado = useMemo(() => {
     let pesoPreenchido = 0;
     let metaAcumuladaVendas = 0;
-    let metaAcumuladaFaturamento = 0;
     let realAcumuladoVendas = 0;
     let realAcumuladoFaturamento = 0;
 
@@ -96,18 +95,20 @@ export function AcompanhamentoDiarioSection({
       const registro = registrosMap[schedule.date];
       const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
       const metaVendasDia = schedule.isDiaCompleto ? metaDiariaVendasCompleta : metaDiariaVendasMeio;
-      const metaFatDiaBase = schedule.isDiaCompleto ? metaFaturamentoDiarioCompleto : metaFaturamentoDiarioMeio;
-      const metaFatDia = metasFaturamentoPorDia[schedule.date] ?? metaFatDiaBase;
       
       // Conta como preenchido se existe registro (mesmo com valores 0)
       if (registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null)) {
         pesoPreenchido += pesoDia;
         metaAcumuladaVendas += metaVendasDia;
-        metaAcumuladaFaturamento += metaFatDia;
         realAcumuladoVendas += registro.vendas_realizadas || 0;
         realAcumuladoFaturamento += registro.faturamento_realizado || 0;
       }
     });
+
+    // Meta de faturamento proporcional ao peso preenchido (usa meta mensal configurada)
+    const metaAcumuladaFaturamento = pesoTotalDias > 0
+      ? metaMensalFaturamento * (pesoPreenchido / pesoTotalDias)
+      : 0;
 
     const diferencaVendas = realAcumuladoVendas - metaAcumuladaVendas;
     const diferencaFaturamento = realAcumuladoFaturamento - metaAcumuladaFaturamento;
@@ -121,7 +122,7 @@ export function AcompanhamentoDiarioSection({
       diferencaVendas,
       diferencaFaturamento,
     };
-  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaDiariaVendasMeio, metaFaturamentoDiarioCompleto, metaFaturamentoDiarioMeio, metasFaturamentoPorDia]);
+  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaDiariaVendasMeio, metaMensalFaturamento, pesoTotalDias]);
 
   const StatusBadge = ({ diferenca, tipo }: { diferenca: number; tipo: "vendas" | "faturamento" }) => {
     const isPositivo = diferenca >= 0;
