@@ -62,9 +62,20 @@ const WEEKLY_PATTERN: Record<string, { morning: string; afternoon: string }> = {
   DOM: { morning: "", afternoon: "" },
 };
 
-// Helper: extrai o mês de uma data (suporta DD/MM/YYYY e DD/mes)
+// Helper: extrai o mês de uma data (suporta DD/MM/YYYY, DD/mes e YYYY-MM-DD)
 function getMonthFromDate(dateStr: string): string | null {
   if (!dateStr) return null;
+  
+  // ISO format: YYYY-MM-DD
+  if (dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts.length >= 2) {
+      const monthNum = parseInt(parts[1], 10);
+      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        return MONTH_NAMES[monthNum - 1];
+      }
+    }
+  }
   
   const parts = dateStr.split("/");
   if (parts.length >= 2) {
@@ -78,6 +89,21 @@ function getMonthFromDate(dateStr: string): string | null {
     }
   }
   return null;
+}
+
+// Helper: formata data ISO (YYYY-MM-DD) para DD/mes
+function formatDateForDisplay(dateStr: string): string {
+  if (!dateStr) return "";
+  if (dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      const monthNum = parseInt(parts[1], 10);
+      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        return `${parts[2]}/${MONTH_NAMES[monthNum - 1]}`;
+      }
+    }
+  }
+  return dateStr;
 }
 
 // Gera todos os dias de um mês (exceto domingos)
@@ -314,7 +340,7 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
                 >
                   <td className="px-4 py-1">
                     <EditableCell
-                      value={schedule.date}
+                      value={formatDateForDisplay(schedule.date)}
                       onSave={(value) => onUpdate(schedule.id, "date", value)}
                       placeholder="DD/MMM"
                     />
