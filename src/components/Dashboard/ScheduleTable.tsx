@@ -62,9 +62,20 @@ const WEEKLY_PATTERN: Record<string, { morning: string; afternoon: string }> = {
   DOM: { morning: "", afternoon: "" },
 };
 
-// Helper: extrai o mês de uma data (suporta DD/MM/YYYY e DD/mes)
+// Helper: extrai o mês de uma data (suporta DD/MM/YYYY, DD/mes e YYYY-MM-DD)
 function getMonthFromDate(dateStr: string): string | null {
   if (!dateStr) return null;
+  
+  // ISO format: YYYY-MM-DD
+  if (dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts.length >= 2) {
+      const monthNum = parseInt(parts[1], 10);
+      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        return MONTH_NAMES[monthNum - 1];
+      }
+    }
+  }
   
   const parts = dateStr.split("/");
   if (parts.length >= 2) {
