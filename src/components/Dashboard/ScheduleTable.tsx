@@ -91,6 +91,21 @@ function getMonthFromDate(dateStr: string): string | null {
   return null;
 }
 
+// Helper: formata data ISO (YYYY-MM-DD) para DD/mes
+function formatDateForDisplay(dateStr: string): string {
+  if (!dateStr) return "";
+  if (dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      const monthNum = parseInt(parts[1], 10);
+      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        return `${parts[2]}/${MONTH_NAMES[monthNum - 1]}`;
+      }
+    }
+  }
+  return dateStr;
+}
+
 // Gera todos os dias de um mês (exceto domingos)
 function generateMonthDays(monthIndex: number, year: number): { date: string; dayOfWeek: string }[] {
   const days: { date: string; dayOfWeek: string }[] = [];
