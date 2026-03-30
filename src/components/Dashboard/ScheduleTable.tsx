@@ -340,7 +340,7 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
                 >
                   <td className="px-4 py-1">
                     <EditableCell
-                      value={schedule.date}
+                      value={formatDateForDisplay(schedule.date)}
                       onSave={(value) => onUpdate(schedule.id, "date", value)}
                       placeholder="DD/MMM"
                     />
