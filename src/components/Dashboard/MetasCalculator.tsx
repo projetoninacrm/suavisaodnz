@@ -162,7 +162,7 @@ export function MetasCalculator({
     if (!isLoadingConfig) {
       const monthConfig = getConfigForMonth(selectedMonth);
       setConfig({
-        periodos: monthConfig.periodos || periodosComMedico,
+        periodos: periodosComMedico > 0 ? periodosComMedico : (monthConfig.periodos || 0),
         mediaAtendimentos: monthConfig.media_atendimentos,
         percentualReceita: monthConfig.percentual_receita,
         percentualComparecimento: monthConfig.percentual_comparecimento,
