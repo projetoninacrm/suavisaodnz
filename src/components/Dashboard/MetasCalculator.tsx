@@ -49,6 +49,16 @@ interface ConfigValues {
 function getMonthFromDate(dateStr: string): string | null {
   if (!dateStr) return null;
   
+  // ISO format: YYYY-MM-DD
+  if (dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    const monthNum = parseInt(parts[1], 10);
+    if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+      return MONTH_NAMES[monthNum - 1];
+    }
+    return null;
+  }
+  
   const parts = dateStr.split("/");
   if (parts.length >= 2) {
     const monthPart = parts[1].toLowerCase().trim();
