@@ -413,8 +413,10 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
 
     // Sort: pending first (by days remaining asc), then sent/error
     result.sort((a, b) => {
-      if (a.status === "pendente" && b.status !== "pendente") return -1;
-      if (a.status !== "pendente" && b.status === "pendente") return 1;
+      const isPendingA = a.status === "pendente" || a.status === "agendado";
+      const isPendingB = b.status === "pendente" || b.status === "agendado";
+      if (isPendingA && !isPendingB) return -1;
+      if (!isPendingA && isPendingB) return 1;
       return a.dias_faltam - b.dias_faltam;
     });
 
