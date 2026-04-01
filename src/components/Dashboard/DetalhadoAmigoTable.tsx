@@ -709,7 +709,12 @@ export function DetalhadoAmigoTable({
                       className="table-cell-hover animate-slide-in"
                       style={{ animationDelay: `${index * 15}ms` }}
                     >
-                      <td className="px-3 py-2 text-sm">{record.patient_name}</td>
+                      <td className="px-3 py-2 text-sm">
+                        <div>{record.patient_name}</div>
+                        {record.time && (
+                          <div className="text-xs text-muted-foreground">{record.time}</div>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-sm">{record.patient_age !== null ? `${record.patient_age} anos` : "-"}</td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1">
