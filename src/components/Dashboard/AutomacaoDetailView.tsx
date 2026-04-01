@@ -26,7 +26,7 @@ interface ClienteAgendado {
   data_compra: string;
   data_envio_programada: string;
   dias_faltam: number;
-  status: "pendente" | "enviado" | "erro" | "cancelado";
+  status: "pendente" | "agendado" | "enviado" | "erro" | "cancelado";
   vendedor?: string;
   disparo_id?: string;
   data_envio_real?: string;
@@ -413,8 +413,10 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
 
     // Sort: pending first (by days remaining asc), then sent/error
     result.sort((a, b) => {
-      if (a.status === "pendente" && b.status !== "pendente") return -1;
-      if (a.status !== "pendente" && b.status === "pendente") return 1;
+      const isPendingA = a.status === "pendente" || a.status === "agendado";
+      const isPendingB = b.status === "pendente" || b.status === "agendado";
+      if (isPendingA && !isPendingB) return -1;
+      if (!isPendingA && isPendingB) return 1;
       return a.dias_faltam - b.dias_faltam;
     });
 
@@ -674,7 +676,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   };
 
   const pendentesEmAtraso = useMemo(() => {
-    return clientes.filter(c => c.status === "pendente" && c.dias_faltam <= 0);
+    return clientes.filter(c => (c.status === "pendente" || c.status === "agendado") && c.dias_faltam <= 0);
   }, [clientes]);
 
   const handleUpdateObservacao = async (disparoId: string, value: string) => {

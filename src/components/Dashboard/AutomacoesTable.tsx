@@ -141,6 +141,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
       case "enviado": return "bg-green-500/10 text-green-600 border-green-200";
       case "erro": return "bg-red-500/10 text-red-600 border-red-200";
       case "pendente": return "bg-yellow-500/10 text-yellow-600 border-yellow-200";
+      case "agendado": return "bg-blue-500/10 text-blue-600 border-blue-200";
       default: return "bg-muted text-muted-foreground";
     }
   };
