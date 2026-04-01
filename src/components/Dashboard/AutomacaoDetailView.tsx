@@ -26,7 +26,7 @@ interface ClienteAgendado {
   data_compra: string;
   data_envio_programada: string;
   dias_faltam: number;
-  status: "pendente" | "enviado" | "erro" | "cancelado";
+  status: "pendente" | "agendado" | "enviado" | "erro" | "cancelado";
   vendedor?: string;
   disparo_id?: string;
   data_envio_real?: string;
