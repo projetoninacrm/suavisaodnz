@@ -676,7 +676,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   };
 
   const pendentesEmAtraso = useMemo(() => {
-    return clientes.filter(c => c.status === "pendente" && c.dias_faltam <= 0);
+    return clientes.filter(c => (c.status === "pendente" || c.status === "agendado") && c.dias_faltam <= 0);
   }, [clientes]);
 
   const handleUpdateObservacao = async (disparoId: string, value: string) => {
