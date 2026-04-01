@@ -7,6 +7,27 @@ import { AcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 
+const MONTH_NAMES_MAP: Record<string, number> = {
+  jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5,
+  jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11,
+};
+
+function parseDateForSort(dateStr: string): number {
+  if (!dateStr) return 0;
+  // ISO format: YYYY-MM-DD
+  if (dateStr.includes("-")) {
+    return new Date(dateStr).getTime();
+  }
+  // DD/mon or DD/MM/YYYY
+  const parts = dateStr.split("/");
+  const day = parseInt(parts[0], 10);
+  const monthPart = parts[1]?.toLowerCase().trim();
+  const monthNum = MONTH_NAMES_MAP[monthPart] ?? (parseInt(monthPart, 10) - 1);
+  const year = parts[2] ? parseInt(parts[2], 10) : new Date().getFullYear();
+  if (isNaN(day) || isNaN(monthNum)) return 0;
+  return new Date(year, monthNum, day).getTime();
+}
+
 interface AcompanhamentoDiarioSectionProps {
   schedules: Schedule[];
   registros: AcompanhamentoDiario[];
@@ -43,12 +64,7 @@ export function AcompanhamentoDiarioSection({
       const isDiaCompleto = temManha && temTarde;
       return { ...s, isDiaCompleto };
     }).sort((a, b) => {
-      // Ordena por data (DD/MM/YYYY)
-      const [diaA, mesA, anoA] = a.date.split("/").map(Number);
-      const [diaB, mesB, anoB] = b.date.split("/").map(Number);
-      const dateA = new Date(anoA, mesA - 1, diaA);
-      const dateB = new Date(anoB, mesB - 1, diaB);
-      return dateA.getTime() - dateB.getTime();
+      return parseDateForSort(a.date) - parseDateForSort(b.date);
     });
   }, [schedules]);
 
