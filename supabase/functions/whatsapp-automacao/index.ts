@@ -1,5 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ensureEvolutionWebhookConfigured } from "../_shared/evolution-webhook.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,9 +13,6 @@ Deno.serve(async (req) => {
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const EVOLUTION_API_URL = Deno.env.get("EVOLUTION_API_URL");
-  const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY");
-  const EVOLUTION_INSTANCE = Deno.env.get("EVOLUTION_INSTANCE");
   const UAZAPI_URL = Deno.env.get("UAZAPI_URL");
   const UAZAPI_TOKEN = Deno.env.get("UAZAPI_TOKEN");
 
@@ -55,30 +51,13 @@ Deno.serve(async (req) => {
     let totalProcessed = 0;
     let totalSent = 0;
     let totalErrors = 0;
-    let evolutionWebhookChecked = false;
 
     for (const automacao of automacoes) {
       let clients: any[] = [];
       const existingDispatchKeys = new Set<string>();
-      const useUazapi = automacao.instancia === "uazapi" || automacao.instancia === "uazapi_dnz";
       const uazapiToken = automacao.instancia === "uazapi_dnz"
         ? Deno.env.get("UAZAPI_TOKEN_DNZ")
         : UAZAPI_TOKEN;
-
-      if (!useUazapi && !evolutionWebhookChecked && EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE) {
-        try {
-          await ensureEvolutionWebhookConfigured({
-            evolutionApiUrl: EVOLUTION_API_URL,
-            evolutionApiKey: EVOLUTION_API_KEY,
-            instance: EVOLUTION_INSTANCE,
-            webhookUrl: `${SUPABASE_URL}/functions/v1/whatsapp-webhook`,
-          });
-        } catch (webhookError) {
-          console.error("Falha ao configurar webhook da Evolution:", webhookError);
-        } finally {
-          evolutionWebhookChecked = true;
-        }
-      }
 
       if (automacao.fonte === "detalhado") {
         let query = supabase
@@ -193,102 +172,46 @@ Deno.serve(async (req) => {
         let status = "pendente";
         let erro: string | null = null;
 
-        if (useUazapi) {
-          // --- UAZAPI ---
-          if (!UAZAPI_URL || !uazapiToken) {
-            status = "erro";
-            erro = "UAZAPI não configurada";
-            totalErrors++;
-          } else {
-            try {
-              const textResponse = await sendUazapiRequest(UAZAPI_URL, uazapiToken!, "/send/text", {
-                number: `55${phone}`,
-                text: mensagem,
-              });
-
-              if (!textResponse.ok) {
-                const errBody = await textResponse.text();
-                status = "erro";
-                erro = `HTTP ${textResponse.status}: ${errBody.substring(0, 200)}`;
-                totalErrors++;
-              } else {
-                status = "enviado";
-                totalSent++;
-
-                const audioUrl = (client.vendedor && automacao.audios_vendedor?.[client.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
-                if (audioUrl) {
-                  try {
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                    const audioResponse = await sendUazapiRequest(UAZAPI_URL, uazapiToken!, "/send/audio", {
-                      number: `55${phone}`,
-                      audio: audioUrl,
-                    });
-                    if (!audioResponse.ok) {
-                      const errBody = await audioResponse.text();
-                      console.error(`Audio send failed (uazapi) for ${client.nome}: ${errBody}`);
-                    }
-                  } catch (audioErr) {
-                    console.error(`Audio send error (uazapi) for ${client.nome}:`, audioErr);
-                  }
-                }
-              }
-            } catch (e) {
-              status = "erro";
-              erro = e instanceof Error ? e.message : "Erro desconhecido";
-              totalErrors++;
-            }
-          }
+        if (!UAZAPI_URL || !uazapiToken) {
+          status = "erro";
+          erro = "UAZAPI não configurada";
+          totalErrors++;
         } else {
-          // --- EVOLUTION API (default) ---
-          if (EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE) {
-            try {
-              const textResponse = await fetch(
-                `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
-                  body: JSON.stringify({ number: `55${phone}`, text: mensagem }),
-                }
-              );
+          try {
+            const textResponse = await sendUazapiRequest(UAZAPI_URL, uazapiToken!, "/send/text", {
+              number: `55${phone}`,
+              text: mensagem,
+            });
 
-              if (!textResponse.ok) {
-                const errBody = await textResponse.text();
-                status = "erro";
-                erro = `HTTP ${textResponse.status}: ${errBody.substring(0, 200)}`;
-                totalErrors++;
-              } else {
-                status = "enviado";
-                totalSent++;
+            if (!textResponse.ok) {
+              const errBody = await textResponse.text();
+              status = "erro";
+              erro = `HTTP ${textResponse.status}: ${errBody.substring(0, 200)}`;
+              totalErrors++;
+            } else {
+              status = "enviado";
+              totalSent++;
 
-                const audioUrl = (client.vendedor && automacao.audios_vendedor?.[client.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
-                if (audioUrl) {
-                  try {
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                    const audioResponse = await fetch(
-                      `${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${EVOLUTION_INSTANCE}`,
-                      {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
-                        body: JSON.stringify({ number: `55${phone}`, audio: audioUrl }),
-                      }
-                    );
-                    if (!audioResponse.ok) {
-                      const errBody = await audioResponse.text();
-                      console.error(`Audio send failed for ${client.nome}: ${errBody}`);
-                    }
-                  } catch (audioErr) {
-                    console.error(`Audio send error for ${client.nome}:`, audioErr);
+              const audioUrl = (client.vendedor && automacao.audios_vendedor?.[client.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
+              if (audioUrl) {
+                try {
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                  const audioResponse = await sendUazapiRequest(UAZAPI_URL, uazapiToken!, "/send/audio", {
+                    number: `55${phone}`,
+                    audio: audioUrl,
+                  });
+                  if (!audioResponse.ok) {
+                    const errBody = await audioResponse.text();
+                    console.error(`Audio send failed for ${client.nome}: ${errBody}`);
                   }
+                } catch (audioErr) {
+                  console.error(`Audio send error for ${client.nome}:`, audioErr);
                 }
               }
-            } catch (e) {
-              status = "erro";
-              erro = e instanceof Error ? e.message : "Erro desconhecido";
-              totalErrors++;
             }
-          } else {
+          } catch (e) {
             status = "erro";
-            erro = "Evolution API não configurada";
+            erro = e instanceof Error ? e.message : "Erro desconhecido";
             totalErrors++;
           }
         }
