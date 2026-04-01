@@ -43,12 +43,7 @@ export function AcompanhamentoDiarioSection({
       const isDiaCompleto = temManha && temTarde;
       return { ...s, isDiaCompleto };
     }).sort((a, b) => {
-      // Ordena por data (DD/MM/YYYY)
-      const [diaA, mesA, anoA] = a.date.split("/").map(Number);
-      const [diaB, mesB, anoB] = b.date.split("/").map(Number);
-      const dateA = new Date(anoA, mesA - 1, diaA);
-      const dateB = new Date(anoB, mesB - 1, diaB);
-      return dateA.getTime() - dateB.getTime();
+      return parseDateForSort(a.date) - parseDateForSort(b.date);
     });
   }, [schedules]);
 
