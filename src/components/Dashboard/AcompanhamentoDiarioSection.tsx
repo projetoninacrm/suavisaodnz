@@ -263,12 +263,13 @@ export function AcompanhamentoDiarioSection({
                 <tbody>
                   {(() => {
                     let acumuladoFaturamento = 0;
-                    let acumuladoMetaFat = 0;
+                    let pesoAcumulado = 0;
                     
                     return diasComMedico.map((schedule) => {
                       const registro = registrosMap[schedule.date];
                       const vendasReal = registro?.vendas_realizadas || 0;
                       const faturamentoReal = registro?.faturamento_realizado || 0;
+                      const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
                       
                       // Determina a meta baseada no tipo do dia (completo ou meio)
                       const metaVendasDia = schedule.isDiaCompleto ? metaDiariaVendasCompleta : metaDiariaVendasMeio;
@@ -281,13 +282,14 @@ export function AcompanhamentoDiarioSection({
                       const diferencaFaturamento = faturamentoReal - metaFatDia;
                       const statusFaturamento = diferencaFaturamento >= 0 ? "ok" : "atras";
                       
-                      // Calcula consolidado progressivo - considera preenchido se existe registro (mesmo com 0)
+                      // Consolidado: meta proporcional fixa (meta mensal × peso acumulado / peso total) vs real acumulado
                       const temDados = registro !== undefined && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null);
                       if (temDados) {
                         acumuladoFaturamento += faturamentoReal;
-                        acumuladoMetaFat += metaFatDia;
+                        pesoAcumulado += pesoDia;
                       }
-                      const diferencaConsolidada = acumuladoFaturamento - acumuladoMetaFat;
+                      const metaProporcional = pesoTotalDias > 0 ? metaMensalFaturamento * (pesoAcumulado / pesoTotalDias) : 0;
+                      const diferencaConsolidada = acumuladoFaturamento - metaProporcional;
 
                       return (
                         <tr key={schedule.id} className="border-b border-border/50 hover:bg-muted/30">
