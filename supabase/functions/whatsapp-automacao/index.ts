@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
 
         if (useUazapi) {
           // --- UAZAPI ---
-          if (!UAZAPI_URL || !UAZAPI_TOKEN) {
+          if (!UAZAPI_URL || !uazapiToken) {
             status = "erro";
             erro = "UAZAPI não configurada";
             totalErrors++;
