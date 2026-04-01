@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
                 if (audioUrl) {
                   try {
                     await new Promise(resolve => setTimeout(resolve, 1500));
-                    const audioResponse = await sendUazapiRequest(UAZAPI_URL, UAZAPI_TOKEN, "/send/audio", {
+                    const audioResponse = await sendUazapiRequest(UAZAPI_URL, uazapiToken!, "/send/audio", {
                       number: `55${phone}`,
                       audio: audioUrl,
                     });
