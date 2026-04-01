@@ -60,7 +60,10 @@ Deno.serve(async (req) => {
     for (const automacao of automacoes) {
       let clients: any[] = [];
       const existingDispatchKeys = new Set<string>();
-      const useUazapi = automacao.instancia === "uazapi";
+      const useUazapi = automacao.instancia === "uazapi" || automacao.instancia === "uazapi_dnz";
+      const uazapiToken = automacao.instancia === "uazapi_dnz"
+        ? Deno.env.get("UAZAPI_TOKEN_DNZ")
+        : UAZAPI_TOKEN;
 
       if (!useUazapi && !evolutionWebhookChecked && EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE) {
         try {
