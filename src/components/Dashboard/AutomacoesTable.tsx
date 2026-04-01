@@ -216,7 +216,6 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   value={form.instancia}
                   onChange={(e) => setForm({ ...form, instancia: e.target.value })}
                 >
-                  <option value="suavisao">DNZ Óticas (Evolution)</option>
                   <option value="uazapi">Sua Visão (uazapi)</option>
                   <option value="uazapi_dnz">DNZ Óticas (uazapi)</option>
                 </select>
