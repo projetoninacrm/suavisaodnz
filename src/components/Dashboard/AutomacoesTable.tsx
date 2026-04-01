@@ -216,8 +216,9 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                   value={form.instancia}
                   onChange={(e) => setForm({ ...form, instancia: e.target.value })}
                 >
-                  <option value="suavisao">DNZ Óticas (principal)</option>
-                  <option value="uazapi">Sua Visão Oftalmologia</option>
+                  <option value="suavisao">DNZ Óticas (Evolution)</option>
+                  <option value="uazapi">Sua Visão (uazapi)</option>
+                  <option value="uazapi_dnz">DNZ Óticas (uazapi)</option>
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">
                   Escolha por qual número esta automação vai enviar as mensagens.

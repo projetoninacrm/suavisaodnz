@@ -60,7 +60,10 @@ Deno.serve(async (req) => {
     for (const automacao of automacoes) {
       let clients: any[] = [];
       const existingDispatchKeys = new Set<string>();
-      const useUazapi = automacao.instancia === "uazapi";
+      const useUazapi = automacao.instancia === "uazapi" || automacao.instancia === "uazapi_dnz";
+      const uazapiToken = automacao.instancia === "uazapi_dnz"
+        ? Deno.env.get("UAZAPI_TOKEN_DNZ")
+        : UAZAPI_TOKEN;
 
       if (!useUazapi && !evolutionWebhookChecked && EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE) {
         try {
@@ -192,13 +195,13 @@ Deno.serve(async (req) => {
 
         if (useUazapi) {
           // --- UAZAPI ---
-          if (!UAZAPI_URL || !UAZAPI_TOKEN) {
+          if (!UAZAPI_URL || !uazapiToken) {
             status = "erro";
             erro = "UAZAPI não configurada";
             totalErrors++;
           } else {
             try {
-              const textResponse = await sendUazapiRequest(UAZAPI_URL, UAZAPI_TOKEN, "/send/text", {
+              const textResponse = await sendUazapiRequest(UAZAPI_URL, uazapiToken!, "/send/text", {
                 number: `55${phone}`,
                 text: mensagem,
               });
@@ -216,7 +219,7 @@ Deno.serve(async (req) => {
                 if (audioUrl) {
                   try {
                     await new Promise(resolve => setTimeout(resolve, 1500));
-                    const audioResponse = await sendUazapiRequest(UAZAPI_URL, UAZAPI_TOKEN, "/send/audio", {
+                    const audioResponse = await sendUazapiRequest(UAZAPI_URL, uazapiToken!, "/send/audio", {
                       number: `55${phone}`,
                       audio: audioUrl,
                     });

@@ -19,9 +19,11 @@ Deno.serve(async (req) => {
   try {
     const { leads, mensagem, mediaUrl, mediaType, instancia } = await req.json();
 
-    const useUazapi = instancia === "uazapi";
+    const useUazapi = instancia === "uazapi" || instancia === "uazapi_dnz";
     const UAZAPI_URL = Deno.env.get("UAZAPI_URL");
-    const UAZAPI_TOKEN = Deno.env.get("UAZAPI_TOKEN");
+    const UAZAPI_TOKEN = instancia === "uazapi_dnz"
+      ? Deno.env.get("UAZAPI_TOKEN_DNZ")
+      : Deno.env.get("UAZAPI_TOKEN");
 
     if (useUazapi && (!UAZAPI_URL || !UAZAPI_TOKEN)) {
       return new Response(
