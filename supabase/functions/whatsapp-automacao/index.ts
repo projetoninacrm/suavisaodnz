@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
             totalErrors++;
           } else {
             try {
-              const textResponse = await sendUazapiRequest(UAZAPI_URL, UAZAPI_TOKEN, "/send/text", {
+              const textResponse = await sendUazapiRequest(UAZAPI_URL, uazapiToken!, "/send/text", {
                 number: `55${phone}`,
                 text: mensagem,
               });
