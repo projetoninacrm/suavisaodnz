@@ -58,11 +58,11 @@ Deno.serve(async (req) => {
 
       try {
         if (mediaUrl) {
-          const mediaPath = mediaType === "audio" ? "/send/audio" : "/send/video";
+          const mediaPath = "/send/media";
 
           const mediaBody = mediaType === "audio"
-            ? { number: `55${phone}`, audio: mediaUrl }
-            : { number: `55${phone}`, video: mediaUrl, caption: msg || undefined };
+            ? { number: `55${phone}`, file: mediaUrl, type: "audio", ptt: true }
+            : { number: `55${phone}`, file: mediaUrl, type: "video", caption: msg || undefined };
 
           const mediaResponse = await sendUazapiRequest(UAZAPI_URL, UAZAPI_TOKEN, mediaPath, mediaBody);
 
