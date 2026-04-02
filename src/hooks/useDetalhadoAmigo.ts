@@ -62,6 +62,13 @@ const formatDate = (isoDate?: string): string => {
 
 const formatTime = (isoDate?: string): string => {
   if (!isoDate) return "";
+  // A API Amigo retorna horários locais (BRT) — extrair direto da string ISO
+  // para evitar conversão de timezone do navegador
+  const timeMatch = isoDate.match(/T(\d{2}):(\d{2})/);
+  if (timeMatch) {
+    return `${timeMatch[1]}:${timeMatch[2]}`;
+  }
+  // Fallback para parsing normal
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return "";
   return format(date, "HH:mm");
