@@ -240,7 +240,30 @@ async function sendNextAgendado(
     return { enviado: false };
   }
 
-  // Find first eligible dispatch (respecting daily limits per instance)
+  // Check daily limit for Sua Visão instance (max 2 per day)
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const { data: suavisaoAutomacoes } = await supabase
+    .from("automacoes")
+    .select("id")
+    .neq("instancia", "uazapi_dnz");
+
+  const suavisaoIds = (suavisaoAutomacoes || []).map((a: any) => a.id);
+  let suavisaoLimitReached = false;
+
+  if (suavisaoIds.length > 0) {
+    const { count: todaySuavisaoCount } = await supabase
+      .from("automacao_disparos")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "enviado")
+      .gte("data_envio", todayStart.toISOString())
+      .in("automacao_id", suavisaoIds);
+
+    suavisaoLimitReached = (todaySuavisaoCount || 0) >= 2;
+  }
+
+  // Find first eligible dispatch
   let disparo: any = null;
   let automacao: any = null;
 
@@ -254,44 +277,10 @@ async function sendNextAgendado(
       continue;
     }
 
-    // For "suavisao" instance: max 2 sends per day
-    if (candidateAutomacao.instancia !== "uazapi_dnz") {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const { count } = await supabase
-        .from("automacao_disparos")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "enviado")
-        .gte("data_envio", todayStart.toISOString())
-        .in("automacao_id", 
-          (pendentes as any[])
-            .filter((p: any) => p.automacoes && p.automacoes.instancia !== "uazapi_dnz")
-            .map((p: any) => p.automacao_id)
-            .concat([candidateAutomacao.id])
-            .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i)
-        );
-
-      // Get all suavisao automacao IDs to check total sends today
-      const { data: suavisaoAutomacoes } = await supabase
-        .from("automacoes")
-        .select("id")
-        .neq("instancia", "uazapi_dnz");
-
-      const suavisaoIds = (suavisaoAutomacoes || []).map((a: any) => a.id);
-
-      if (suavisaoIds.length > 0) {
-        const { count: todaySuavisaoCount } = await supabase
-          .from("automacao_disparos")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "enviado")
-          .gte("data_envio", todayStart.toISOString())
-          .in("automacao_id", suavisaoIds);
-
-        if ((todaySuavisaoCount || 0) >= 2) {
-          console.log("Limite diário de 2 disparos atingido para Sua Visão, aguardando próximo dia");
-          return { enviado: false, erro: "Limite diário Sua Visão atingido (2/2)" };
-        }
-      }
+    // Skip Sua Visão dispatches if daily limit reached
+    if (candidateAutomacao.instancia !== "uazapi_dnz" && suavisaoLimitReached) {
+      console.log("Limite diário de 2 disparos atingido para Sua Visão, pulando");
+      continue;
     }
 
     disparo = candidate;
@@ -300,6 +289,9 @@ async function sendNextAgendado(
   }
 
   if (!disparo || !automacao) {
+    if (suavisaoLimitReached) {
+      return { enviado: false, erro: "Limite diário Sua Visão atingido (2/2)" };
+    }
     return { enviado: false };
   }
 
