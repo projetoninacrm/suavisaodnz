@@ -228,27 +228,71 @@ async function sendNextAgendado(
   UAZAPI_URL: string | undefined,
   UAZAPI_TOKEN: string | undefined,
 ): Promise<{ enviado: boolean; erro?: string }> {
-  // Get the oldest "agendado" dispatch
+  // Get the oldest "agendado" dispatch with its automation info
   const { data: pendentes } = await supabase
     .from("automacao_disparos")
     .select("*, automacoes!automacao_disparos_automacao_id_fkey(*)")
     .eq("status", "agendado")
     .order("created_at", { ascending: true })
-    .limit(1);
+    .limit(10);
 
   if (!pendentes || pendentes.length === 0) {
     return { enviado: false };
   }
 
-  const disparo = pendentes[0];
-  const automacao = disparo.automacoes;
+  // Check daily limit for Sua Visão instance (max 2 per day)
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
-  if (!automacao) {
-    await supabase
+  const { data: suavisaoAutomacoes } = await supabase
+    .from("automacoes")
+    .select("id")
+    .neq("instancia", "uazapi_dnz");
+
+  const suavisaoIds = (suavisaoAutomacoes || []).map((a: any) => a.id);
+  let suavisaoLimitReached = false;
+
+  if (suavisaoIds.length > 0) {
+    const { count: todaySuavisaoCount } = await supabase
       .from("automacao_disparos")
-      .update({ status: "erro", erro: "Automação não encontrada" })
-      .eq("id", disparo.id);
-    return { enviado: false, erro: "Automação não encontrada" };
+      .select("id", { count: "exact", head: true })
+      .eq("status", "enviado")
+      .gte("data_envio", todayStart.toISOString())
+      .in("automacao_id", suavisaoIds);
+
+    suavisaoLimitReached = (todaySuavisaoCount || 0) >= 2;
+  }
+
+  // Find first eligible dispatch
+  let disparo: any = null;
+  let automacao: any = null;
+
+  for (const candidate of pendentes) {
+    const candidateAutomacao = candidate.automacoes;
+    if (!candidateAutomacao) {
+      await supabase
+        .from("automacao_disparos")
+        .update({ status: "erro", erro: "Automação não encontrada" })
+        .eq("id", candidate.id);
+      continue;
+    }
+
+    // Skip Sua Visão dispatches if daily limit reached
+    if (candidateAutomacao.instancia !== "uazapi_dnz" && suavisaoLimitReached) {
+      console.log("Limite diário de 2 disparos atingido para Sua Visão, pulando");
+      continue;
+    }
+
+    disparo = candidate;
+    automacao = candidateAutomacao;
+    break;
+  }
+
+  if (!disparo || !automacao) {
+    if (suavisaoLimitReached) {
+      return { enviado: false, erro: "Limite diário Sua Visão atingido (2/2)" };
+    }
+    return { enviado: false };
   }
 
   const uazapiToken = automacao.instancia === "uazapi_dnz"
