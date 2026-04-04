@@ -411,13 +411,17 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       }
     }
 
-    // Sort: pending first (by days remaining asc), then sent/error
+    // Sort: pending first (by days remaining asc), then sent/error (most recent first)
     result.sort((a, b) => {
       const isPendingA = a.status === "pendente" || a.status === "agendado";
       const isPendingB = b.status === "pendente" || b.status === "agendado";
       if (isPendingA && !isPendingB) return -1;
       if (!isPendingA && isPendingB) return 1;
-      return a.dias_faltam - b.dias_faltam;
+      if (isPendingA && isPendingB) return a.dias_faltam - b.dias_faltam;
+      // For sent/error: most recent first
+      const dateA = a.data_envio_real ? new Date(a.data_envio_real).getTime() : 0;
+      const dateB = b.data_envio_real ? new Date(b.data_envio_real).getTime() : 0;
+      return dateB - dateA;
     });
 
     setClientes(result);
