@@ -378,15 +378,16 @@ async function sendNextAgendado(
       .update({ total_envios: automacao.total_envios + 1 })
       .eq("id", automacao.id);
 
-    // Send notification to admin via DNZ instance (always available)
+    // Send notification to admin via same instance
     const NOTIFY_PHONE = "5531971759662";
-    const notifyMsg = `✅ *Automação disparada*\n\n📋 *Automação:* ${automacao.nome}\n👤 *Cliente:* ${disparo.nome_cliente || "N/A"}\n📱 *Telefone:* ${disparo.telefone || "N/A"}\n🕐 *Horário:* ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
-    const notifyToken = Deno.env.get("UAZAPI_TOKEN_DNZ") || uazapiToken;
+    const instanciaLabel = automacao.instancia === "uazapi_dnz" ? "DNZ" : "Sua Visão";
+    const notifyMsg = `✅ *Automação disparada (${instanciaLabel})*\n\n📋 *Automação:* ${automacao.nome}\n👤 *Cliente:* ${disparo.nome_cliente || "N/A"}\n📱 *Telefone:* ${disparo.telefone || "N/A"}\n🕐 *Horário:* ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
     try {
-      await sendUazapiRequest(UAZAPI_URL!, notifyToken, "/send/text", {
+      const notifyResp = await sendUazapiRequest(UAZAPI_URL!, uazapiToken, "/send/text", {
         number: NOTIFY_PHONE,
         text: notifyMsg,
       });
+      await notifyResp.text(); // consume response body
     } catch (notifyErr) {
       console.error("Erro ao enviar notificação admin:", notifyErr);
     }
