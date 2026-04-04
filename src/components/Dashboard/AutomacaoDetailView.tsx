@@ -421,8 +421,8 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       if (!isPendingA && isPendingB) return 1;
       if (isPendingA && isPendingB) return a.dias_faltam - b.dias_faltam;
       // For sent/error: most recent first
-      const dateA = a.data_envio_real ? new Date(a.data_envio_real).getTime() : 0;
-      const dateB = b.data_envio_real ? new Date(b.data_envio_real).getTime() : 0;
+      const dateA = a._data_envio_iso ? new Date(a._data_envio_iso).getTime() : 0;
+      const dateB = b._data_envio_iso ? new Date(b._data_envio_iso).getTime() : 0;
       return dateB - dateA;
     });
 
