@@ -129,6 +129,9 @@ export function AcompanhamentoDiarioSection({
     const diferencaVendas = realAcumuladoVendas - metaAcumuladaVendas;
     const diferencaFaturamento = realAcumuladoFaturamento - metaAcumuladaFaturamento;
 
+    const metaTicketMedio = metaAcumuladaVendas > 0 ? metaAcumuladaFaturamento / metaAcumuladaVendas : 0;
+    const realTicketMedio = realAcumuladoVendas > 0 ? realAcumuladoFaturamento / realAcumuladoVendas : 0;
+
     return {
       pesoPreenchido,
       metaAcumuladaVendas,
@@ -137,6 +140,8 @@ export function AcompanhamentoDiarioSection({
       realAcumuladoFaturamento,
       diferencaVendas,
       diferencaFaturamento,
+      metaTicketMedio,
+      realTicketMedio,
     };
   }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaDiariaVendasMeio, metaMensalFaturamento, pesoTotalDias]);
 
