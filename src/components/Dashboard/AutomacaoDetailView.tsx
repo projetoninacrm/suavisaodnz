@@ -30,6 +30,7 @@ interface ClienteAgendado {
   vendedor?: string;
   disparo_id?: string;
   data_envio_real?: string;
+  _data_envio_iso?: string;
   erro?: string;
   resposta_cliente?: boolean;
   observacao?: string;
