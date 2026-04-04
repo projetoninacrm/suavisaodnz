@@ -380,6 +380,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           vendedor: client.vendedor,
           disparo_id: disparo.id,
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
+          _data_envio_iso: disparo.data_envio || undefined,
           erro: disparo.erro || undefined,
           resposta_cliente: (disparo as any).resposta_cliente || false,
           observacao: (disparo as any).observacao || undefined,
