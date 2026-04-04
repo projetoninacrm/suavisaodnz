@@ -30,6 +30,7 @@ interface ClienteAgendado {
   vendedor?: string;
   disparo_id?: string;
   data_envio_real?: string;
+  _data_envio_iso?: string;
   erro?: string;
   resposta_cliente?: boolean;
   observacao?: string;
@@ -379,6 +380,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           vendedor: client.vendedor,
           disparo_id: disparo.id,
           data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
+          _data_envio_iso: disparo.data_envio || undefined,
           erro: disparo.erro || undefined,
           resposta_cliente: (disparo as any).resposta_cliente || false,
           observacao: (disparo as any).observacao || undefined,
@@ -419,8 +421,8 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       if (!isPendingA && isPendingB) return 1;
       if (isPendingA && isPendingB) return a.dias_faltam - b.dias_faltam;
       // For sent/error: most recent first
-      const dateA = a.data_envio_real ? new Date(a.data_envio_real).getTime() : 0;
-      const dateB = b.data_envio_real ? new Date(b.data_envio_real).getTime() : 0;
+      const dateA = a._data_envio_iso ? new Date(a._data_envio_iso).getTime() : 0;
+      const dateB = b._data_envio_iso ? new Date(b._data_envio_iso).getTime() : 0;
       return dateB - dateA;
     });
 
