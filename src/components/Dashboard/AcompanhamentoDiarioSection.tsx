@@ -129,6 +129,9 @@ export function AcompanhamentoDiarioSection({
     const diferencaVendas = realAcumuladoVendas - metaAcumuladaVendas;
     const diferencaFaturamento = realAcumuladoFaturamento - metaAcumuladaFaturamento;
 
+    const metaTicketMedio = metaAcumuladaVendas > 0 ? metaAcumuladaFaturamento / metaAcumuladaVendas : 0;
+    const realTicketMedio = realAcumuladoVendas > 0 ? realAcumuladoFaturamento / realAcumuladoVendas : 0;
+
     return {
       pesoPreenchido,
       metaAcumuladaVendas,
@@ -137,6 +140,8 @@ export function AcompanhamentoDiarioSection({
       realAcumuladoFaturamento,
       diferencaVendas,
       diferencaFaturamento,
+      metaTicketMedio,
+      realTicketMedio,
     };
   }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaDiariaVendasMeio, metaMensalFaturamento, pesoTotalDias]);
 
@@ -192,7 +197,7 @@ export function AcompanhamentoDiarioSection({
               <h4 className="text-sm font-semibold mb-3 text-muted-foreground">
                 Consolidado (peso {consolidado.pesoPreenchido.toFixed(1)} preenchido)
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Meta Acumulada Vendas */}
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-1">
@@ -234,6 +239,28 @@ export function AcompanhamentoDiarioSection({
                   </div>
                   <p className="text-2xl font-bold text-emerald-500">
                     R$ {consolidado.realAcumuladoFaturamento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+
+                {/* Meta Ticket Médio */}
+                <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign className="h-4 w-4 text-orange-500" />
+                    <span className="text-xs font-medium text-muted-foreground">Meta Ticket Médio</span>
+                  </div>
+                  <p className="text-2xl font-bold text-orange-500">
+                    R$ {consolidado.metaTicketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+
+                {/* Real Ticket Médio */}
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign className="h-4 w-4 text-amber-500" />
+                    <span className="text-xs font-medium text-muted-foreground">Real Ticket Médio</span>
+                  </div>
+                  <p className="text-2xl font-bold text-amber-500">
+                    R$ {consolidado.realTicketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>
