@@ -138,58 +138,36 @@ function appendToHistory(existing: string | null, role: string, text: string): s
 }
 
 /** Call AI to summarize the conversation history */
-async function summarizeConversation(history: string): Promise<string | null> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) {
-    console.error("LOVABLE_API_KEY not available for summarization");
-    return null;
-  }
-
+async function summarizeConversation(history: string, supabaseUrl: string, supabaseKey: string): Promise<string | null> {
+  // Try calling our own summarization edge function
   try {
-    const response = await fetch("https://ai.lovable.dev/api/v1/chat/completions", {
+    const response = await fetch(`${supabaseUrl}/functions/v1/summarize-conversa`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${supabaseKey}`,
       },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          {
-            role: "system",
-            content: `Você é um assistente que resume conversas de WhatsApp entre um vendedor de uma ótica e um cliente.
-Gere um resumo CURTO (1-2 frases) e objetivo da conversa, focando em:
-- Se o cliente demonstrou interesse ou não
-- Se fechou compra, valor, forma de pagamento
-- Se vai voltar à loja e quando
-- Qualquer informação relevante para follow-up
-Responda APENAS com o resumo, sem prefixos ou explicações.
-Exemplos:
-"Cliente demonstrou interesse, fechou compra de R$500 no Pix."
-"Cliente perguntou sobre preço mas achou caro, não quis fechar."
-"Cliente quer voltar na loja sexta-feira para experimentar armações."`,
-          },
-          {
-            role: "user",
-            content: `Resuma esta conversa:\n\n${history}`,
-          },
-        ],
-        max_tokens: 200,
-        temperature: 0.3,
-      }),
+      body: JSON.stringify({ history }),
     });
 
-    if (!response.ok) {
-      console.error("AI summarization failed:", response.status, await response.text());
-      return null;
+    if (response.ok) {
+      const result = await response.json();
+      return result.summary || null;
     }
-
-    const result = await response.json();
-    return result.choices?.[0]?.message?.content?.trim() || null;
+    console.error("Summarization function failed:", response.status);
   } catch (err) {
-    console.error("AI summarization error:", err);
-    return null;
+    console.error("Summarization function error:", err);
   }
+
+  // Fallback: extract last few messages as summary
+  return fallbackSummary(history);
+}
+
+/** Simple fallback when AI is not available */
+function fallbackSummary(history: string): string {
+  const lines = history.trim().split("\n").filter(l => l.trim());
+  const lastLines = lines.slice(-4);
+  return lastLines.join(" | ").substring(0, 300);
 }
 
 Deno.serve(async (req) => {
