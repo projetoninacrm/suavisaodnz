@@ -1,0 +1,1 @@
+ALTER TABLE public.automacao_disparos ADD COLUMN historico_conversa text;

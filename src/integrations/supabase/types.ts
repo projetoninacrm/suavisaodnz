@@ -108,6 +108,7 @@ export type Database = {
           data_envio: string | null
           data_programada: string
           erro: string | null
+          historico_conversa: string | null
           id: string
           lead_id: string
           mensagem_enviada: string | null
@@ -124,6 +125,7 @@ export type Database = {
           data_envio?: string | null
           data_programada: string
           erro?: string | null
+          historico_conversa?: string | null
           id?: string
           lead_id: string
           mensagem_enviada?: string | null
@@ -140,6 +142,7 @@ export type Database = {
           data_envio?: string | null
           data_programada?: string
           erro?: string | null
+          historico_conversa?: string | null
           id?: string
           lead_id?: string
           mensagem_enviada?: string | null
