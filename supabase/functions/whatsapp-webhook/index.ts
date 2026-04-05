@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
       }
 
       // Generate AI summary of the conversation
-      const summary = await summarizeConversation(newHistory);
+      const summary = await summarizeConversation(newHistory, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       if (summary) {
         updateData.observacao = summary;
         console.log(`Resumo IA para disparo ${disparo.id}: ${summary}`);
