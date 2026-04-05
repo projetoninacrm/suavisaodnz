@@ -23,10 +23,12 @@ function parseFromMe(value: unknown): boolean | null {
 }
 
 function extractMessageText(body: any): string | null {
-  // Try multiple paths where the message text can be
-  // uazapi format: body.message.conversation or body.message.extendedTextMessage.text
   const msg = body.message || body.data?.message || body.data?.messages?.[0]?.message;
   if (!msg) return null;
+
+  // uazapi format: content can be string or { text: "..." }
+  if (typeof msg.content === "string") return msg.content;
+  if (typeof msg.content?.text === "string") return msg.content.text;
 
   if (typeof msg.conversation === "string") return msg.conversation;
   if (typeof msg.extendedTextMessage?.text === "string") return msg.extendedTextMessage.text;
@@ -46,6 +48,8 @@ function extractMessageText(body: any): string | null {
   if (msg.videoMessage) return "[Vídeo recebido]";
   if (msg.documentMessage) return "[Documento recebido]";
   if (msg.stickerMessage) return "[Sticker recebido]";
+  if (msg.mediaType === "audio" || msg.messageType === "audioMessage") return "[Áudio recebido]";
+  if (msg.mediaType === "image" || msg.messageType === "imageMessage") return "[Imagem recebida]";
 
   return null;
 }
