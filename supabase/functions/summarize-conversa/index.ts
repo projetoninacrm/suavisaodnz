@@ -17,8 +17,7 @@ async function tryLovableAI(history: string): Promise<string | null> {
 
   // Try multiple possible endpoints
   const endpoints = [
-    "https://ai.lovable.dev/api/v1/chat/completions",
-    "https://api.lovable.dev/v1/chat/completions",
+    "https://ai.gateway.lovable.dev/v1/chat/completions",
   ];
 
   for (const endpoint of endpoints) {
