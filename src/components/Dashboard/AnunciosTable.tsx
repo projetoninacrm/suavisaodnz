@@ -90,18 +90,16 @@ function PlatformUpload({ platform, isExtracting, onExtract, onSave }: PlatformU
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [extractedMetrics, setExtractedMetrics] = useState<ExtractedRawMetrics | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onload = async (event) => {
       const base64 = event.target?.result as string;
       setPreviewImage(base64);
       setIsProcessing(true);
-      
       const metrics = await onExtract(base64);
       if (metrics) {
         setExtractedMetrics(metrics);
@@ -109,6 +107,28 @@ function PlatformUpload({ platform, isExtracting, onExtract, onSave }: PlatformU
       setIsProcessing(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
   };
 
   const handleConfirmImport = async () => {
@@ -141,7 +161,14 @@ function PlatformUpload({ platform, isExtracting, onExtract, onSave }: PlatformU
   const platformBg = platform === "META" ? "bg-blue-500/10" : "bg-yellow-500/10";
 
   return (
-    <div className={`rounded-lg border border-dashed border-border p-4 ${platformBg}`}>
+    <div
+      className={`rounded-lg border-2 border-dashed p-4 transition-colors ${platformBg} ${
+        isDragOver ? "border-primary bg-primary/10" : "border-border"
+      }`}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+    >
       <div className="flex items-center gap-2 mb-3">
         <span className={`font-semibold ${platformColor}`}>{platform}</span>
       </div>
@@ -164,9 +191,12 @@ function PlatformUpload({ platform, isExtracting, onExtract, onSave }: PlatformU
             )}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground py-4">
+          <div
+            className="flex flex-col items-center gap-2 text-muted-foreground py-8 cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <ImageIcon className="w-8 h-8" />
-            <p className="text-xs text-center">Upload print {platform}</p>
+            <p className="text-xs text-center">Arraste o print aqui ou clique para upload</p>
           </div>
         )}
 
