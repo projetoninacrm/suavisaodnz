@@ -161,7 +161,14 @@ function PlatformUpload({ platform, isExtracting, onExtract, onSave }: PlatformU
   const platformBg = platform === "META" ? "bg-blue-500/10" : "bg-yellow-500/10";
 
   return (
-    <div className={`rounded-lg border border-dashed border-border p-4 ${platformBg}`}>
+    <div
+      className={`rounded-lg border-2 border-dashed p-4 transition-colors ${platformBg} ${
+        isDragOver ? "border-primary bg-primary/10" : "border-border"
+      }`}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+    >
       <div className="flex items-center gap-2 mb-3">
         <span className={`font-semibold ${platformColor}`}>{platform}</span>
       </div>
@@ -184,9 +191,12 @@ function PlatformUpload({ platform, isExtracting, onExtract, onSave }: PlatformU
             )}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground py-4">
+          <div
+            className="flex flex-col items-center gap-2 text-muted-foreground py-8 cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <ImageIcon className="w-8 h-8" />
-            <p className="text-xs text-center">Upload print {platform}</p>
+            <p className="text-xs text-center">Arraste o print aqui ou clique para upload</p>
           </div>
         )}
 
