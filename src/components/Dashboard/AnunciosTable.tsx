@@ -90,18 +90,16 @@ function PlatformUpload({ platform, isExtracting, onExtract, onSave }: PlatformU
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [extractedMetrics, setExtractedMetrics] = useState<ExtractedRawMetrics | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onload = async (event) => {
       const base64 = event.target?.result as string;
       setPreviewImage(base64);
       setIsProcessing(true);
-      
       const metrics = await onExtract(base64);
       if (metrics) {
         setExtractedMetrics(metrics);
@@ -109,6 +107,28 @@ function PlatformUpload({ platform, isExtracting, onExtract, onSave }: PlatformU
       setIsProcessing(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
   };
 
   const handleConfirmImport = async () => {
