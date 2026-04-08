@@ -16,55 +16,32 @@ Deno.serve(async (req) => {
       : Deno.env.get("UAZAPI_TOKEN"))!;
 
     const encodedToken = encodeURIComponent(UAZAPI_TOKEN);
-    
-    // Try different phone formats
-    const phoneClean = phone.replace(/\D/g, "");
-    const variants = [
-      phoneClean,
-      phoneClean.startsWith("55") ? phoneClean : `55${phoneClean}`,
-      phoneClean.startsWith("55") ? phoneClean.substring(2) : phoneClean,
-    ];
+    const chatid = `${phone}@s.whatsapp.net`;
 
-    const results: any[] = [];
-
-    // First, get a sample of recent messages to see the chatid format
-    const sampleRes = await fetch(`${UAZAPI_URL}/message/find?token=${encodedToken}`, {
+    const res = await fetch(`${UAZAPI_URL}/message/find?token=${encodedToken}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
-      body: JSON.stringify({ limit: 3 }),
+      body: JSON.stringify({ chatid, limit: 10 }),
     });
-    const sampleData = await sampleRes.json();
-    const sampleChatIds = sampleData.messages?.map((m: any) => m.chatid).filter(Boolean) || [];
-    results.push({ label: "sample_chatids", chatids: [...new Set(sampleChatIds)] });
+    const data = await res.json();
+    
+    // Return full structure of first 3 messages for analysis
+    const messages = (data.messages || []).slice(0, 3).map((m: any) => ({
+      chatid: m.chatid,
+      fromme: m.fromme,
+      fromMe: m.fromMe,
+      type: m.type,
+      timestamp: m.timestamp,
+      messageTimestamp: m.messageTimestamp,
+      content: m.content,
+      text: m.text,
+      body: m.body,
+      message: m.message,
+      // show all keys
+      _keys: Object.keys(m),
+    }));
 
-    // Try each phone variant
-    for (const variant of variants) {
-      const chatid = `${variant}@s.whatsapp.net`;
-      const res = await fetch(`${UAZAPI_URL}/message/find?token=${encodedToken}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
-        body: JSON.stringify({ chatid, limit: 5 }),
-      });
-      const data = await res.json();
-      const msgCount = data.messages?.length || 0;
-      const firstMsg = data.messages?.[0];
-      results.push({
-        label: `chatid=${chatid}`,
-        status: res.status,
-        msgCount,
-        hasMore: data.hasMore,
-        firstMsgPreview: firstMsg ? {
-          chatid: firstMsg.chatid,
-          fromme: firstMsg.fromme,
-          type: firstMsg.type,
-          content: typeof firstMsg.content === "string" ? firstMsg.content?.substring(0, 100) : 
-            (firstMsg.content?.text || firstMsg.content?.conversation || JSON.stringify(firstMsg.content)?.substring(0, 100)),
-          timestamp: firstMsg.timestamp,
-        } : null,
-      });
-    }
-
-    return new Response(JSON.stringify({ phone, variants, results }, null, 2), {
+    return new Response(JSON.stringify({ total: data.messages?.length, messages }, null, 2), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
