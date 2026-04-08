@@ -18,54 +18,37 @@ Deno.serve(async (req) => {
     const encodedToken = encodeURIComponent(UAZAPI_TOKEN);
     const chatId = `${phone}@s.whatsapp.net`;
 
-    const endpoints = [
-      // findMessages (Evolution API pattern)
-      { method: "POST", url: `${UAZAPI_URL}/chat/findMessages?token=${encodedToken}`, body: { where: { key: { remoteJid: chatId } }, limit: 20 } },
-      // findMessages with just chatId
-      { method: "POST", url: `${UAZAPI_URL}/chat/findMessages?token=${encodedToken}`, body: { chatId, count: 20 } },
-      // GET messages
-      { method: "GET", url: `${UAZAPI_URL}/chat/messages/${chatId}?token=${encodedToken}&count=20`, body: null },
-      // GET messages with number
-      { method: "GET", url: `${UAZAPI_URL}/chat/messages?token=${encodedToken}&number=${phone}&limit=20`, body: null },
-      // POST chat/find with number filter
-      { method: "POST", url: `${UAZAPI_URL}/chat/find?token=${encodedToken}`, body: { operator: "AND", filter: [{ field: "wa_chatid", operator: "eq", value: chatId }], limit: 1 } },
-      // message/find
-      { method: "POST", url: `${UAZAPI_URL}/message/find?token=${encodedToken}`, body: { chatId, limit: 20 } },
-      // message/search
-      { method: "POST", url: `${UAZAPI_URL}/message/search?token=${encodedToken}`, body: { chatId, limit: 20 } },
-      // chat/fetchMessages
-      { method: "GET", url: `${UAZAPI_URL}/chat/fetchMessages/${chatId}?token=${encodedToken}&count=20`, body: null },
-      // message/list
-      { method: "POST", url: `${UAZAPI_URL}/message/list?token=${encodedToken}`, body: { chatId, limit: 20 } },
-      // message/history
-      { method: "POST", url: `${UAZAPI_URL}/message/history?token=${encodedToken}`, body: { chatId, count: 20 } },
+    // Test different body formats for /message/find
+    const attempts = [
+      { label: "chatId+limit", body: { chatId, limit: 20 } },
+      { label: "chatid+limit", body: { chatid: chatId, limit: 20 } },
+      { label: "number+limit", body: { number: phone, limit: 20 } },
+      { label: "where.remoteJid", body: { where: { key: { remoteJid: chatId } }, limit: 20 } },
+      { label: "jid+count", body: { jid: chatId, count: 20 } },
+      { label: "empty", body: { limit: 5 } },
     ];
 
     const results: any[] = [];
-    for (const ep of endpoints) {
-      try {
-        const opts: RequestInit = {
-          method: ep.method,
-          headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
-        };
-        if (ep.body && ep.method !== "GET") opts.body = JSON.stringify(ep.body);
-
-        const res = await fetch(ep.url, opts);
-        const body = await res.text();
-        const isInteresting = res.status !== 404 && res.status !== 405;
-        results.push({ 
-          url: ep.url.replace(encodedToken, "***").replace(UAZAPI_TOKEN, "***"), 
-          method: ep.method,
-          status: res.status, 
-          interesting: isInteresting,
-          body: body.substring(0, 400) 
-        });
-      } catch (e) {
-        results.push({ url: ep.url.replace(encodedToken, "***"), error: (e as Error).message });
-      }
+    for (const a of attempts) {
+      const res = await fetch(`${UAZAPI_URL}/message/find?token=${encodedToken}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
+        body: JSON.stringify(a.body),
+      });
+      const data = await res.text();
+      
+      // Check if data contains messages from our phone
+      const containsPhone = data.includes(phone) || data.includes(chatId);
+      
+      results.push({
+        label: a.label,
+        status: res.status,
+        containsTargetPhone: containsPhone,
+        preview: data.substring(0, 600),
+      });
     }
 
-    return new Response(JSON.stringify({ results }, null, 2), {
+    return new Response(JSON.stringify({ phone, chatId, results }, null, 2), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
