@@ -3,19 +3,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Você é um assistente que resume conversas de WhatsApp entre um vendedor de uma ótica e um cliente.
-Gere um resumo CURTO (1-2 frases) e objetivo da conversa, focando em:
-- Se o cliente demonstrou interesse ou não
-- Se fechou compra, valor, forma de pagamento
-- Se vai voltar à loja e quando
-- Qualquer informação relevante para follow-up
-Responda APENAS com o resumo, sem prefixos ou explicações.`;
+const SYSTEM_PROMPT = `Você é um assistente que analisa conversas de WhatsApp entre um vendedor de uma ótica e um cliente.
+Sua tarefa é resumir APENAS a resposta/posição do CLIENTE, ignorando completamente as mensagens do vendedor.
+Foque em:
+- O que o cliente respondeu sobre o assunto da mensagem enviada
+- Se demonstrou interesse, recusou, pediu mais informações, agendou visita, etc.
+- Se mencionou valores, formas de pagamento ou datas
+Responda em 1-2 frases curtas, APENAS sobre a posição do cliente. Não mencione o que o vendedor disse.
+Se o cliente não respondeu nada relevante, diga "Sem resposta relevante do cliente."`;
 
-async function tryLovableAI(history: string): Promise<string | null> {
+async function tryLovableAI(history: string, mensagemOriginal: string | null): Promise<string | null> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) return null;
 
-  // Try multiple possible endpoints
+  const context = mensagemOriginal
+    ? `A mensagem da automação enviada ao cliente foi:\n"${mensagemOriginal}"\n\nHistórico da conversa:\n${history}`
+    : `Histórico da conversa:\n${history}`;
+
   const endpoints = [
     "https://ai.gateway.lovable.dev/v1/chat/completions",
   ];
@@ -32,7 +36,7 @@ async function tryLovableAI(history: string): Promise<string | null> {
           model: "google/gemini-2.5-flash-lite",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: `Resuma esta conversa:\n\n${history}` },
+            { role: "user", content: `Resuma apenas a resposta do cliente:\n\n${context}` },
           ],
           max_tokens: 200,
           temperature: 0.3,
@@ -51,37 +55,42 @@ async function tryLovableAI(history: string): Promise<string | null> {
   return null;
 }
 
-/** Keyword-based smart fallback summary */
+/** Keyword-based smart fallback - focuses only on client messages */
 function smartFallback(history: string): string {
-  const lower = history.toLowerCase();
   const lines = history.trim().split("\n").filter(l => l.trim());
   const clientLines = lines.filter(l => l.includes("Cliente]"));
   
+  if (clientLines.length === 0) {
+    return "Sem resposta do cliente.";
+  }
+
+  // Extract just client message text
+  const clientTexts = clientLines.map(l => {
+    const match = l.match(/\] (.+)$/);
+    return match ? match[1] : l;
+  });
+
+  const clientText = clientTexts.join(" ").toLowerCase();
   const indicators: string[] = [];
 
-  // Check for purchase/interest signals
-  if (/fech|compr|quer|quero|sim|aceito|fechado|vou levar|vou comprar/i.test(lower)) {
+  if (/fech|compr|quer|quero|sim|aceito|fechado|vou levar|vou comprar/i.test(clientText)) {
     indicators.push("Cliente demonstrou interesse");
   }
   
-  // Check for price/value mentions
-  const priceMatch = lower.match(/r\$\s*[\d.,]+|(\d+)\s*(reais|real|pix|cart[aã]o)/);
+  const priceMatch = clientText.match(/r\$\s*[\d.,]+|(\d+)\s*(reais|real|pix|cart[aã]o)/);
   if (priceMatch) {
     indicators.push(`valor mencionado: ${priceMatch[0]}`);
   }
 
-  // Check payment method
-  if (/pix/i.test(lower)) indicators.push("pagamento via Pix");
-  if (/cart[aã]o/i.test(lower)) indicators.push("pagamento via cartão");
-  if (/parcela/i.test(lower)) indicators.push("parcelamento mencionado");
+  if (/pix/i.test(clientText)) indicators.push("pagamento via Pix");
+  if (/cart[aã]o/i.test(clientText)) indicators.push("pagamento via cartão");
+  if (/parcela/i.test(clientText)) indicators.push("parcelamento mencionado");
 
-  // Check for return visit
-  if (/voltar|passar|ir a[ií]|comparecer|visita/i.test(lower)) {
+  if (/voltar|passar|ir a[ií]|comparecer|visita/i.test(clientText)) {
     indicators.push("mencionou visita à loja");
   }
 
-  // Check for rejection signals
-  if (/n[aã]o quero|caro|n[aã]o tenho|depois|n[aã]o posso|sem condi/i.test(lower)) {
+  if (/n[aã]o quero|caro|n[aã]o tenho|depois|n[aã]o posso|sem condi/i.test(clientText)) {
     indicators.push("cliente mostrou resistência");
   }
 
@@ -90,12 +99,8 @@ function smartFallback(history: string): string {
   }
 
   // Last resort: show last client messages
-  const lastClientMsgs = clientLines.slice(-3).map(l => {
-    const match = l.match(/\] (.+)$/);
-    return match ? match[1] : l;
-  });
-  
-  return `Respostas: ${lastClientMsgs.join(" | ")}`.substring(0, 300);
+  const lastClientMsgs = clientTexts.slice(-3);
+  return `Cliente respondeu: ${lastClientMsgs.join(" | ")}`.substring(0, 300);
 }
 
 Deno.serve(async (req) => {
@@ -104,7 +109,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { history } = await req.json();
+    const { history, mensagem_enviada } = await req.json();
     if (!history) {
       return new Response(JSON.stringify({ summary: null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -112,7 +117,7 @@ Deno.serve(async (req) => {
     }
 
     // Try AI first
-    let summary = await tryLovableAI(history);
+    let summary = await tryLovableAI(history, mensagem_enviada || null);
     
     // Fallback to smart keyword extraction
     if (!summary) {
