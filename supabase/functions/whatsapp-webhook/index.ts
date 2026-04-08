@@ -138,7 +138,7 @@ function appendToHistory(existing: string | null, role: string, text: string): s
 }
 
 /** Call AI to summarize the conversation history */
-async function summarizeConversation(history: string, supabaseUrl: string, supabaseKey: string): Promise<string | null> {
+async function summarizeConversation(history: string, supabaseUrl: string, supabaseKey: string, mensagemEnviada: string | null): Promise<string | null> {
   // Try calling our own summarization edge function
   try {
     const response = await fetch(`${supabaseUrl}/functions/v1/summarize-conversa`, {
@@ -147,7 +147,7 @@ async function summarizeConversation(history: string, supabaseUrl: string, supab
         "Content-Type": "application/json",
         "Authorization": `Bearer ${supabaseKey}`,
       },
-      body: JSON.stringify({ history }),
+      body: JSON.stringify({ history, mensagem_enviada: mensagemEnviada }),
     });
 
     if (response.ok) {
@@ -231,9 +231,9 @@ Deno.serve(async (req) => {
 
     for (const disparo of disparos) {
       // Get current state
-      const { data: current } = await supabase
+    const { data: current } = await supabase
         .from("automacao_disparos")
-        .select("historico_conversa, observacao, resposta_cliente")
+        .select("historico_conversa, observacao, resposta_cliente, mensagem_enviada")
         .eq("id", disparo.id)
         .single();
 
@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
       }
 
       // Generate AI summary of the conversation
-      const summary = await summarizeConversation(newHistory, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const summary = await summarizeConversation(newHistory, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, current?.mensagem_enviada || null);
       if (summary) {
         updateData.observacao = summary;
         console.log(`Resumo IA para disparo ${disparo.id}: ${summary}`);
