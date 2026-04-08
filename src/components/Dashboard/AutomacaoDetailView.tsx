@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp, Search, Download, BarChart3 } from "lucide-react";
+import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp, Search, Download, BarChart3, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1223,22 +1223,20 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                           />
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {c.status === "erro" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-1 text-xs h-7"
-                              disabled={sendingId === c.id}
-                              onClick={() => handleEnviarAgora(c, true)}
-                            >
-                              {sendingId === c.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Send className="w-3 h-3" />
-                              )}
-                              Reenviar
-                            </Button>
-                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 text-xs h-7"
+                            disabled={sendingId === c.id}
+                            onClick={() => handleEnviarAgora(c, true)}
+                          >
+                            {sendingId === c.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-3 h-3" />
+                            )}
+                            Reenviar
+                          </Button>
                         </td>
                       </tr>
                     ))}
