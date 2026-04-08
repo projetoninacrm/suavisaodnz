@@ -16,39 +16,55 @@ Deno.serve(async (req) => {
       : Deno.env.get("UAZAPI_TOKEN"))!;
 
     const encodedToken = encodeURIComponent(UAZAPI_TOKEN);
-    const chatId = `${phone}@s.whatsapp.net`;
-
-    // Test different body formats for /message/find
-    const attempts = [
-      { label: "chatId+limit", body: { chatId, limit: 20 } },
-      { label: "chatid+limit", body: { chatid: chatId, limit: 20 } },
-      { label: "number+limit", body: { number: phone, limit: 20 } },
-      { label: "where.remoteJid", body: { where: { key: { remoteJid: chatId } }, limit: 20 } },
-      { label: "jid+count", body: { jid: chatId, count: 20 } },
-      { label: "empty", body: { limit: 5 } },
+    
+    // Try different phone formats
+    const phoneClean = phone.replace(/\D/g, "");
+    const variants = [
+      phoneClean,
+      phoneClean.startsWith("55") ? phoneClean : `55${phoneClean}`,
+      phoneClean.startsWith("55") ? phoneClean.substring(2) : phoneClean,
     ];
 
     const results: any[] = [];
-    for (const a of attempts) {
+
+    // First, get a sample of recent messages to see the chatid format
+    const sampleRes = await fetch(`${UAZAPI_URL}/message/find?token=${encodedToken}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
+      body: JSON.stringify({ limit: 3 }),
+    });
+    const sampleData = await sampleRes.json();
+    const sampleChatIds = sampleData.messages?.map((m: any) => m.chatid).filter(Boolean) || [];
+    results.push({ label: "sample_chatids", chatids: [...new Set(sampleChatIds)] });
+
+    // Try each phone variant
+    for (const variant of variants) {
+      const chatid = `${variant}@s.whatsapp.net`;
       const res = await fetch(`${UAZAPI_URL}/message/find?token=${encodedToken}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
-        body: JSON.stringify(a.body),
+        body: JSON.stringify({ chatid, limit: 5 }),
       });
-      const data = await res.text();
-      
-      // Check if data contains messages from our phone
-      const containsPhone = data.includes(phone) || data.includes(chatId);
-      
+      const data = await res.json();
+      const msgCount = data.messages?.length || 0;
+      const firstMsg = data.messages?.[0];
       results.push({
-        label: a.label,
+        label: `chatid=${chatid}`,
         status: res.status,
-        containsTargetPhone: containsPhone,
-        preview: data.substring(0, 600),
+        msgCount,
+        hasMore: data.hasMore,
+        firstMsgPreview: firstMsg ? {
+          chatid: firstMsg.chatid,
+          fromme: firstMsg.fromme,
+          type: firstMsg.type,
+          content: typeof firstMsg.content === "string" ? firstMsg.content?.substring(0, 100) : 
+            (firstMsg.content?.text || firstMsg.content?.conversation || JSON.stringify(firstMsg.content)?.substring(0, 100)),
+          timestamp: firstMsg.timestamp,
+        } : null,
       });
     }
 
-    return new Response(JSON.stringify({ phone, chatId, results }, null, 2), {
+    return new Response(JSON.stringify({ phone, variants, results }, null, 2), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
