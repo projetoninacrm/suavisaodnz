@@ -19,6 +19,15 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
+    // Check business hours (08:00-17:00 São Paulo time)
+    const nowSP = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+    const hour = nowSP.getHours();
+    if (hour < 8 || hour >= 17) {
+      return new Response(JSON.stringify({ message: `Fora do horário comercial (${hour}h). Envios apenas entre 08:00 e 17:00.` }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Check global pause
     const { data: config } = await supabase
       .from("automacoes_config")
