@@ -16,6 +16,7 @@ interface Chat {
   createdAt: string;
   closedAt: string | null;
   department?: { id: string; name: string } | null;
+  lastClientMessageAt?: string | null;
 }
 
 async function fetchAllChats(token: string, startISO: string, endISO: string): Promise<Chat[]> {
@@ -81,9 +82,19 @@ Deno.serve(async (req) => {
 
     const chats = await fetchAllChats(TOKEN, startISO, endISO);
 
+    // Filtra: somente chats que tiveram mensagem do cliente (ignora chats internos/teste)
+    const chatsComMsgCliente = chats.filter((c) => !!c.lastClientMessageAt);
+
+    // Deduplica por clientId (clientes únicos)
+    const clientesUnicosMap = new Map<string, Chat>();
+    for (const c of chatsComMsgCliente) {
+      if (!clientesUnicosMap.has(c.clientId)) clientesUnicosMap.set(c.clientId, c);
+    }
+    const clientesUnicos = Array.from(clientesUnicosMap.values());
+
     // Origem por canal
     const porCanal: Record<string, number> = { Meta: 0, Google: 0, Outro: 0 };
-    for (const c of chats) {
+    for (const c of clientesUnicos) {
       const k = normalizeChannel(c.channel);
       porCanal[k] = (porCanal[k] ?? 0) + 1;
     }
@@ -95,7 +106,7 @@ Deno.serve(async (req) => {
     let semTag = 0;
 
     if (includeTags) {
-      const uniqueClients = Array.from(new Set(chats.map((c) => c.clientId).filter(Boolean)));
+      const uniqueClients = Array.from(clientesUnicosMap.keys());
       // Limita para não explodir tempo de execução
       const MAX_CLIENTS = 500;
       const slice = uniqueClients.slice(0, MAX_CLIENTS);
@@ -108,7 +119,7 @@ Deno.serve(async (req) => {
         for (const [id, t] of results) clientTagsMap[id] = t;
       }
 
-      for (const c of chats) {
+      for (const c of clientesUnicos) {
         const tags = clientTagsMap[c.clientId] ?? [];
         tagsPorChat[c.id] = tags;
         if (tags.length === 0) {
@@ -126,14 +137,16 @@ Deno.serve(async (req) => {
     const origemGoogle = Object.entries(porTag)
       .filter(([k]) => /google|adwords|search/i.test(k))
       .reduce((a, [, v]) => a + v, 0);
-    const origemOutro = Math.max(0, chats.length - origemMeta - origemGoogle);
+    const origemOutro = Math.max(0, clientesUnicos.length - origemMeta - origemGoogle);
 
     return new Response(
       JSON.stringify({
         periodo: { start: startISO, end: endISO },
-        recebidas: chats.length,
-        encerrados: chats.filter((c) => !!c.closedAt).length,
-        abertos: chats.filter((c) => !c.closedAt).length,
+        recebidas: clientesUnicos.length,
+        totalChats: chats.length,
+        chatsComCliente: chatsComMsgCliente.length,
+        encerrados: clientesUnicos.filter((c) => !!c.closedAt).length,
+        abertos: clientesUnicos.filter((c) => !c.closedAt).length,
         porCanal,
         porTag,
         semTag,
