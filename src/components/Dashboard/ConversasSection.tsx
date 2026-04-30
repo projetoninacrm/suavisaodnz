@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface ConversasResponse {
   recebidas: number;
+  totalChats?: number;
+  chatsComCliente?: number;
   abertos: number;
   encerrados: number;
   porCanal: Record<string, number>;
@@ -123,7 +125,7 @@ export function ConversasSection() {
         <KpiCard
           title="Conversas recebidas"
           value={loading && !data ? "—" : data?.recebidas ?? 0}
-          subtitle={data ? `${data.abertos} abertas · ${data.encerrados} encerradas` : undefined}
+          subtitle={data ? `clientes únicos · ${data.totalChats ?? "?"} chats no total` : undefined}
           icon={<MessageCircle className="w-5 h-5 text-primary-foreground" />}
           accent="bg-primary"
         />
@@ -139,6 +141,34 @@ export function ConversasSection() {
           icon={<MessageCircle className="w-5 h-5 text-white" />}
           accent="bg-slate-500"
         />
+      </div>
+
+      {/* Linha extra: Status agregado */}
+      <div>
+        <h2 className="text-lg font-semibold text-foreground mb-3">Status</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <KpiCard
+            title="Em andamento"
+            value={loading && !data ? "—" : data?.abertos ?? 0}
+            subtitle="Conversas ainda abertas no Chatlabs"
+            icon={<Tag className="w-5 h-5 text-white" />}
+            accent="bg-amber-500"
+          />
+          <KpiCard
+            title="Concluídas"
+            value={loading && !data ? "—" : data?.encerrados ?? 0}
+            subtitle="Conversas finalizadas (closedAt)"
+            icon={<Tag className="w-5 h-5 text-white" />}
+            accent="bg-emerald-600"
+          />
+          <KpiCard
+            title="Sem status"
+            value={loading && !data ? "—" : data?.semTag ?? 0}
+            subtitle="Clientes sem tag aplicada no período"
+            icon={<Tag className="w-5 h-5 text-white" />}
+            accent="bg-slate-500"
+          />
+        </div>
       </div>
 
       {/* Origem por tag */}
