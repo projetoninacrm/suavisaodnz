@@ -11,7 +11,8 @@ interface ConversasResponse {
   chatsComCliente?: number;
   abertos: number;
   encerrados: number;
-  porCanal: Record<string, number>;
+  porStatus: Record<string, number>;
+  semStatus: number;
   porTag: Record<string, number>;
   semTag: number;
   origem: { meta: number; google: number; outro: number };
@@ -52,19 +53,22 @@ export function ConversasSection() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const setHoje = () => {
+    const t = fmt(new Date());
+    setStart(t);
+    setEnd(t);
+    // dispara load no próximo tick com os valores atualizados
+    setTimeout(() => load(t, t), 0);
+  };
+
+  const load = async (s?: string, e?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const { data: res, error: err } = await supabase.functions.invoke("chatlabs-conversas", {
-        method: "GET",
-        body: undefined,
-        headers: {},
-        // pass via query string by appending to URL
-      } as any);
-      // supabase-js v2 não anexa query params, então usamos fetch direto:
       const projectId = (import.meta.env as any).VITE_SUPABASE_PROJECT_ID;
-      const url = `https://${projectId}.supabase.co/functions/v1/chatlabs-conversas?start=${start}&end=${end}&includeTags=true`;
+      const sd = s ?? start;
+      const ed = e ?? end;
+      const url = `https://${projectId}.supabase.co/functions/v1/chatlabs-conversas?start=${sd}&end=${ed}&includeTags=true`;
       const r = await fetch(url, {
         headers: {
           apikey: (import.meta.env as any).VITE_SUPABASE_PUBLISHABLE_KEY,
@@ -88,9 +92,9 @@ export function ConversasSection() {
 
   const tagsKanban = useMemo(() => {
     if (!data) return [] as Array<{ tag: string; count: number }>;
-    const entries = Object.entries(data.porTag).map(([tag, count]) => ({ tag, count }));
+    const entries = Object.entries(data.porStatus ?? {}).map(([tag, count]) => ({ tag, count }));
     entries.sort((a, b) => b.count - a.count);
-    if (data.semTag > 0) entries.push({ tag: "Sem status", count: data.semTag });
+    if ((data.semStatus ?? 0) > 0) entries.push({ tag: "Sem status", count: data.semStatus });
     return entries;
   }, [data]);
 
@@ -108,9 +112,12 @@ export function ConversasSection() {
           <label className="text-xs text-muted-foreground font-medium mb-1 block">Fim</label>
           <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="w-44" />
         </div>
-        <Button onClick={load} disabled={loading}>
+        <Button onClick={() => load()} disabled={loading}>
           {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
           Atualizar
+        </Button>
+        <Button variant="outline" onClick={setHoje} disabled={loading}>
+          Hoje
         </Button>
       </div>
 
@@ -163,8 +170,8 @@ export function ConversasSection() {
           />
           <KpiCard
             title="Sem status"
-            value={loading && !data ? "—" : data?.semTag ?? 0}
-            subtitle="Clientes sem tag aplicada no período"
+            value={loading && !data ? "—" : data?.semStatus ?? 0}
+            subtitle="Clientes sem status de atendimento aplicado"
             icon={<Tag className="w-5 h-5 text-white" />}
             accent="bg-slate-500"
           />
@@ -202,8 +209,8 @@ export function ConversasSection() {
       {/* Kanban dinâmico por status (tags) */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-foreground">Status das conversas (por tag)</h2>
-          <span className="text-xs text-muted-foreground">As colunas refletem as tags cadastradas no Chatlabs</span>
+          <h2 className="text-lg font-semibold text-foreground">Status das conversas</h2>
+          <span className="text-xs text-muted-foreground">Status reais aplicados pelo atendente no Chatlabs</span>
         </div>
         {tagsKanban.length === 0 ? (
           <Card className="p-6 text-center text-sm text-muted-foreground">
