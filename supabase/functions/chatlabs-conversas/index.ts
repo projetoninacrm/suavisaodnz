@@ -1,22 +1,28 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const BASE = "https://apimain3.chatlabs.com.br";
-const SLUG = "suavisao";
+const SLUG_API = "suavisao";       // /api/* endpoints
+const SLUG_REPORTS = "sua_visao";  // /reports/* endpoints
 
 interface Chat {
   id: string;
   channel: string;
   clientId: string;
-  client?: { id: string; name?: string | null };
   createdAt: string;
   closedAt: string | null;
-  department?: { id: string; name: string } | null;
   lastClientMessageAt?: string | null;
+}
+
+interface TimelineRow {
+  chatId: string;
+  startDateTime: string;
+  endDateTime: string;
+  serviceStatus: string | null;
+  conclusionStatus: string | null;
+  origin: string | null;
 }
 
 async function fetchAllChats(token: string, startISO: string, endISO: string): Promise<Chat[]> {
@@ -30,21 +36,44 @@ async function fetchAllChats(token: string, startISO: string, endISO: string): P
     url.searchParams.set("createdAtEnd", endISO);
     if (cursor) url.searchParams.set("cursor", cursor);
     const r = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, "company-slug": SLUG },
+      headers: { Authorization: `Bearer ${token}`, "company-slug": SLUG_API },
     });
     if (!r.ok) throw new Error(`Chatlabs /api/chat ${r.status}: ${await r.text()}`);
     const json = await r.json();
     all.push(...(json.data ?? []));
     cursor = json?.paginationInfo?.cursor ?? null;
     safety++;
-    if (safety > 200) break; // hard stop ~20k chats
+    if (safety > 200) break;
+  } while (cursor);
+  return all;
+}
+
+async function fetchAllTimeline(token: string, beginDate: string, endDate: string): Promise<TimelineRow[]> {
+  const all: TimelineRow[] = [];
+  let cursor: string | null = null;
+  let safety = 0;
+  do {
+    const url = new URL(`${BASE}/reports/concluded-chat-timeline-analytics`);
+    url.searchParams.set("beginDate", beginDate);
+    url.searchParams.set("endDate", endDate);
+    url.searchParams.set("chatsPerPage", "100");
+    if (cursor) url.searchParams.set("cursor", cursor);
+    const r = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, "company-slug": SLUG_REPORTS },
+    });
+    if (!r.ok) throw new Error(`Chatlabs /reports timeline ${r.status}: ${await r.text()}`);
+    const json = await r.json();
+    all.push(...(json.data ?? []));
+    cursor = json?.paginationInfo?.cursor ?? null;
+    safety++;
+    if (safety > 200) break;
   } while (cursor);
   return all;
 }
 
 async function fetchClientTags(token: string, clientId: string): Promise<string[]> {
   const r = await fetch(`${BASE}/api/client/${clientId}`, {
-    headers: { Authorization: `Bearer ${token}`, "company-slug": SLUG },
+    headers: { Authorization: `Bearer ${token}`, "company-slug": SLUG_API },
   });
   if (!r.ok) return [];
   const j = await r.json();
@@ -54,15 +83,6 @@ async function fetchClientTags(token: string, clientId: string): Promise<string[
     .filter((s: string) => !!s);
 }
 
-function normalizeChannel(c: string): "Meta" | "Google" | "Outro" {
-  // canal técnico não distingue Meta vs Google, então tudo cai em "Outro" por canal.
-  // A separação Meta/Google/Outro real virá das tags do cliente.
-  if (!c) return "Outro";
-  const u = c.toUpperCase();
-  if (u.includes("INSTAGRAM") || u.includes("FACEBOOK")) return "Meta";
-  return "Outro";
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -70,7 +90,7 @@ Deno.serve(async (req) => {
     if (!TOKEN) throw new Error("CHATLABS_TOKEN não configurado");
 
     const url = new URL(req.url);
-    const start = url.searchParams.get("start"); // YYYY-MM-DD
+    const start = url.searchParams.get("start");
     const end = url.searchParams.get("end");
     const includeTags = url.searchParams.get("includeTags") !== "false";
 
@@ -79,58 +99,75 @@ Deno.serve(async (req) => {
     const startISO = (start ? new Date(start + "T00:00:00.000Z") : firstDay).toISOString();
     const endDate = end ? new Date(end + "T23:59:59.999Z") : today;
     const endISO = endDate.toISOString();
+    const startYMD = startISO.slice(0, 10);
+    const endYMD = endISO.slice(0, 10);
 
-    const chats = await fetchAllChats(TOKEN, startISO, endISO);
+    const [chats, timeline] = await Promise.all([
+      fetchAllChats(TOKEN, startISO, endISO),
+      fetchAllTimeline(TOKEN, startYMD, endYMD),
+    ]);
 
-    // Filtra: somente chats que tiveram mensagem do cliente (ignora chats internos/teste)
+    // Apenas chats com mensagem do cliente
     const chatsComMsgCliente = chats.filter((c) => !!c.lastClientMessageAt);
 
-    // Deduplica por clientId (clientes únicos)
+    // Deduplicação por clientId
     const clientesUnicosMap = new Map<string, Chat>();
     for (const c of chatsComMsgCliente) {
       if (!clientesUnicosMap.has(c.clientId)) clientesUnicosMap.set(c.clientId, c);
     }
     const clientesUnicos = Array.from(clientesUnicosMap.values());
+    const chatIdsValidos = new Set(chatsComMsgCliente.map((c) => c.id));
 
-    // Origem por canal
-    const porCanal: Record<string, number> = { Meta: 0, Google: 0, Outro: 0 };
-    for (const c of clientesUnicos) {
-      const k = normalizeChannel(c.channel);
-      porCanal[k] = (porCanal[k] ?? 0) + 1;
+    // Último segmento da timeline por chat (último serviceStatus)
+    const ultimoSegmento = new Map<string, TimelineRow>();
+    for (const row of timeline) {
+      if (!chatIdsValidos.has(row.chatId)) continue;
+      const prev = ultimoSegmento.get(row.chatId);
+      if (!prev || new Date(row.endDateTime) > new Date(prev.endDateTime)) {
+        ultimoSegmento.set(row.chatId, row);
+      }
     }
 
-    // Status (Kanban) baseado em tags do cliente
-    // Para evitar 1 request por chat, agrupamos por clientId único
-    const tagsPorChat: Record<string, string[]> = {};
+    // 1 status por cliente único (chat mais recente do cliente)
+    const chatsOrdenados = [...chatsComMsgCliente].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    const statusPorCliente = new Map<string, string>();
+    for (const c of chatsOrdenados) {
+      if (statusPorCliente.has(c.clientId)) continue;
+      const seg = ultimoSegmento.get(c.id);
+      const st = seg?.serviceStatus?.trim() ?? "";
+      statusPorCliente.set(c.clientId, st);
+    }
+
+    const porStatus: Record<string, number> = {};
+    let semStatus = 0;
+    for (const st of statusPorCliente.values()) {
+      if (!st) semStatus++;
+      else porStatus[st] = (porStatus[st] ?? 0) + 1;
+    }
+
+    // Origem (tags Google/Meta/Outro do cliente)
     const porTag: Record<string, number> = {};
     let semTag = 0;
-
     if (includeTags) {
-      const uniqueClients = Array.from(clientesUnicosMap.keys());
-      // Limita para não explodir tempo de execução
-      const MAX_CLIENTS = 500;
-      const slice = uniqueClients.slice(0, MAX_CLIENTS);
-      const clientTagsMap: Record<string, string[]> = {};
-
-      const CONCURRENCY = 8;
-      for (let i = 0; i < slice.length; i += CONCURRENCY) {
-        const batch = slice.slice(i, i + CONCURRENCY);
-        const results = await Promise.all(batch.map((id) => fetchClientTags(TOKEN, id).then((t) => [id, t] as const)));
-        for (const [id, t] of results) clientTagsMap[id] = t;
+      const ids = Array.from(clientesUnicosMap.keys()).slice(0, 500);
+      const tagsMap: Record<string, string[]> = {};
+      const CONC = 8;
+      for (let i = 0; i < ids.length; i += CONC) {
+        const batch = ids.slice(i, i + CONC);
+        const results = await Promise.all(
+          batch.map((id) => fetchClientTags(TOKEN, id).then((t) => [id, t] as const))
+        );
+        for (const [id, t] of results) tagsMap[id] = t;
       }
-
       for (const c of clientesUnicos) {
-        const tags = clientTagsMap[c.clientId] ?? [];
-        tagsPorChat[c.id] = tags;
-        if (tags.length === 0) {
-          semTag++;
-        } else {
-          for (const t of tags) porTag[t] = (porTag[t] ?? 0) + 1;
-        }
+        const tags = tagsMap[c.clientId] ?? [];
+        if (tags.length === 0) semTag++;
+        else for (const t of tags) porTag[t] = (porTag[t] ?? 0) + 1;
       }
     }
 
-    // Origem real preferindo tags conhecidas
     const origemMeta = Object.entries(porTag)
       .filter(([k]) => /meta|facebook|instagram/i.test(k))
       .reduce((a, [, v]) => a + v, 0);
@@ -147,7 +184,8 @@ Deno.serve(async (req) => {
         chatsComCliente: chatsComMsgCliente.length,
         encerrados: clientesUnicos.filter((c) => !!c.closedAt).length,
         abertos: clientesUnicos.filter((c) => !c.closedAt).length,
-        porCanal,
+        porStatus,
+        semStatus,
         porTag,
         semTag,
         origem: { meta: origemMeta, google: origemGoogle, outro: origemOutro },
