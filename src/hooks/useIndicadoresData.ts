@@ -336,8 +336,12 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
     const conversao = visitou_dnz > 0 ? (vendas / visitou_dnz) * 100 : 0;
 
     // FATURAMENTO - da aba METAS (acompanhamento_diario)
-    const dateKey = getAcompanhamentoDateKey(day, month);
-    const acompanhamento = acompanhamentos.find(a => a.data === dateKey);
+    // Suporta dois formatos de chave: "DD/mmm" (legado) e "YYYY-MM-DD" (ISO)
+    const dateKeyLegacy = getAcompanhamentoDateKey(day, month);
+    const dateKeyISO = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const acompanhamento = acompanhamentos.find(
+      (a) => a.data === dateKeyLegacy || a.data === dateKeyISO
+    );
     const faturamento = acompanhamento?.faturamento_realizado ?? 0;
 
     // TICKET MÉDIO = Faturamento / Vendas
