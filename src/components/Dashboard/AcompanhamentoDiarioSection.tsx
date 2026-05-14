@@ -106,6 +106,7 @@ export function AcompanhamentoDiarioSection({
     let metaAcumuladaVendas = 0;
     let realAcumuladoVendas = 0;
     let realAcumuladoFaturamento = 0;
+    let metaAcumuladaFaturamento = 0;
 
     diasComMedico.forEach((schedule) => {
       const registro = registrosMap[schedule.date];
@@ -118,13 +119,11 @@ export function AcompanhamentoDiarioSection({
         metaAcumuladaVendas += metaVendasDia;
         realAcumuladoVendas += registro.vendas_realizadas || 0;
         realAcumuladoFaturamento += registro.faturamento_realizado || 0;
+        // Soma a meta diária dinâmica (mesma exibida na coluna Meta Fat.)
+        // para o consolidado ficar coerente com o status diário.
+        metaAcumuladaFaturamento += metasFaturamentoPorDia[schedule.date] ?? 0;
       }
     });
-
-    // Meta de faturamento proporcional aos dias preenchidos
-    const metaAcumuladaFaturamento = pesoTotalDias > 0
-      ? metaMensalFaturamento * (pesoPreenchido / pesoTotalDias)
-      : 0;
 
     const diferencaVendas = realAcumuladoVendas - metaAcumuladaVendas;
     const diferencaFaturamento = realAcumuladoFaturamento - metaAcumuladaFaturamento;
