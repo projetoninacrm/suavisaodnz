@@ -106,6 +106,7 @@ export function AcompanhamentoDiarioSection({
     let metaAcumuladaVendas = 0;
     let realAcumuladoVendas = 0;
     let realAcumuladoFaturamento = 0;
+    let metaAcumuladaFaturamento = 0;
 
     diasComMedico.forEach((schedule) => {
       const registro = registrosMap[schedule.date];
@@ -118,13 +119,11 @@ export function AcompanhamentoDiarioSection({
         metaAcumuladaVendas += metaVendasDia;
         realAcumuladoVendas += registro.vendas_realizadas || 0;
         realAcumuladoFaturamento += registro.faturamento_realizado || 0;
+        // Soma a meta diária dinâmica (mesma exibida na coluna Meta Fat.)
+        // para o consolidado ficar coerente com o status diário.
+        metaAcumuladaFaturamento += metasFaturamentoPorDia[schedule.date] ?? 0;
       }
     });
-
-    // Meta de faturamento proporcional aos dias preenchidos
-    const metaAcumuladaFaturamento = pesoTotalDias > 0
-      ? metaMensalFaturamento * (pesoPreenchido / pesoTotalDias)
-      : 0;
 
     const diferencaVendas = realAcumuladoVendas - metaAcumuladaVendas;
     const diferencaFaturamento = realAcumuladoFaturamento - metaAcumuladaFaturamento;
@@ -290,7 +289,7 @@ export function AcompanhamentoDiarioSection({
                 <tbody>
                   {(() => {
                     let acumuladoFaturamento = 0;
-                    let pesoAcumulado = 0;
+                    let metaAcumuladaConsol = 0;
                     
                     return diasComMedico.map((schedule) => {
                       const registro = registrosMap[schedule.date];
@@ -309,14 +308,13 @@ export function AcompanhamentoDiarioSection({
                       const diferencaFaturamento = faturamentoReal - metaFatDia;
                       const statusFaturamento = diferencaFaturamento >= 0 ? "ok" : "atras";
                       
-                      // Consolidado: meta proporcional fixa (meta mensal × peso acumulado / peso total) vs real acumulado
+                      // Consolidado: soma das metas diárias dinâmicas (coerente com a coluna Meta Fat.)
                       const temDados = registro !== undefined && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null);
                       if (temDados) {
                         acumuladoFaturamento += faturamentoReal;
-                        pesoAcumulado += pesoDia;
+                        metaAcumuladaConsol += metaFatDia;
                       }
-                      const metaProporcional = pesoTotalDias > 0 ? metaMensalFaturamento * (pesoAcumulado / pesoTotalDias) : 0;
-                      const diferencaConsolidada = acumuladoFaturamento - metaProporcional;
+                      const diferencaConsolidada = acumuladoFaturamento - metaAcumuladaConsol;
 
                       return (
                         <tr key={schedule.id} className="border-b border-border/50 hover:bg-muted/30">
