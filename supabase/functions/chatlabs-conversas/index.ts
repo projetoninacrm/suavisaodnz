@@ -107,45 +107,52 @@ Deno.serve(async (req) => {
       fetchAllTimeline(TOKEN, startYMD, endYMD),
     ]);
 
-    // Apenas chats com mensagem do cliente
-    const chatsComMsgCliente = chats.filter((c) => !!c.lastClientMessageAt);
+    // Status fixos esperados (mesma lista do relatório oficial do Chatlabs)
+    const STATUS_FIXOS = [
+      "Agendado",
+      "Parou de Responder",
+      "Achou longe",
+      "Achou Caro",
+      "Outros",
+      "Cirurgia",
+      "Exames",
+      "Confirmação de agendamento",
+      "Cancelamento/Falta",
+      "Não atendemos o Convênio",
+    ];
+    const norm = (s: string) =>
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase();
+    const fixosNorm = new Map(STATUS_FIXOS.map((s) => [norm(s), s]));
 
-    // Deduplicação por clientId
+    // Lógica "igual ao CSV": conta CADA segmento da timeline por serviceStatus
+    // (não deduplica por cliente nem por chat).
+    const porStatus: Record<string, number> = {};
+    for (const s of STATUS_FIXOS) porStatus[s] = 0;
+    let semStatus = 0;
+    let totalSegmentos = 0;
+    for (const row of timeline) {
+      totalSegmentos++;
+      const st = (row.serviceStatus ?? "").trim();
+      if (!st) {
+        semStatus++;
+        continue;
+      }
+      const canon = fixosNorm.get(norm(st));
+      if (canon) porStatus[canon] = (porStatus[canon] ?? 0) + 1;
+      else porStatus[st] = (porStatus[st] ?? 0) + 1; // status fora da lista padrão
+    }
+
+    // Chats com mensagem do cliente (apenas para origem por tag)
+    const chatsComMsgCliente = chats.filter((c) => !!c.lastClientMessageAt);
     const clientesUnicosMap = new Map<string, Chat>();
     for (const c of chatsComMsgCliente) {
       if (!clientesUnicosMap.has(c.clientId)) clientesUnicosMap.set(c.clientId, c);
     }
     const clientesUnicos = Array.from(clientesUnicosMap.values());
-    const chatIdsValidos = new Set(chatsComMsgCliente.map((c) => c.id));
-
-    // Último segmento da timeline por chat (último serviceStatus)
-    const ultimoSegmento = new Map<string, TimelineRow>();
-    for (const row of timeline) {
-      if (!chatIdsValidos.has(row.chatId)) continue;
-      const prev = ultimoSegmento.get(row.chatId);
-      if (!prev || new Date(row.endDateTime) > new Date(prev.endDateTime)) {
-        ultimoSegmento.set(row.chatId, row);
-      }
-    }
-
-    // 1 status por cliente único (chat mais recente do cliente)
-    const chatsOrdenados = [...chatsComMsgCliente].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-    const statusPorCliente = new Map<string, string>();
-    for (const c of chatsOrdenados) {
-      if (statusPorCliente.has(c.clientId)) continue;
-      const seg = ultimoSegmento.get(c.id);
-      const st = seg?.serviceStatus?.trim() ?? "";
-      statusPorCliente.set(c.clientId, st);
-    }
-
-    const porStatus: Record<string, number> = {};
-    let semStatus = 0;
-    for (const st of statusPorCliente.values()) {
-      if (!st) semStatus++;
-      else porStatus[st] = (porStatus[st] ?? 0) + 1;
-    }
 
     // Origem (tags Google/Meta/Outro do cliente)
     const porTag: Record<string, number> = {};
@@ -179,13 +186,16 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         periodo: { start: startISO, end: endISO },
-        recebidas: clientesUnicos.length,
+        // "recebidas" agora = total de atendimentos (segmentos), batendo com o CSV
+        recebidas: totalSegmentos,
         totalChats: chats.length,
         chatsComCliente: chatsComMsgCliente.length,
-        encerrados: clientesUnicos.filter((c) => !!c.closedAt).length,
-        abertos: clientesUnicos.filter((c) => !c.closedAt).length,
+        clientesUnicos: clientesUnicos.length,
+        encerrados: chats.filter((c) => !!c.closedAt).length,
+        abertos: chats.filter((c) => !c.closedAt).length,
         porStatus,
         semStatus,
+        statusFixos: STATUS_FIXOS,
         porTag,
         semTag,
         origem: { meta: origemMeta, google: origemGoogle, outro: origemOutro },

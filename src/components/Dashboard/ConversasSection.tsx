@@ -9,10 +9,12 @@ interface ConversasResponse {
   recebidas: number;
   totalChats?: number;
   chatsComCliente?: number;
+  clientesUnicos?: number;
   abertos: number;
   encerrados: number;
   porStatus: Record<string, number>;
   semStatus: number;
+  statusFixos?: string[];
   porTag: Record<string, number>;
   semTag: number;
   origem: { meta: number; google: number; outro: number };
@@ -92,9 +94,15 @@ export function ConversasSection() {
 
   const tagsKanban = useMemo(() => {
     if (!data) return [] as Array<{ tag: string; count: number }>;
-    const entries = Object.entries(data.porStatus ?? {}).map(([tag, count]) => ({ tag, count }));
-    entries.sort((a, b) => b.count - a.count);
-    if ((data.semStatus ?? 0) > 0) entries.push({ tag: "Sem status", count: data.semStatus });
+    const fixos = data.statusFixos ?? [];
+    const fixosSet = new Set(fixos);
+    // Sempre mostra os 10 fixos, na ordem oficial
+    const entries = fixos.map((tag) => ({ tag, count: data.porStatus?.[tag] ?? 0 }));
+    // Status fora da lista oficial (se houver)
+    for (const [tag, count] of Object.entries(data.porStatus ?? {})) {
+      if (!fixosSet.has(tag) && count > 0) entries.push({ tag, count });
+    }
+    entries.push({ tag: "Sem status", count: data.semStatus ?? 0 });
     return entries;
   }, [data]);
 
@@ -132,7 +140,7 @@ export function ConversasSection() {
         <KpiCard
           title="Conversas recebidas"
           value={loading && !data ? "—" : data?.recebidas ?? 0}
-          subtitle={data ? `clientes únicos · ${data.totalChats ?? "?"} chats no total` : undefined}
+          subtitle={data ? `atendimentos (segmentos) · ${data.clientesUnicos ?? "?"} clientes únicos · ${data.totalChats ?? "?"} chats` : undefined}
           icon={<MessageCircle className="w-5 h-5 text-primary-foreground" />}
           accent="bg-primary"
         />
