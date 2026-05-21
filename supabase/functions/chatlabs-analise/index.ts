@@ -26,7 +26,6 @@ async function fetchTimeline(token: string, beginDate: string, endDate: string) 
 }
 
 async function fetchChatMessages(token: string, chatId: string): Promise<any[]> {
-  // Try several known/likely message endpoints in order
   const candidates = [
     `${BASE}/api/chat/${chatId}/messages?perPage=200`,
     `${BASE}/api/chat/${chatId}/message?perPage=200`,
@@ -45,14 +44,30 @@ async function fetchChatMessages(token: string, chatId: string): Promise<any[]> 
   return [];
 }
 
+function isOperatorMsg(m: any): boolean {
+  const truthy = m.fromMe ?? m.isFromMe ?? m.sentByOperator ?? m.fromOperator;
+  if (typeof truthy === "boolean") return truthy;
+  if (m.author === "operator" || m.sender === "operator" || m.origin === "operator") return true;
+  if (m.author === "client" || m.sender === "client" || m.origin === "client") return false;
+  if (m.direction) return m.direction === "outbound" || m.direction === "out";
+  if (m.operator || m.operatorId || m.userId || m.attendantId) return true;
+  // Heuristic: chatlabs prefixes operator messages with _*Name*_
+  const text = m.text ?? m.body ?? m.content ?? m.message ?? "";
+  if (typeof text === "string" && /^_\*.+\*_/.test(text.trim())) return true;
+  return false;
+}
+
+function cleanText(t: string): string {
+  return t.replace(/^_\*[^*]+\*_\s*\n*/g, "").trim();
+}
+
 function formatMessages(msgs: any[]): string {
-  // Normalize: who sent, text, when
   return msgs.map((m) => {
-    const who = m.fromMe ?? m.isFromMe ?? m.sentByOperator ?? m.author === "operator" ? "Vendedor" :
-                m.author === "client" || m.fromClient || m.isFromClient ? "Cliente" :
-                (m.direction === "outbound" ? "Vendedor" : "Cliente");
-    const text = m.text ?? m.body ?? m.content ?? m.message ?? "";
-    return `[${who}] ${typeof text === "string" ? text : JSON.stringify(text)}`;
+    const who = isOperatorMsg(m) ? "Atendente" : "Cliente";
+    const raw = m.text ?? m.body ?? m.content ?? m.message ?? "";
+    const text = cleanText(typeof raw === "string" ? raw : JSON.stringify(raw));
+    if (!text || text.startsWith("Transferência de conversa")) return "";
+    return `[${who}] ${text}`;
   }).filter((l) => l.length > 4).join("\n");
 }
 
