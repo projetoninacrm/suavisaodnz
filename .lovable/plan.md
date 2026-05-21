@@ -1,28 +1,37 @@
+## Plano: subaba "Novos Agendamentos" na Sua Visão
 
+### O que será feito
 
-## Plano: Observação mostra apenas resposta do cliente
+Hoje a aba **Sua Visão** mostra direto o conteúdo de `ConversasSection`. Vou transformar essa aba em **duas subabas**:
 
-### Problema
-Atualmente o resumo da IA tenta avaliar a conversa inteira (vendedor + cliente). O usuário quer que a **Observação** contenha apenas um resumo da **resposta do cliente** após a automação.
+1. **Conversas** — exatamente o que já existe hoje (KPIs Chatlabs, status, origem, kanban). Sem mexer no comportamento.
+2. **Novos Agendamentos** — nova tela alimentada pela API do Amigo.
 
-### Mudanças
+### Comportamento da subaba "Novos Agendamentos"
 
-#### 1. Atualizar prompt do `summarize-conversa`
-Alterar o `SYSTEM_PROMPT` para instruir a IA a focar exclusivamente nas mensagens do cliente, ignorando as do vendedor. O resumo deve capturar a posição do cliente (interesse, recusa, agendamento, etc.).
+- Filtro de período (Início / Fim) + botão **Hoje** e **Atualizar**, no mesmo padrão visual da subaba Conversas.
+- Padrão inicial: Início = hoje, Fim = +30 dias.
+- Busca atendimentos via `amigo-api` (`action: "attendances"`) no período escolhido, **sem filtro de status** (para pegar `scheduled`, `confirmed` etc.).
+- Filtra somente unidade **Sua Visão – Padre Pedro Pinto** (mesmo critério do hook `useDetalhadoAmigo`).
+- Mantém apenas consultas com `start_date >= agora` (consultas futuras), como você pediu.
+- Descarta agendamentos cancelados (`canceled = true`).
 
-#### 2. Passar contexto da mensagem original
-No `whatsapp-webhook`, ao chamar `summarize-conversa`, incluir a `mensagem_enviada` da automação para que a IA saiba o contexto e resuma a resposta do cliente **em relação àquela mensagem**.
+### O que aparece na tela
 
-#### 3. Atualizar fallback de palavras-chave
-Ajustar o `smartFallback` para filtrar apenas linhas do "Cliente" no histórico, ignorando mensagens do vendedor.
+- **3 KPIs no topo:**
+  - **Total de agendamentos no período** (contagem de consultas marcadas)
+  - **Pacientes únicos** (deduplicado por telefone)
+  - **Hoje** (quantos têm `start_date` = data atual)
+- **Quebra por tipo de consulta** (mini-kanban): conta por `agenda_event.name` (ex: Retorno, Consulta Particular, Exames Complementares, etc.)
+- **Tabela** com as colunas: Data, Hora, Paciente, Telefone, Tipo de consulta, Médico, Status. Ordenada por data/hora crescente.
 
-#### 4. Remover filtro `resposta_cliente = false` da função SQL
-Atualizar `match_disparo_by_phone` para continuar capturando mensagens mesmo após a primeira resposta (dentro de 30 dias), permitindo que o resumo se atualize conforme a conversa evolui.
+### Onde mexer
 
-### Detalhes técnicos
+- `src/pages/Index.tsx` — no `case "Conversas"`, trocar o render direto de `<ConversasSection />` por um wrapper com subabas (`Tabs` do shadcn) que mostra Conversas ou Novos Agendamentos.
+- Novo: `src/components/Dashboard/NovosAgendamentosSection.tsx` — componente da subaba.
+- Novo: `src/hooks/useNovosAgendamentos.ts` — hook que chama `supabase.functions.invoke("amigo-api", { action: "attendances", params: { start_date, end_date } })`, filtra unidade + cancelados + futuras, e expõe os agrupamentos.
+- **Nenhuma mudança em edge function nem no banco** — a função `amigo-api` já aceita exatamente esse payload.
 
-**Arquivos editados:**
-- `supabase/functions/summarize-conversa/index.ts` — novo prompt focado no cliente + fallback filtrado
-- `supabase/functions/whatsapp-webhook/index.ts` — passar `mensagem_enviada` ao summarizer
-- Migration SQL — atualizar `match_disparo_by_phone` removendo filtro `resposta_cliente = false`
+### Limitação importante
 
+A API do Amigo **não devolve a data em que o agendamento foi criado**. Portanto "novo" aqui = "tem consulta marcada no período futuro selecionado". Se mais tarde você quiser "marcados nas últimas 24h" mesmo, precisaríamos persistir os agendamentos diariamente (ex: snapshot no banco) para conseguir comparar — fica como evolução futura, fora deste plano.
