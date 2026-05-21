@@ -233,20 +233,7 @@ const Index = () => {
       case "Taxa de Retorno SV":
         return <TaxaRetornoSection />;
       case "Conversas":
-        return (
-          <Tabs defaultValue="conversas" className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="conversas">Conversas</TabsTrigger>
-              <TabsTrigger value="novos">Novos Agendamentos</TabsTrigger>
-            </TabsList>
-            <TabsContent value="conversas">
-              <ConversasSection />
-            </TabsContent>
-            <TabsContent value="novos">
-              <NovosAgendamentosSection />
-            </TabsContent>
-          </Tabs>
-        );
+        return <ConversasSection />;
       default:
         return null;
     }
