@@ -14,8 +14,6 @@ import { AutomacoesTable } from "@/components/Dashboard/AutomacoesTable";
 import { LeadGenderKanban } from "@/components/Dashboard/LeadGenderKanban";
 import { TaxaRetornoSection } from "@/components/Dashboard/TaxaRetornoSection";
 import { ConversasSection } from "@/components/Dashboard/ConversasSection";
-import { NovosAgendamentosSection } from "@/components/Dashboard/NovosAgendamentosSection";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
