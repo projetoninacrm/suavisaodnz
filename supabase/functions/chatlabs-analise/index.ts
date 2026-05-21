@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
         const batch = rows.slice(i, i + CONC);
         const res = await Promise.all(batch.map(async (r) => {
           const msgs = await fetchChatMessages(TOKEN, r.chatId);
-          return { chatId: r.chatId, status: r.serviceStatus ?? "", text: formatMessages(msgs).slice(0, 4000) };
+          return { chatId: r.chatId, status: r.serviceStatus ?? "", text: formatMessages(msgs).slice(0, 2200) };
         }));
         out.push(...res);
       }
@@ -147,7 +147,7 @@ Seja específico, cite exemplos curtos entre aspas tirados das conversas. Não i
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_KEY}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: user },
