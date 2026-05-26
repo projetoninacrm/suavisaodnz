@@ -1,6 +1,8 @@
-import { Calendar, RefreshCw, Plus } from "lucide-react";
+import { Calendar, RefreshCw, Plus, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 export type Unidade = "DNZ" | "SUA_VISAO";
 
@@ -13,6 +15,11 @@ interface HeaderProps {
 }
 
 export function Header({ onRefresh, onAddRow, isLoading, unidade, onUnidadeChange }: HeaderProps) {
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth", { replace: true });
+  };
   return (
     <header className="bg-card border-b border-border px-6 py-4 card-shadow">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -69,6 +76,16 @@ export function Header({ onRefresh, onAddRow, isLoading, unidade, onUnidadeChang
           >
             <Plus className="w-4 h-4" />
             Nova Linha
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLogout}
+            className="gap-2"
+            title="Sair"
+          >
+            <LogOut className="w-4 h-4" />
+            Sair
           </Button>
         </div>
       </div>
