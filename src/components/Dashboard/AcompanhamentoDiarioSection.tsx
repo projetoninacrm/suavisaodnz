@@ -112,6 +112,7 @@ export function AcompanhamentoDiarioSection({
       const registro = registrosMap[schedule.date];
       const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
       const metaVendasDia = schedule.isDiaCompleto ? metaDiariaVendasCompleta : metaDiariaVendasMeio;
+      const metaFatDiaBase = schedule.isDiaCompleto ? metaFaturamentoDiarioCompleto : metaFaturamentoDiarioMeio;
       
       // Conta como preenchido se existe registro (mesmo com valores 0)
       if (registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null)) {
@@ -119,9 +120,10 @@ export function AcompanhamentoDiarioSection({
         metaAcumuladaVendas += metaVendasDia;
         realAcumuladoVendas += registro.vendas_realizadas || 0;
         realAcumuladoFaturamento += registro.faturamento_realizado || 0;
-        // Soma a meta diária dinâmica (mesma exibida na coluna Meta Fat.)
-        // para o consolidado ficar coerente com o status diário.
-        metaAcumuladaFaturamento += metasFaturamentoPorDia[schedule.date] ?? 0;
+        // Usa a meta BASE proporcional (mensal ÷ peso total × peso do dia),
+        // não a meta dinâmica. A dinâmica se infla quando há dias abaixo da meta,
+        // o que distorceria o consolidado ("o quanto deveria ter sido faturado até agora").
+        metaAcumuladaFaturamento += metaFatDiaBase;
       }
     });
 
