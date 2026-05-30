@@ -288,6 +288,48 @@ export function MetasCalculator({
     };
   }, [config, pesoTotalDias]);
 
+  // Peso por dia ajustado pela quinzena: 1ª quinzena (dias 1-15) = 60%,
+  // 2ª quinzena (dias 16-31) = 40% do peso total. Isso reflete a sazonalidade
+  // histórica observada (média jan-mai). O peso total é preservado.
+  const pesoPorDia = useMemo(() => {
+    const map: Record<string, number> = {};
+
+    // Calcula peso base (1 ou 0.5) por dia e separa por quinzena
+    const diasInfo = filteredSchedules
+      .map((s) => {
+        const temManha = s.morning_shift && s.morning_shift.trim() !== "";
+        const temTarde = s.afternoon_shift && s.afternoon_shift.trim() !== "";
+        const pesoBase = temManha && temTarde ? 1 : temManha || temTarde ? 0.5 : 0;
+        if (pesoBase === 0) return null;
+
+        // Extrai o dia do mês (suporta DD/mes, DD/MM/YYYY, YYYY-MM-DD)
+        let dayOfMonth = 0;
+        if (s.date.includes("-")) {
+          dayOfMonth = parseInt(s.date.split("-")[2], 10);
+        } else {
+          dayOfMonth = parseInt(s.date.split("/")[0], 10);
+        }
+        if (isNaN(dayOfMonth)) return null;
+
+        return { date: s.date, pesoBase, quinzena: dayOfMonth <= 15 ? 1 : 2 };
+      })
+      .filter((x): x is { date: string; pesoBase: number; quinzena: number } => x !== null);
+
+    const pesoBaseQ1 = diasInfo.filter((d) => d.quinzena === 1).reduce((s, d) => s + d.pesoBase, 0);
+    const pesoBaseQ2 = diasInfo.filter((d) => d.quinzena === 2).reduce((s, d) => s + d.pesoBase, 0);
+
+    // Fatores de escala: redistribui o peso total para 60/40 entre as quinzenas
+    const fatorQ1 = pesoBaseQ1 > 0 ? (0.6 * pesoTotalDias) / pesoBaseQ1 : 1;
+    const fatorQ2 = pesoBaseQ2 > 0 ? (0.4 * pesoTotalDias) / pesoBaseQ2 : 1;
+
+    diasInfo.forEach((d) => {
+      const fator = d.quinzena === 1 ? fatorQ1 : fatorQ2;
+      map[d.date] = d.pesoBase * fator;
+    });
+
+    return map;
+  }, [filteredSchedules, pesoTotalDias]);
+
   return (
     <div className="space-y-6">
       {/* Filtro de Mês */}
@@ -865,6 +907,7 @@ export function MetasCalculator({
         metaFaturamentoDiarioMeio={calculations.faturamentoDiarioMeio}
         metaMensalFaturamento={calculations.faturamentoMensal}
         pesoTotalDias={pesoTotalDias}
+        pesoPorDia={pesoPorDia}
       />
     </div>
   );

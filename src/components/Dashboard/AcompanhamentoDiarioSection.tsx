@@ -38,6 +38,7 @@ interface AcompanhamentoDiarioSectionProps {
   metaFaturamentoDiarioMeio: number; // Meta faturamento para dias com 1 período
   metaMensalFaturamento: number; // Meta mensal total
   pesoTotalDias: number; // Peso total dos dias (completos + meios*0.5)
+  pesoPorDia?: Record<string, number>; // Peso ajustado por quinzena (60/40)
 }
 
 export function AcompanhamentoDiarioSection({
@@ -50,6 +51,7 @@ export function AcompanhamentoDiarioSection({
   metaFaturamentoDiarioMeio,
   metaMensalFaturamento,
   pesoTotalDias,
+  pesoPorDia,
 }: AcompanhamentoDiarioSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -86,7 +88,8 @@ export function AcompanhamentoDiarioSection({
     const metas: Record<string, number> = {};
 
     diasComMedico.forEach((schedule) => {
-      const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
+      const pesoBase = schedule.isDiaCompleto ? 1 : 0.5;
+      const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
       const metaBaseAtual = pesoRestante > 0 ? Math.max(0, metaRestante / pesoRestante) : 0;
       metas[schedule.date] = metaBaseAtual * pesoDia;
 
@@ -98,7 +101,7 @@ export function AcompanhamentoDiarioSection({
     });
 
     return metas;
-  }, [diasComMedico, registrosMap, metaMensalFaturamento, pesoTotalDias]);
+  }, [diasComMedico, registrosMap, metaMensalFaturamento, pesoTotalDias, pesoPorDia]);
 
   // Cálculo do consolidado baseado nos dias preenchidos
   const consolidado = useMemo(() => {
@@ -110,9 +113,12 @@ export function AcompanhamentoDiarioSection({
 
     diasComMedico.forEach((schedule) => {
       const registro = registrosMap[schedule.date];
-      const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
-      const metaVendasDia = schedule.isDiaCompleto ? metaDiariaVendasCompleta : metaDiariaVendasMeio;
-      const metaFatDiaBase = schedule.isDiaCompleto ? metaFaturamentoDiarioCompleto : metaFaturamentoDiarioMeio;
+      const pesoBase = schedule.isDiaCompleto ? 1 : 0.5;
+      const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
+      // Meta por dia escala pelo peso ajustado (quinzena), mantendo o total mensal.
+      // metaDiariaVendasCompleta = metaMensal / pesoTotalDias (meta por unidade de peso).
+      const metaVendasDia = metaDiariaVendasCompleta * pesoDia;
+      const metaFatDiaBase = metaFaturamentoDiarioCompleto * pesoDia;
       
       // Conta como preenchido se existe registro (mesmo com valores 0)
       if (registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null)) {
@@ -144,7 +150,7 @@ export function AcompanhamentoDiarioSection({
       metaTicketMedio,
       realTicketMedio,
     };
-  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaDiariaVendasMeio, metaMensalFaturamento, pesoTotalDias]);
+  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaFaturamentoDiarioCompleto, pesoPorDia]);
 
   const StatusBadge = ({ diferenca, tipo }: { diferenca: number; tipo: "vendas" | "faturamento" }) => {
     const isPositivo = diferenca >= 0;
@@ -297,11 +303,12 @@ export function AcompanhamentoDiarioSection({
                       const registro = registrosMap[schedule.date];
                       const vendasReal = registro?.vendas_realizadas || 0;
                       const faturamentoReal = registro?.faturamento_realizado || 0;
-                      const pesoDia = schedule.isDiaCompleto ? 1 : 0.5;
+                      const pesoBase = schedule.isDiaCompleto ? 1 : 0.5;
+                      const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
                       
-                      // Determina a meta baseada no tipo do dia (completo ou meio)
-                      const metaVendasDia = schedule.isDiaCompleto ? metaDiariaVendasCompleta : metaDiariaVendasMeio;
-                      const metaFatDiaBase = schedule.isDiaCompleto ? metaFaturamentoDiarioCompleto : metaFaturamentoDiarioMeio;
+                      // Meta diária escala pelo peso da quinzena (60/40)
+                      const metaVendasDia = metaDiariaVendasCompleta * pesoDia;
+                      const metaFatDiaBase = metaFaturamentoDiarioCompleto * pesoDia;
                       const metaFatDia = metasFaturamentoPorDia[schedule.date] ?? metaFatDiaBase;
                       
                       const diferencaVendas = vendasReal - metaVendasDia;
