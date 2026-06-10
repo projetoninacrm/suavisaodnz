@@ -29,6 +29,8 @@ export interface NewLeadData {
   entrar_em_contato: string;
   medico: string;
   obs: string;
+  status?: string;
+  vendedor?: string;
 }
 
 export function useLeads() {

@@ -24,6 +24,8 @@ interface NewLeadFormData {
   entrar_em_contato: string;
   medico: string;
   obs: string;
+  status: string;
+  vendedor: string;
 }
 
 interface NewLeadDialogProps {
@@ -47,6 +49,8 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
     entrar_em_contato: "",
     medico: "",
     obs: "",
+    status: "Ativo",
+    vendedor: "",
   });
 
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -120,6 +124,8 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
       entrar_em_contato: "",
       medico: "",
       obs: "",
+      status: "Ativo",
+      vendedor: "",
     });
     setShowConfirmation(false);
     onOpenChange(false);
