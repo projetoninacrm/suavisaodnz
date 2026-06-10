@@ -22,7 +22,7 @@ import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 import { useLeadsGenderStats } from "@/hooks/useLeadsGenderStats";
 
 const TABS_DNZ = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações", "Taxa de Retorno SV"];
-const TABS_SUA_VISAO = ["Conversas"];
+const TABS_SUA_VISAO = ["Conversas", "Automações"];
 
 const INDICADORES_COLUMNS = [
   { key: "indicador", label: "Indicador", width: "200px" },
