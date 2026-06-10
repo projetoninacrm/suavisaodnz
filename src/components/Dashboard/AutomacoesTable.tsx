@@ -67,7 +67,22 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   const [isUploadingAudio, setIsUploadingAudio] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const [uploadingVendedor, setUploadingVendedor] = useState<string | null>(null);
-  const vendedores = ["Bernardo", "Thayssa"];
+  const baseVendedores = ["Bernardo", "Thayssa"];
+  const [extraVendedores, setExtraVendedores] = useState<string[]>([]);
+  const [novoVendedor, setNovoVendedor] = useState("");
+
+  const vendedoresFromLeads = Array.from(
+    new Set((leads || []).map((l) => l.vendedor).filter(Boolean) as string[])
+  );
+  const vendedoresFromAudios = Object.keys(form.audios_vendedor || {});
+  const vendedores = Array.from(
+    new Set([
+      ...baseVendedores,
+      ...vendedoresFromLeads,
+      ...vendedoresFromAudios,
+      ...extraVendedores,
+    ])
+  );
 
   const [comoConheceuOptions, setComoConheceuOptions] = useState<string[]>([]);
 
