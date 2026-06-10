@@ -343,6 +343,78 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={(v) => updateField("status", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Ativo">Ativo</SelectItem>
+                  <SelectItem value="Perdido">Perdido</SelectItem>
+                  <SelectItem value="Pós Venda">Pós Venda</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="vendedor">Vendedor</Label>
+              <Popover open={vendedorOpen} onOpenChange={setVendedorOpen}>
+                <PopoverTrigger asChild>
+                  <div className="relative">
+                    <Input
+                      id="vendedor"
+                      value={formData.vendedor}
+                      onChange={(e) => {
+                        updateField("vendedor", e.target.value);
+                        if (!vendedorOpen) setVendedorOpen(true);
+                      }}
+                      onFocus={() => setVendedorOpen(true)}
+                      placeholder="Digite ou selecione"
+                      className="pr-8"
+                      autoComplete="off"
+                    />
+                    <ChevronsUpDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="p-1 z-50"
+                  align="start"
+                  style={{ width: "var(--radix-popover-trigger-width)" }}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  {filteredVendedores.length === 0 ? (
+                    <div className="px-2 py-2 text-xs text-muted-foreground">
+                      Nenhum vendedor salvo. O nome digitado será usado.
+                    </div>
+                  ) : (
+                    <div className="max-h-[200px] overflow-y-auto">
+                      {filteredVendedores.map((v) => {
+                        const isSelected = v === formData.vendedor;
+                        return (
+                          <div
+                            key={v}
+                            onClick={() => {
+                              updateField("vendedor", v);
+                              setVendedorOpen(false);
+                            }}
+                            className={cn(
+                              "flex items-center gap-2 px-2 py-1.5 rounded-sm cursor-pointer text-sm hover:bg-accent hover:text-accent-foreground",
+                              isSelected && "bg-accent/50"
+                            )}
+                          >
+                            <Check className={cn("h-3 w-3", isSelected ? "opacity-100" : "opacity-0")} />
+                            <span className="truncate">{v}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="obs">Observações</Label>
             <Textarea
