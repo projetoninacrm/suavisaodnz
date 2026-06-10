@@ -364,6 +364,29 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                     );
                   })}
                 </div>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    value={novoVendedor}
+                    onChange={(e) => setNovoVendedor(e.target.value)}
+                    placeholder="Adicionar outro vendedor (nome)"
+                    className="h-8 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const nome = novoVendedor.trim();
+                      if (!nome) return;
+                      if (!vendedores.includes(nome)) {
+                        setExtraVendedores((prev) => [...prev, nome]);
+                      }
+                      setNovoVendedor("");
+                    }}
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Adicionar
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground mt-1.5">
                   O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                 </p>
