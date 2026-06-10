@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { format, parse, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, AlertTriangle } from "lucide-react";
+import { CalendarIcon, AlertTriangle, ChevronsUpDown, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/hooks/useLeads";
+
+const BASE_VENDEDORES = ["Bernardo", "Thayssa"];
 
 interface NewLeadFormData {
   data_registro: string;
@@ -147,6 +149,21 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
       setShowConfirmation(false);
     }
   };
+
+  const vendedorOptions = useMemo(() => {
+    const set = new Set<string>(BASE_VENDEDORES);
+    existingLeads.forEach(l => {
+      if (l.vendedor && l.vendedor.trim()) set.add(l.vendedor.trim());
+    });
+    return Array.from(set).sort();
+  }, [existingLeads]);
+
+  const [vendedorOpen, setVendedorOpen] = useState(false);
+  const filteredVendedores = useMemo(() => {
+    const q = formData.vendedor.toLowerCase().trim();
+    if (!q) return vendedorOptions;
+    return vendedorOptions.filter(v => v.toLowerCase().includes(q));
+  }, [vendedorOptions, formData.vendedor]);
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
