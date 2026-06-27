@@ -332,7 +332,7 @@ export function AcompanhamentoDiarioSection({
                           <td className="px-3 py-2 text-center text-blue-500 font-medium">
                             {metaVendasDia.toFixed(2)}
                             <span className="text-xs text-muted-foreground ml-1">
-                              ({schedule.isDiaCompleto ? "2P" : "1P"})
+                              ({schedule.semMedico ? "s/ médico" : schedule.isDiaCompleto ? "2P" : "1P"})
                             </span>
                           </td>
                           <td className="px-3 py-2">
