@@ -138,15 +138,17 @@ export function MetasCalculator({
       if (existing) {
         result.push(existing);
       } else {
+        const dayNames = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"];
         result.push({
           id: `placeholder-${iso}`,
+          sheet_name: "Escala",
           date: iso,
-          day: "",
           morning_shift: "",
           afternoon_shift: "",
-          table_name: "Escala",
-          row_order: 0,
-        } as Schedule);
+          day_of_week: dayNames[dt.getDay()],
+          created_at: "",
+          updated_at: "",
+        });
       }
     }
     return result;
