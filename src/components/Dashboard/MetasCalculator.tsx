@@ -949,7 +949,7 @@ export function MetasCalculator({
 
       {/* Seção de Acompanhamento Diário */}
       <AcompanhamentoDiarioSection
-        schedules={filteredSchedules}
+        schedules={displaySchedules}
         registros={filteredAcompanhamento}
         onUpdateRegistro={onUpdateAcompanhamento}
         metaDiariaVendasCompleta={calculations.metaDiariaCompleta}
