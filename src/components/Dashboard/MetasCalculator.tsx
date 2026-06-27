@@ -103,6 +103,55 @@ export function MetasCalculator({
     });
   }, [schedules, selectedMonth]);
 
+  // Gera lista de dias para exibir na tabela: todos os dias do mês exceto domingos.
+  // Dias sem médico aparecem como placeholders com turnos vazios (peso 0, não entram
+  // nos cálculos), mas permitem registrar vendas externas.
+  const displaySchedules = useMemo(() => {
+    const monthIdx = MONTH_NAMES.indexOf(selectedMonth);
+    if (monthIdx < 0) return filteredSchedules;
+
+    // Descobre o ano a partir de um schedule real do mês; fallback ano atual.
+    let year = new Date().getFullYear();
+    for (const s of filteredSchedules) {
+      if (s.date?.includes("-")) {
+        const y = parseInt(s.date.split("-")[0], 10);
+        if (!isNaN(y)) { year = y; break; }
+      } else if (s.date?.includes("/")) {
+        const parts = s.date.split("/");
+        if (parts[2]) {
+          const y = parseInt(parts[2], 10);
+          if (!isNaN(y)) { year = y; break; }
+        }
+      }
+    }
+
+    const byDate = new Map<string, Schedule>();
+    filteredSchedules.forEach((s) => byDate.set(s.date, s));
+
+    const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+    const result: Schedule[] = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dt = new Date(year, monthIdx, day);
+      if (dt.getDay() === 0) continue; // pula domingos
+      const iso = `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const existing = byDate.get(iso);
+      if (existing) {
+        result.push(existing);
+      } else {
+        result.push({
+          id: `placeholder-${iso}`,
+          date: iso,
+          day: "",
+          morning_shift: "",
+          afternoon_shift: "",
+          table_name: "Escala",
+          row_order: 0,
+        } as Schedule);
+      }
+    }
+    return result;
+  }, [filteredSchedules, selectedMonth]);
+
   // Filtra registros de acompanhamento pelo mês selecionado
   const filteredAcompanhamento = useMemo(() => {
     return acompanhamentoRegistros.filter(r => {
