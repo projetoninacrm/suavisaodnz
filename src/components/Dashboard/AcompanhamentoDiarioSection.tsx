@@ -88,7 +88,7 @@ export function AcompanhamentoDiarioSection({
     const metas: Record<string, number> = {};
 
     diasComMedico.forEach((schedule) => {
-      const pesoBase = schedule.isDiaCompleto ? 1 : 0.5;
+      const pesoBase = schedule.semMedico ? 0 : (schedule.isDiaCompleto ? 1 : 0.5);
       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
       const metaBaseAtual = pesoRestante > 0 ? Math.max(0, metaRestante / pesoRestante) : 0;
       metas[schedule.date] = metaBaseAtual * pesoDia;
@@ -113,7 +113,7 @@ export function AcompanhamentoDiarioSection({
 
     diasComMedico.forEach((schedule) => {
       const registro = registrosMap[schedule.date];
-      const pesoBase = schedule.isDiaCompleto ? 1 : 0.5;
+      const pesoBase = schedule.semMedico ? 0 : (schedule.isDiaCompleto ? 1 : 0.5);
       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
       // Meta por dia escala pelo peso ajustado (quinzena), mantendo o total mensal.
       // metaDiariaVendasCompleta = metaMensal / pesoTotalDias (meta por unidade de peso).
@@ -303,7 +303,7 @@ export function AcompanhamentoDiarioSection({
                       const registro = registrosMap[schedule.date];
                       const vendasReal = registro?.vendas_realizadas || 0;
                       const faturamentoReal = registro?.faturamento_realizado || 0;
-                      const pesoBase = schedule.isDiaCompleto ? 1 : 0.5;
+                      const pesoBase = schedule.semMedico ? 0 : (schedule.isDiaCompleto ? 1 : 0.5);
                       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
                       
                       // Meta diária escala pelo peso da quinzena (60/40)
