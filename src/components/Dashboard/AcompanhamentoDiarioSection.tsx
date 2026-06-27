@@ -55,16 +55,16 @@ export function AcompanhamentoDiarioSection({
 }: AcompanhamentoDiarioSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  // Filtra apenas dias com médico e adiciona info se é dia completo ou meio
+  // Mostra todos os dias recebidos (já filtrados para excluir domingos em MetasCalculator).
+  // Dias sem médico aparecem com peso 0 — não entram nos cálculos, mas permitem registrar
+  // vendas externas manualmente.
   const diasComMedico = useMemo(() => {
-    return schedules.filter(s => 
-      (s.morning_shift && s.morning_shift.trim() !== "") || 
-      (s.afternoon_shift && s.afternoon_shift.trim() !== "")
-    ).map(s => {
+    return schedules.map(s => {
       const temManha = s.morning_shift && s.morning_shift.trim() !== "";
       const temTarde = s.afternoon_shift && s.afternoon_shift.trim() !== "";
       const isDiaCompleto = temManha && temTarde;
-      return { ...s, isDiaCompleto };
+      const semMedico = !temManha && !temTarde;
+      return { ...s, isDiaCompleto, semMedico };
     }).sort((a, b) => {
       return parseDateForSort(a.date) - parseDateForSort(b.date);
     });
@@ -88,7 +88,7 @@ export function AcompanhamentoDiarioSection({
     const metas: Record<string, number> = {};
 
     diasComMedico.forEach((schedule) => {
-      const pesoBase = schedule.isDiaCompleto ? 1 : 0.5;
+      const pesoBase = schedule.semMedico ? 0 : (schedule.isDiaCompleto ? 1 : 0.5);
       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
       const metaBaseAtual = pesoRestante > 0 ? Math.max(0, metaRestante / pesoRestante) : 0;
       metas[schedule.date] = metaBaseAtual * pesoDia;
@@ -113,7 +113,7 @@ export function AcompanhamentoDiarioSection({
 
     diasComMedico.forEach((schedule) => {
       const registro = registrosMap[schedule.date];
-      const pesoBase = schedule.isDiaCompleto ? 1 : 0.5;
+      const pesoBase = schedule.semMedico ? 0 : (schedule.isDiaCompleto ? 1 : 0.5);
       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
       // Meta por dia escala pelo peso ajustado (quinzena), mantendo o total mensal.
       // metaDiariaVendasCompleta = metaMensal / pesoTotalDias (meta por unidade de peso).
@@ -303,7 +303,7 @@ export function AcompanhamentoDiarioSection({
                       const registro = registrosMap[schedule.date];
                       const vendasReal = registro?.vendas_realizadas || 0;
                       const faturamentoReal = registro?.faturamento_realizado || 0;
-                      const pesoBase = schedule.isDiaCompleto ? 1 : 0.5;
+                      const pesoBase = schedule.semMedico ? 0 : (schedule.isDiaCompleto ? 1 : 0.5);
                       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
                       
                       // Meta diária escala pelo peso da quinzena (60/40)
@@ -332,7 +332,7 @@ export function AcompanhamentoDiarioSection({
                           <td className="px-3 py-2 text-center text-blue-500 font-medium">
                             {metaVendasDia.toFixed(2)}
                             <span className="text-xs text-muted-foreground ml-1">
-                              ({schedule.isDiaCompleto ? "2P" : "1P"})
+                              ({schedule.semMedico ? "s/ médico" : schedule.isDiaCompleto ? "2P" : "1P"})
                             </span>
                           </td>
                           <td className="px-3 py-2">
