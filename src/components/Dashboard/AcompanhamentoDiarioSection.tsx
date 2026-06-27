@@ -55,16 +55,16 @@ export function AcompanhamentoDiarioSection({
 }: AcompanhamentoDiarioSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  // Filtra apenas dias com médico e adiciona info se é dia completo ou meio
+  // Mostra todos os dias recebidos (já filtrados para excluir domingos em MetasCalculator).
+  // Dias sem médico aparecem com peso 0 — não entram nos cálculos, mas permitem registrar
+  // vendas externas manualmente.
   const diasComMedico = useMemo(() => {
-    return schedules.filter(s => 
-      (s.morning_shift && s.morning_shift.trim() !== "") || 
-      (s.afternoon_shift && s.afternoon_shift.trim() !== "")
-    ).map(s => {
+    return schedules.map(s => {
       const temManha = s.morning_shift && s.morning_shift.trim() !== "";
       const temTarde = s.afternoon_shift && s.afternoon_shift.trim() !== "";
       const isDiaCompleto = temManha && temTarde;
-      return { ...s, isDiaCompleto };
+      const semMedico = !temManha && !temTarde;
+      return { ...s, isDiaCompleto, semMedico };
     }).sort((a, b) => {
       return parseDateForSort(a.date) - parseDateForSort(b.date);
     });
