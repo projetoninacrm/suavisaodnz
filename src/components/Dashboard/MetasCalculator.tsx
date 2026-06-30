@@ -985,7 +985,7 @@ export function MetasCalculator({
         metaFaturamentoDiarioCompleto={calculations.faturamentoDiarioCompleto}
         metaFaturamentoDiarioMeio={calculations.faturamentoDiarioMeio}
         metaMensalFaturamento={calculations.faturamentoMensal}
-        pesoTotalDias={pesoTotalDias}
+        pesoTotalDias={pesoDistribuicao}
         pesoPorDia={pesoPorDia}
       />
     </div>
