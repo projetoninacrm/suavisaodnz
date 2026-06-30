@@ -125,8 +125,38 @@ export function MetasCalculator({
       }
     }
 
+    // Normaliza a chave para o formato ISO YYYY-MM-DD, independentemente de como
+    // a data está salva (ISO, DD/mes ou DD/MM/YYYY) — assim os schedules legados
+    // (ex.: "01/jul") batem com o placeholder ISO gerado abaixo.
+    const toIsoKey = (raw: string): string | null => {
+      if (!raw) return null;
+      if (raw.includes("-")) {
+        const [y, m, d] = raw.split("-");
+        if (y && m && d) return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+        return null;
+      }
+      const parts = raw.split("/");
+      const day = parseInt(parts[0], 10);
+      if (isNaN(day)) return null;
+      const monthPart = (parts[1] || "").toLowerCase().trim();
+      let mIdx = MONTH_NAMES.indexOf(monthPart);
+      if (mIdx < 0) {
+        const mNum = parseInt(monthPart, 10);
+        if (!isNaN(mNum) && mNum >= 1 && mNum <= 12) mIdx = mNum - 1;
+      }
+      if (mIdx < 0) return null;
+      const y = parts[2] ? parseInt(parts[2], 10) : year;
+      if (isNaN(y)) return null;
+      return `${y}-${String(mIdx + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    };
+
     const byDate = new Map<string, Schedule>();
-    filteredSchedules.forEach((s) => byDate.set(s.date, s));
+    filteredSchedules.forEach((s) => {
+      const key = toIsoKey(s.date);
+      if (key) byDate.set(key, s);
+      // Também guarda pelo valor original como fallback
+      byDate.set(s.date, s);
+    });
 
     const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
     const result: Schedule[] = [];
