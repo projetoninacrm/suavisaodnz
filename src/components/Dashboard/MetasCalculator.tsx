@@ -267,6 +267,15 @@ export function MetasCalculator({
     setHasUnsavedChanges(false);
   }, [saveConfig, selectedMonth, config]);
 
+  // Quando não há escala no mês (pesoTotalDias = 0), usamos os dias úteis exibidos
+  // (todos os dias do mês exceto domingos) como base de distribuição para que a
+  // Meta de Faturamento configurada apareça mesmo sem escala definida.
+  const diasUteisFallback = useMemo(
+    () => displaySchedules.length,
+    [displaySchedules]
+  );
+  const pesoDistribuicao = pesoTotalDias > 0 ? pesoTotalDias : diasUteisFallback;
+
   // Cálculos da meta
   const calculations = useMemo(() => {
     const totalPacientes = config.periodos * config.mediaAtendimentos;
@@ -283,14 +292,14 @@ export function MetasCalculator({
     // Meta diária base: dividida pelo peso total (considera dias meio período)
     // Ex: 22 dias completos + 4 meios = peso 24 (22 + 4*0.5)
     // Meta diária completa = mensal / 24, meta dia meio = (mensal / 24) / 2
-    const metaDiariaBase = pesoTotalDias > 0 ? metaVendas / pesoTotalDias : 0;
+    const metaDiariaBase = pesoDistribuicao > 0 ? metaVendas / pesoDistribuicao : 0;
     const metaDiariaCompleta = metaDiariaBase; // para dias com 2 períodos
     const metaDiariaMeio = metaDiariaBase * 0.5; // para dias com 1 período
     
     const metaDiaria = metaDiariaCompleta; // valor de referência (dia completo)
     const metaSemanal = metaVendas / 4;
     const superMetaMensal = superMeta;
-    const superMetaDiariaCompleta = pesoTotalDias > 0 ? superMeta / pesoTotalDias : 0;
+    const superMetaDiariaCompleta = pesoDistribuicao > 0 ? superMeta / pesoDistribuicao : 0;
     const superMetaDiariaMeio = superMetaDiariaCompleta * 0.5;
     const superMetaDiaria = superMetaDiariaCompleta;
     const superMetaSemanal = superMeta / 4;
@@ -298,13 +307,13 @@ export function MetasCalculator({
     // Faturamento com mesma lógica de distribuição
     const ticketMedio = metaVendas > 0 ? config.metaFaturamentoMensal / metaVendas : 0;
     const faturamentoMensal = config.metaFaturamentoMensal;
-    const faturamentoDiarioBase = pesoTotalDias > 0 ? faturamentoMensal / pesoTotalDias : 0;
+    const faturamentoDiarioBase = pesoDistribuicao > 0 ? faturamentoMensal / pesoDistribuicao : 0;
     const faturamentoDiarioCompleto = faturamentoDiarioBase;
     const faturamentoDiarioMeio = faturamentoDiarioBase * 0.5;
     const faturamentoDiario = faturamentoDiarioCompleto; // referência
     const faturamentoSemanal = faturamentoMensal / 4;
     const superFaturamentoMensal = faturamentoMensal * 1.2;
-    const superFaturamentoDiarioCompleto = pesoTotalDias > 0 ? superFaturamentoMensal / pesoTotalDias : 0;
+    const superFaturamentoDiarioCompleto = pesoDistribuicao > 0 ? superFaturamentoMensal / pesoDistribuicao : 0;
     const superFaturamentoDiarioMeio = superFaturamentoDiarioCompleto * 0.5;
     const superFaturamentoDiario = superFaturamentoDiarioCompleto;
     const superFaturamentoSemanal = superFaturamentoMensal / 4;
@@ -337,13 +346,32 @@ export function MetasCalculator({
       superFaturamentoDiarioMeio,
       superFaturamentoSemanal,
     };
-  }, [config, pesoTotalDias]);
+  }, [config, pesoDistribuicao]);
 
   // Peso por dia ajustado pela quinzena: 1ª quinzena (dias 1-15) = 60%,
   // 2ª quinzena (dias 16-31) = 40% do peso total. Isso reflete a sazonalidade
   // histórica observada (média jan-mai). O peso total é preservado.
   const pesoPorDia = useMemo(() => {
     const map: Record<string, number> = {};
+
+    // Sem escala: distribui peso 1 para cada dia útil exibido (exceto domingos),
+    // ainda aplicando o ajuste 60/40 por quinzena.
+    if (pesoTotalDias === 0 && displaySchedules.length > 0) {
+      const totalQ1 = displaySchedules.filter((s) => {
+        const day = s.date.includes("-") ? parseInt(s.date.split("-")[2], 10) : parseInt(s.date.split("/")[0], 10);
+        return !isNaN(day) && day <= 15;
+      }).length;
+      const totalQ2 = displaySchedules.length - totalQ1;
+      const totalPeso = displaySchedules.length;
+      const fatorQ1 = totalQ1 > 0 ? (0.6 * totalPeso) / totalQ1 : 1;
+      const fatorQ2 = totalQ2 > 0 ? (0.4 * totalPeso) / totalQ2 : 1;
+      displaySchedules.forEach((s) => {
+        const day = s.date.includes("-") ? parseInt(s.date.split("-")[2], 10) : parseInt(s.date.split("/")[0], 10);
+        if (isNaN(day)) return;
+        map[s.date] = day <= 15 ? fatorQ1 : fatorQ2;
+      });
+      return map;
+    }
 
     // Calcula peso base (1 ou 0.5) por dia e separa por quinzena
     const diasInfo = filteredSchedules
@@ -379,7 +407,7 @@ export function MetasCalculator({
     });
 
     return map;
-  }, [filteredSchedules, pesoTotalDias]);
+  }, [filteredSchedules, pesoTotalDias, displaySchedules]);
 
   return (
     <div className="space-y-6">
