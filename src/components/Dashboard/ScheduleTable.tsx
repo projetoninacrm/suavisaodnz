@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Trash2, Calendar, ChevronDown, Wand2, Loader2 } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { Trash2, Calendar, ChevronDown, Wand2, Loader2, Upload, FileImage } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableCell } from "./EditableCell";
 import { DayBadge } from "./DayBadge";
@@ -21,6 +21,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Schedule } from "@/hooks/useSchedules";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -146,6 +154,11 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
   const currentMonthIndex = new Date().getMonth();
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTH_NAMES[currentMonthIndex]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Detecta meses disponíveis nos schedules
   const availableMonths = useMemo(() => {
@@ -215,6 +228,70 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
     }
   };
 
+  const handleImportSchedule = async () => {
+    if (!importFile) return;
+    setIsImporting(true);
+    try {
+      const monthIndex = MONTH_NAMES.indexOf(selectedMonth);
+      const year = 2026;
+
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1] || "");
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(importFile);
+      });
+
+      const { data, error } = await supabase.functions.invoke("import-schedule-image", {
+        body: {
+          fileBase64,
+          mimeType: importFile.type || "image/png",
+          month: monthIndex + 1,
+          year,
+          sheetName: "Escala",
+        },
+      });
+
+      if (error) throw error;
+      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+
+      const inserted = (data as { inserted?: number })?.inserted ?? 0;
+      toast({
+        title: "Agenda importada!",
+        description: `${inserted} dias replicados para ${MONTH_LABELS[selectedMonth]}.`,
+      });
+      setImportOpen(false);
+      setImportFile(null);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error("Import error:", err);
+      toast({
+        title: "Erro ao importar agenda",
+        description: (err as Error).message || "Tente outra imagem mais nítida.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleFileSelected = (file: File | undefined | null) => {
+    if (!file) return;
+    const okTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"];
+    if (!okTypes.includes(file.type)) {
+      toast({
+        title: "Formato não suportado",
+        description: "Envie uma imagem (PNG, JPG, WEBP) ou PDF.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setImportFile(file);
+  };
+
   return (
     <div className="space-y-4">
       {/* Filtro de Mês */}
@@ -262,6 +339,15 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
               ({scheduleCount} registros)
             </span>
 
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload className="h-4 w-4" />
+              Importar Agenda
+            </Button>
+
             {/* Botão para gerar escala */}
             {!hasDataInMonth && (
               <AlertDialog>
@@ -307,6 +393,68 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal Importar Agenda */}
+      <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) setImportFile(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Importar Agenda — {MONTH_LABELS[selectedMonth]}</DialogTitle>
+            <DialogDescription>
+              Arraste uma foto/print ou PDF da escala. A IA vai ler e replicar exatamente os médicos
+              de cada turno. Os registros já existentes em {MONTH_LABELS[selectedMonth]} serão substituídos.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              handleFileSelected(e.dataTransfer.files?.[0]);
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`mt-2 cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
+              isDragging ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
+              className="hidden"
+              onChange={(e) => handleFileSelected(e.target.files?.[0])}
+            />
+            {importFile ? (
+              <div className="flex flex-col items-center gap-2">
+                <FileImage className="h-8 w-8 text-primary" />
+                <p className="text-sm font-medium">{importFile.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {(importFile.size / 1024).toFixed(0)} KB — clique para trocar
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <p className="text-sm font-medium">Arraste a imagem aqui</p>
+                <p className="text-xs text-muted-foreground">
+                  ou clique para selecionar (PNG, JPG, WEBP ou PDF)
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportOpen(false)} disabled={isImporting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleImportSchedule} disabled={!importFile || isImporting} className="gap-2">
+              {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              {isImporting ? "Importando..." : "Importar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Tabela */}
       <div className="bg-card rounded-xl border border-border overflow-hidden card-shadow-lg animate-fade-in">
