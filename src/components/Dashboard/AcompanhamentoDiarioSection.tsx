@@ -119,6 +119,9 @@ export function AcompanhamentoDiarioSection({
       // metaDiariaVendasCompleta = metaMensal / pesoTotalDias (meta por unidade de peso).
       const metaVendasDia = metaDiariaVendasCompleta * pesoDia;
       const metaFatDiaBase = metaFaturamentoDiarioCompleto * pesoDia;
+      // Usa a meta dinâmica (a mesma exibida em cada linha da tabela),
+      // para que a "Meta Faturamento" consolidada bata exatamente com a soma da coluna Meta Fat.
+      const metaFatDiaDinamica = metasFaturamentoPorDia[schedule.date] ?? metaFatDiaBase;
       
       // Conta como preenchido se existe registro (mesmo com valores 0)
       if (registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null)) {
@@ -126,10 +129,7 @@ export function AcompanhamentoDiarioSection({
         metaAcumuladaVendas += metaVendasDia;
         realAcumuladoVendas += registro.vendas_realizadas || 0;
         realAcumuladoFaturamento += registro.faturamento_realizado || 0;
-        // Usa a meta BASE proporcional (mensal ÷ peso total × peso do dia),
-        // não a meta dinâmica. A dinâmica se infla quando há dias abaixo da meta,
-        // o que distorceria o consolidado ("o quanto deveria ter sido faturado até agora").
-        metaAcumuladaFaturamento += metaFatDiaBase;
+        metaAcumuladaFaturamento += metaFatDiaDinamica;
       }
     });
 
@@ -150,7 +150,7 @@ export function AcompanhamentoDiarioSection({
       metaTicketMedio,
       realTicketMedio,
     };
-  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaFaturamentoDiarioCompleto, pesoPorDia]);
+  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaFaturamentoDiarioCompleto, metasFaturamentoPorDia, pesoPorDia]);
 
   const StatusBadge = ({ diferenca, tipo }: { diferenca: number; tipo: "vendas" | "faturamento" }) => {
     const isPositivo = diferenca >= 0;
