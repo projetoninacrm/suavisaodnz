@@ -171,7 +171,7 @@ export function AcompanhamentoDiarioSection({
             {isPositivo ? "+" : ""}
             {tipo === "vendas" 
               ? diferenca.toFixed(2)
-              : `R$ ${diferenca.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+              : `R$ ${diferenca.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             }
           </p>
           <p className="text-xs opacity-70">
@@ -234,7 +234,7 @@ export function AcompanhamentoDiarioSection({
                     <span className="text-xs font-medium text-muted-foreground">Meta Faturamento</span>
                   </div>
                   <p className="text-2xl font-bold text-green-500">
-                    R$ {consolidado.metaAcumuladaFaturamento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R$ {consolidado.metaAcumuladaFaturamento.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
 
@@ -245,7 +245,7 @@ export function AcompanhamentoDiarioSection({
                     <span className="text-xs font-medium text-muted-foreground">Real Faturamento</span>
                   </div>
                   <p className="text-2xl font-bold text-emerald-500">
-                    R$ {consolidado.realAcumuladoFaturamento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R$ {consolidado.realAcumuladoFaturamento.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
 
@@ -256,7 +256,7 @@ export function AcompanhamentoDiarioSection({
                     <span className="text-xs font-medium text-muted-foreground">Meta Ticket Médio</span>
                   </div>
                   <p className="text-2xl font-bold text-orange-500">
-                    R$ {consolidado.metaTicketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R$ {consolidado.metaTicketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
 
@@ -267,7 +267,7 @@ export function AcompanhamentoDiarioSection({
                     <span className="text-xs font-medium text-muted-foreground">Real Ticket Médio</span>
                   </div>
                   <p className="text-2xl font-bold text-amber-500">
-                    R$ {consolidado.realTicketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R$ {consolidado.realTicketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>
