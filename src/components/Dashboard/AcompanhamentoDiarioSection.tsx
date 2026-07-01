@@ -79,29 +79,18 @@ export function AcompanhamentoDiarioSection({
     return map;
   }, [registros]);
 
-  // Calcula a meta dinâmica de faturamento por dia em ordem cronológica.
-  // A meta de cada linha é definida pelo que ainda falta atingir ANTES daquele dia,
-  // para não mudar incoerentemente após preencher o próprio dia.
+  // Meta de faturamento por dia = fatia proporcional fixa da meta mensal,
+  // escalada pelo peso do dia (quinzena 60/40). Não redistribui déficits, para
+  // que a soma da coluna nunca ultrapasse a meta mensal configurada.
   const metasFaturamentoPorDia = useMemo(() => {
-    let metaRestante = metaMensalFaturamento;
-    let pesoRestante = pesoTotalDias;
     const metas: Record<string, number> = {};
-
     diasComMedico.forEach((schedule) => {
       const pesoBase = schedule.semMedico ? 0 : (schedule.isDiaCompleto ? 1 : 0.5);
       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
-      const metaBaseAtual = pesoRestante > 0 ? Math.max(0, metaRestante / pesoRestante) : 0;
-      metas[schedule.date] = metaBaseAtual * pesoDia;
-
-      const faturamentoRealizado = registrosMap[schedule.date]?.faturamento_realizado;
-      if (faturamentoRealizado !== null && faturamentoRealizado !== undefined) {
-        metaRestante = Math.max(0, metaRestante - faturamentoRealizado);
-        pesoRestante = Math.max(0, pesoRestante - pesoDia);
-      }
+      metas[schedule.date] = metaFaturamentoDiarioCompleto * pesoDia;
     });
-
     return metas;
-  }, [diasComMedico, registrosMap, metaMensalFaturamento, pesoTotalDias, pesoPorDia]);
+  }, [diasComMedico, metaFaturamentoDiarioCompleto, pesoPorDia]);
 
   // Cálculo do consolidado baseado nos dias preenchidos
   const consolidado = useMemo(() => {
