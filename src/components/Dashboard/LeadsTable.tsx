@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { EditableCell } from "./EditableCell";
 import { DatePickerCell } from "./DatePickerCell";
 import { SelectCell } from "./SelectCell";
+import { ComboEditableCell } from "./ComboEditableCell";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Lead } from "@/hooks/useLeads";
@@ -430,10 +431,10 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                     <EditableCell value={lead.medico || ""} onSave={(v) => onUpdate(lead.id, "medico", v)} placeholder="Médico" />
                   </td>
                   <td className="px-1 py-1">
-                    <SelectCell
+                    <ComboEditableCell
                       value={lead.vendedor || ""}
                       onSave={(v) => onUpdate(lead.id, "vendedor", v)}
-                      options={uniqueValues.vendedor}
+                      suggestions={uniqueValues.vendedor}
                       placeholder="Vendedor"
                     />
                   </td>
