@@ -113,12 +113,13 @@ export function CalendarFilterPopover({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto p-0 z-50 shadow-lg max-h-[calc(100vh-2rem)] overflow-y-auto"
+        className="w-auto p-0 z-50 shadow-lg overflow-y-auto max-h-[var(--radix-popover-content-available-height)]"
         align="start"
         side="bottom"
         sideOffset={4}
         collisionPadding={16}
         avoidCollisions
+        sticky="always"
       >
         <div className="bg-card rounded-t-lg">
           <div className="flex items-center justify-between p-3 border-b border-border">
