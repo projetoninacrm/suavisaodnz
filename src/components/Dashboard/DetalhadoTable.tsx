@@ -278,6 +278,7 @@ export function DetalhadoTable({ records, onUpdate, onDelete }: DetalhadoTablePr
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Receita</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Data</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Visitou Loja</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[50px]"></th>
               </tr>
             </thead>
@@ -308,6 +309,9 @@ export function DetalhadoTable({ records, onUpdate, onDelete }: DetalhadoTablePr
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={record.visitou_loja || ""} onSave={(v) => onUpdate(record.id, "visitou_loja", v)} placeholder="Visitou" />
+                  </td>
+                  <td className="px-1 py-1">
+                    <EditableCell value={record.obs || ""} onSave={(v) => onUpdate(record.id, "obs", v)} placeholder="Observação" />
                   </td>
                   <td className="px-2 py-2 text-center">
                     <Button variant="ghost" size="icon" onClick={() => onDelete(record.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
