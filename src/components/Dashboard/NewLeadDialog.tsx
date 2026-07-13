@@ -429,6 +429,17 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="obs2">Observações 2</Label>
+            <Textarea
+              id="obs2"
+              value={formData.obs2}
+              onChange={(e) => updateField("obs2", e.target.value)}
+              placeholder="Observações adicionais sobre o lead..."
+              rows={3}
+            />
+          </div>
+
           <div className="flex justify-end gap-2 pt-4">
             {showConfirmation ? (
               <>
