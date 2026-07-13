@@ -370,6 +370,7 @@ export type Database = {
           nome: string | null
           numero: string | null
           obs: string | null
+          obs2: string | null
           orcamento: string | null
           status: string | null
           updated_at: string
@@ -386,6 +387,7 @@ export type Database = {
           nome?: string | null
           numero?: string | null
           obs?: string | null
+          obs2?: string | null
           orcamento?: string | null
           status?: string | null
           updated_at?: string
@@ -402,6 +404,7 @@ export type Database = {
           nome?: string | null
           numero?: string | null
           obs?: string | null
+          obs2?: string | null
           orcamento?: string | null
           status?: string | null
           updated_at?: string
