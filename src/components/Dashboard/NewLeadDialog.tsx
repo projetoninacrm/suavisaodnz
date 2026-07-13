@@ -128,6 +128,7 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
       entrar_em_contato: "",
       medico: "",
       obs: "",
+      obs2: "",
       status: "Ativo",
       vendedor: "",
     });
