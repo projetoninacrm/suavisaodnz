@@ -458,6 +458,9 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                   <td className="px-1 py-1">
                     <EditableCell value={lead.obs || ""} onSave={(v) => onUpdate(lead.id, "obs", v)} placeholder="Observação" />
                   </td>
+                  <td className="px-1 py-1">
+                    <EditableCell value={lead.obs2 || ""} onSave={(v) => onUpdate(lead.id, "obs2", v)} placeholder="Observação 2" />
+                  </td>
                   <td className="px-2 py-2 text-center">
                     <Button variant="ghost" size="icon" onClick={() => onDelete(lead.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                       <Trash2 className="w-4 h-4" />
