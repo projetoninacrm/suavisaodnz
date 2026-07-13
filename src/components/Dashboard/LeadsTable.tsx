@@ -370,8 +370,8 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
       {/* Table */}
       <div className="bg-card rounded-xl border border-border overflow-hidden card-shadow-lg animate-fade-in">
         <SyncedHorizontalScrollbar targetRef={tableScrollRef} />
-        <div ref={tableScrollRef} className="overflow-x-auto scrollbar-visible">
-          <table className="w-full min-w-[1500px]">
+          <div ref={tableScrollRef} className="overflow-x-auto scrollbar-visible">
+          <table className="w-full min-w-[1700px]">
             <thead>
               <tr className="bg-table-header border-b border-table-border">
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[110px]">Data</th>
