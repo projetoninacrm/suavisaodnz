@@ -13,6 +13,7 @@ export interface Lead {
   entrar_em_contato: string | null;
   medico: string | null;
   obs: string | null;
+  obs2: string | null;
   status: string | null;
   vendedor: string | null;
   created_at: string;
@@ -29,6 +30,7 @@ export interface NewLeadData {
   entrar_em_contato: string;
   medico: string;
   obs: string;
+  obs2: string;
   status?: string;
   vendedor?: string;
 }

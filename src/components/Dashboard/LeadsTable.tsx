@@ -370,8 +370,8 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
       {/* Table */}
       <div className="bg-card rounded-xl border border-border overflow-hidden card-shadow-lg animate-fade-in">
         <SyncedHorizontalScrollbar targetRef={tableScrollRef} />
-        <div ref={tableScrollRef} className="overflow-x-auto scrollbar-visible">
-          <table className="w-full min-w-[1500px]">
+          <div ref={tableScrollRef} className="overflow-x-auto scrollbar-visible">
+          <table className="w-full min-w-[1700px]">
             <thead>
               <tr className="bg-table-header border-b border-table-border">
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[110px]">Data</th>
@@ -385,6 +385,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Vendedor</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Status</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs 2</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[50px]"></th>
               </tr>
             </thead>
@@ -456,6 +457,9 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={lead.obs || ""} onSave={(v) => onUpdate(lead.id, "obs", v)} placeholder="Observação" />
+                  </td>
+                  <td className="px-1 py-1">
+                    <EditableCell value={lead.obs2 || ""} onSave={(v) => onUpdate(lead.id, "obs2", v)} placeholder="Observação 2" />
                   </td>
                   <td className="px-2 py-2 text-center">
                     <Button variant="ghost" size="icon" onClick={() => onDelete(lead.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
