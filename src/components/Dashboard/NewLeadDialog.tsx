@@ -26,6 +26,7 @@ interface NewLeadFormData {
   entrar_em_contato: string;
   medico: string;
   obs: string;
+  obs2: string;
   status: string;
   vendedor: string;
 }
