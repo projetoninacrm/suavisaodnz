@@ -79,18 +79,57 @@ export function AcompanhamentoDiarioSection({
     return map;
   }, [registros]);
 
-  // Meta de faturamento por dia = fatia proporcional fixa da meta mensal,
-  // escalada pelo peso do dia (quinzena 60/40). Não redistribui déficits, para
-  // que a soma da coluna nunca ultrapasse a meta mensal configurada.
-  const metasFaturamentoPorDia = useMemo(() => {
-    const metas: Record<string, number> = {};
-    diasComMedico.forEach((schedule) => {
-      const pesoBase = schedule.semMedico ? 0 : (schedule.isDiaCompleto ? 1 : 0.5);
-      const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
-      metas[schedule.date] = metaFaturamentoDiarioCompleto * pesoDia;
+  // Meta de faturamento por dia:
+  // - Dias já preenchidos: mantém a fatia proporcional base (fixa) — não dá para
+  //   voltar no passado e alterar a meta.
+  // - Dias ainda não preenchidos: dividem o restante que falta para bater a meta
+  //   mensal (metaMensal - real acumulado), proporcional ao peso de cada dia,
+  //   para que o total esperado no mês continue igual à meta configurada.
+  //   O mesmo vale para a meta de vendas.
+  const { metasFaturamentoPorDia, metasVendasPorDia } = useMemo(() => {
+    const metasFat: Record<string, number> = {};
+    const metasVen: Record<string, number> = {};
+
+    const pesoDeDia = (s: typeof diasComMedico[number]) => {
+      const base = s.semMedico ? 0 : (s.isDiaCompleto ? 1 : 0.5);
+      return pesoPorDia?.[s.date] ?? base;
+    };
+
+    let realFatFilled = 0;
+    let realVenFilled = 0;
+    let pesoUnfilled = 0;
+
+    diasComMedico.forEach((s) => {
+      const registro = registrosMap[s.date];
+      const preenchido = registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null);
+      const pesoDia = pesoDeDia(s);
+      if (preenchido) {
+        realFatFilled += registro?.faturamento_realizado || 0;
+        realVenFilled += registro?.vendas_realizadas || 0;
+      } else {
+        pesoUnfilled += pesoDia;
+      }
     });
-    return metas;
-  }, [diasComMedico, metaFaturamentoDiarioCompleto, pesoPorDia]);
+
+    const metaMensalVendas = metaDiariaVendasCompleta * (pesoTotalDias || 0);
+    const restanteFat = Math.max(0, metaMensalFaturamento - realFatFilled);
+    const restanteVen = Math.max(0, metaMensalVendas - realVenFilled);
+
+    diasComMedico.forEach((s) => {
+      const registro = registrosMap[s.date];
+      const preenchido = registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null);
+      const pesoDia = pesoDeDia(s);
+      if (preenchido) {
+        metasFat[s.date] = metaFaturamentoDiarioCompleto * pesoDia;
+        metasVen[s.date] = metaDiariaVendasCompleta * pesoDia;
+      } else {
+        metasFat[s.date] = pesoUnfilled > 0 ? (restanteFat * pesoDia) / pesoUnfilled : 0;
+        metasVen[s.date] = pesoUnfilled > 0 ? (restanteVen * pesoDia) / pesoUnfilled : 0;
+      }
+    });
+
+    return { metasFaturamentoPorDia: metasFat, metasVendasPorDia: metasVen };
+  }, [diasComMedico, registrosMap, metaFaturamentoDiarioCompleto, metaDiariaVendasCompleta, metaMensalFaturamento, pesoTotalDias, pesoPorDia]);
 
   // Cálculo do consolidado baseado nos dias preenchidos
   const consolidado = useMemo(() => {
@@ -106,10 +145,8 @@ export function AcompanhamentoDiarioSection({
       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
       // Meta por dia escala pelo peso ajustado (quinzena), mantendo o total mensal.
       // metaDiariaVendasCompleta = metaMensal / pesoTotalDias (meta por unidade de peso).
-      const metaVendasDia = metaDiariaVendasCompleta * pesoDia;
+      const metaVendasDia = metasVendasPorDia[schedule.date] ?? (metaDiariaVendasCompleta * pesoDia);
       const metaFatDiaBase = metaFaturamentoDiarioCompleto * pesoDia;
-      // Usa a meta dinâmica (a mesma exibida em cada linha da tabela),
-      // para que a "Meta Faturamento" consolidada bata exatamente com a soma da coluna Meta Fat.
       const metaFatDiaDinamica = metasFaturamentoPorDia[schedule.date] ?? metaFatDiaBase;
       
       // Conta como preenchido se existe registro (mesmo com valores 0)
@@ -295,8 +332,9 @@ export function AcompanhamentoDiarioSection({
                       const pesoBase = schedule.semMedico ? 0 : (schedule.isDiaCompleto ? 1 : 0.5);
                       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
                       
-                      // Meta diária escala pelo peso da quinzena (60/40)
-                      const metaVendasDia = metaDiariaVendasCompleta * pesoDia;
+                      // Meta diária: dias preenchidos mantêm fatia base; dias em aberto
+                      // absorvem o déficit para bater a meta mensal.
+                      const metaVendasDia = metasVendasPorDia[schedule.date] ?? (metaDiariaVendasCompleta * pesoDia);
                       const metaFatDiaBase = metaFaturamentoDiarioCompleto * pesoDia;
                       const metaFatDia = metasFaturamentoPorDia[schedule.date] ?? metaFatDiaBase;
                       
