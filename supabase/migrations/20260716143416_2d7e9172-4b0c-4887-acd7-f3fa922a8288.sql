@@ -1,0 +1,1 @@
+DELETE FROM public.acompanhamento_diario WHERE data = '2026-07-01' AND faturamento_realizado = 1;
