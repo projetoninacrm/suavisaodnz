@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
 import { EditableCell } from "./EditableCell";
+import { ExpandableTextCell } from "./ExpandableTextCell";
 import { YesNoSelectCell } from "./YesNoSelectCell";
 import { MultiSelectFilter } from "./MultiSelectFilter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -767,7 +768,7 @@ export function DetalhadoAmigoTable({
                         />
                       </td>
                       <td className="px-1 py-1">
-                        <EditableCell 
+                        <ExpandableTextCell 
                           value={record.obs} 
                           onSave={(v) => handleDbUpdate(record, "obs", v)} 
                           placeholder="Motivo / observação" 
