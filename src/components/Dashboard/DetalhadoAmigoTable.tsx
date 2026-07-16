@@ -66,6 +66,7 @@ interface CombinedRecord {
   receita: string;
   visitou_loja: string;
   venda: string;
+  obs: string;
 }
 
 export function DetalhadoAmigoTable({ 
@@ -131,6 +132,7 @@ export function DetalhadoAmigoTable({
         receita: dbRecord?.receita || "",
         visitou_loja: dbRecord?.visitou_loja || "",
         venda: (dbRecord as any)?.venda || "",
+        obs: (dbRecord as any)?.obs || "",
       };
     });
   }, [attendances, dbRecords]);
@@ -257,6 +259,7 @@ export function DetalhadoAmigoTable({
         como_conheceu: field === "como_conheceu" ? value : record.patient_know_by || "",
         receita: field === "receita" ? value : "",
         visitou_loja: field === "visitou_loja" ? value : "",
+        obs: field === "obs" ? value : "",
       });
       if (newId) {
         // Recarregar dados do banco para atualizar a UI
@@ -697,6 +700,7 @@ export function DetalhadoAmigoTable({
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Venda</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Data</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Visitou a Loja</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
                   <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[50px]"></th>
                 </tr>
               </thead>
@@ -760,6 +764,13 @@ export function DetalhadoAmigoTable({
                           value={record.visitou_loja} 
                           onSave={(v) => handleDbUpdate(record, "visitou_loja", v)} 
                           placeholder="Visitou" 
+                        />
+                      </td>
+                      <td className="px-1 py-1">
+                        <EditableCell 
+                          value={record.obs} 
+                          onSave={(v) => handleDbUpdate(record, "obs", v)} 
+                          placeholder="Motivo / observação" 
                         />
                       </td>
                       <td className="px-1 py-1 text-center">
