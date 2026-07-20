@@ -138,17 +138,20 @@ export function AcompanhamentoDiarioSection({
       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
       // Meta por dia escala pelo peso ajustado (quinzena), mantendo o total mensal.
       // metaDiariaVendasCompleta = metaMensal / pesoTotalDias (meta por unidade de peso).
-      const metaVendasDia = metasVendasPorDia[schedule.date] ?? (metaDiariaVendasCompleta * pesoDia);
+      // Consolidado usa a meta BASE proporcional (peso do dia × meta diária)
+      // para evitar distorção causada pela redistribuição dinâmica.
+      // Assim Meta Vendas / Meta Faturamento mantêm o ticket médio meta consistente
+      // (metaMensalFat / metaMensalVendas) independente do ritmo do realizado.
+      const metaVendasDiaBase = metaDiariaVendasCompleta * pesoDia;
       const metaFatDiaBase = metaFaturamentoDiarioCompleto * pesoDia;
-      const metaFatDiaDinamica = metasFaturamentoPorDia[schedule.date] ?? metaFatDiaBase;
-      
+
       // Conta como preenchido se existe registro (mesmo com valores 0)
       if (registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null)) {
         pesoPreenchido += pesoDia;
-        metaAcumuladaVendas += metaVendasDia;
+        metaAcumuladaVendas += metaVendasDiaBase;
         realAcumuladoVendas += registro.vendas_realizadas || 0;
         realAcumuladoFaturamento += registro.faturamento_realizado || 0;
-        metaAcumuladaFaturamento += metaFatDiaDinamica;
+        metaAcumuladaFaturamento += metaFatDiaBase;
       }
     });
 
