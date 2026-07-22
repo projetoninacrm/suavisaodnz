@@ -85,7 +85,11 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     entrar_em_contato: [...new Set(leads.map(l => l.entrar_em_contato).filter(Boolean))] as string[],
     medico: [...new Set(leads.map(l => l.medico).filter(Boolean))] as string[],
     status: ["Ativo", "Perdido", "Pós Venda"],
-    vendedor: ["Bernardo", "Thayssa"],
+    vendedor: [...new Set([
+      "Bernardo",
+      "Thayssa",
+      ...leads.map(l => (l.vendedor || "").trim()).filter(Boolean),
+    ])].sort() as string[],
   }), [leads]);
 
   const isContactDateOverdue = (lead: Lead) => {
