@@ -136,21 +136,20 @@ export function AcompanhamentoDiarioSection({
       const registro = registrosMap[schedule.date];
       const pesoBase = schedule.semMedico ? 0 : (schedule.isDiaCompleto ? 1 : 0.5);
       const pesoDia = pesoPorDia?.[schedule.date] ?? pesoBase;
-      // Consolidado usa a MESMA meta exibida na tabela (dinâmica/redistribuída),
-      // para que o "atrás da meta" do card bata com a coluna Consol. Fat.
-      // Se por algum motivo a meta dinâmica não existir para o dia, cai para a base.
-      const metaVendasDiaDinamica =
-        metasVendasPorDia[schedule.date] ?? (metaDiariaVendasCompleta * pesoDia);
-      const metaFatDiaDinamica =
-        metasFaturamentoPorDia[schedule.date] ?? (metaFaturamentoDiarioCompleto * pesoDia);
+      // Consolidado usa a meta BASE proporcional (peso × meta diária base),
+      // não a meta dinâmica redistribuída. Assim o card mostra exatamente
+      // "quanto deveríamos ter faturado até este dia dentro dos 70k mensais"
+      // e o "atrás da meta" reflete o desvio real frente ao plano.
+      const metaVendasDiaBase = metaDiariaVendasCompleta * pesoDia;
+      const metaFatDiaBase = metaFaturamentoDiarioCompleto * pesoDia;
 
       // Conta como preenchido se existe registro (mesmo com valores 0)
       if (registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null)) {
         pesoPreenchido += pesoDia;
-        metaAcumuladaVendas += metaVendasDiaDinamica;
+        metaAcumuladaVendas += metaVendasDiaBase;
         realAcumuladoVendas += registro.vendas_realizadas || 0;
         realAcumuladoFaturamento += registro.faturamento_realizado || 0;
-        metaAcumuladaFaturamento += metaFatDiaDinamica;
+        metaAcumuladaFaturamento += metaFatDiaBase;
       }
     });
 
@@ -171,7 +170,7 @@ export function AcompanhamentoDiarioSection({
       metaTicketMedio,
       realTicketMedio,
     };
-  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaFaturamentoDiarioCompleto, metasFaturamentoPorDia, metasVendasPorDia, pesoPorDia]);
+  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaFaturamentoDiarioCompleto, pesoPorDia]);
 
   const StatusBadge = ({ diferenca, tipo }: { diferenca: number; tipo: "vendas" | "faturamento" }) => {
     const isPositivo = diferenca >= 0;
