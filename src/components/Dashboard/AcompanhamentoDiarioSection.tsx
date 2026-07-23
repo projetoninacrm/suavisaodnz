@@ -341,9 +341,11 @@ export function AcompanhamentoDiarioSection({
                       const temDados = registro !== undefined && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null);
                       if (temDados) {
                         acumuladoFaturamento += faturamentoReal;
-                        // Soma a meta dinâmica exibida na coluna Meta Fat., para que o card
-                        // Consolidado e a coluna Consol. Fat. fiquem coerentes entre si.
-                        metaAcumuladaConsol += metaFatDia;
+                        // Soma a meta BASE proporcional (peso × meta diária base) para bater
+                        // com o card Consolidado — assim o "atrás da meta" reflete o desvio
+                        // real frente ao plano mensal (ex.: 70k), sem inflar pelas
+                        // redistribuições dos dias futuros.
+                        metaAcumuladaConsol += metaFatDiaBase;
                       }
                       const diferencaConsolidada = acumuladoFaturamento - metaAcumuladaConsol;
 
