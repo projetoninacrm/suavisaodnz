@@ -378,33 +378,23 @@ export function MetasCalculator({
     };
   }, [config, pesoDistribuicao]);
 
-  // Peso por dia ajustado pela quinzena: 1ª quinzena (dias 1-15) = 60%,
-  // 2ª quinzena (dias 16-31) = 40% do peso total. Isso reflete a sazonalidade
-  // histórica observada (média jan-mai). O peso total é preservado.
+  // Distribuição uniforme ao longo do mês: cada dia recebe apenas o seu peso
+  // base (2 períodos = 1, 1 período = 0.5). Sem ajuste por quinzena.
   const pesoPorDia = useMemo(() => {
     const map: Record<string, number> = {};
 
-    // Sem escala: distribui peso 1 para cada dia útil exibido (exceto domingos),
-    // ainda aplicando o ajuste 60/40 por quinzena.
+    // Sem escala: distribui peso 1 para cada dia útil exibido (exceto domingos).
     if (pesoTotalDias === 0 && displaySchedules.length > 0) {
-      const totalQ1 = displaySchedules.filter((s) => {
-        const day = s.date.includes("-") ? parseInt(s.date.split("-")[2], 10) : parseInt(s.date.split("/")[0], 10);
-        return !isNaN(day) && day <= 15;
-      }).length;
-      const totalQ2 = displaySchedules.length - totalQ1;
-      const totalPeso = displaySchedules.length;
-      const fatorQ1 = totalQ1 > 0 ? (0.6 * totalPeso) / totalQ1 : 1;
-      const fatorQ2 = totalQ2 > 0 ? (0.4 * totalPeso) / totalQ2 : 1;
       displaySchedules.forEach((s) => {
         const day = s.date.includes("-") ? parseInt(s.date.split("-")[2], 10) : parseInt(s.date.split("/")[0], 10);
         if (isNaN(day)) return;
-        map[s.date] = day <= 15 ? fatorQ1 : fatorQ2;
+        map[s.date] = 1;
       });
       return map;
     }
 
-    // Calcula peso base (1 ou 0.5) por dia e separa por quinzena
-    const diasInfo = filteredSchedules
+    // Calcula peso base (1 ou 0.5) por dia
+    filteredSchedules
       .map((s) => {
         const temManha = s.morning_shift && s.morning_shift.trim() !== "";
         const temTarde = s.afternoon_shift && s.afternoon_shift.trim() !== "";
@@ -420,21 +410,12 @@ export function MetasCalculator({
         }
         if (isNaN(dayOfMonth)) return null;
 
-        return { date: s.date, pesoBase, quinzena: dayOfMonth <= 15 ? 1 : 2 };
+        return { date: s.date, pesoBase };
       })
-      .filter((x): x is { date: string; pesoBase: number; quinzena: number } => x !== null);
-
-    const pesoBaseQ1 = diasInfo.filter((d) => d.quinzena === 1).reduce((s, d) => s + d.pesoBase, 0);
-    const pesoBaseQ2 = diasInfo.filter((d) => d.quinzena === 2).reduce((s, d) => s + d.pesoBase, 0);
-
-    // Fatores de escala: redistribui o peso total para 60/40 entre as quinzenas
-    const fatorQ1 = pesoBaseQ1 > 0 ? (0.6 * pesoTotalDias) / pesoBaseQ1 : 1;
-    const fatorQ2 = pesoBaseQ2 > 0 ? (0.4 * pesoTotalDias) / pesoBaseQ2 : 1;
-
-    diasInfo.forEach((d) => {
-      const fator = d.quinzena === 1 ? fatorQ1 : fatorQ2;
-      map[d.date] = d.pesoBase * fator;
-    });
+      .filter((x): x is { date: string; pesoBase: number } => x !== null)
+      .forEach((d) => {
+        map[d.date] = d.pesoBase;
+      });
 
     return map;
   }, [filteredSchedules, pesoTotalDias, displaySchedules]);
