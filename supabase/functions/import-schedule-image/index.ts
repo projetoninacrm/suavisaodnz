@@ -113,8 +113,8 @@ Responda APENAS com JSON válido, sem markdown, no formato:
           sheet_name: sheetName || "Escala",
           date: iso,
           day_of_week: DAY_NAMES[dt.getDay()],
-          morning_shift: (d.morning || "").trim().toUpperCase(),
-          afternoon_shift: (d.afternoon || "").trim().toUpperCase(),
+          morning_shift: (d.morning || "").trim(),
+          afternoon_shift: (d.afternoon || "").trim(),
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
