@@ -42,7 +42,7 @@ Para cada linha (cada dia) retorne:
 - afternoon: nome do médico no turno da TARDE (13h-18h). Mesma regra.
 
 Regras:
-- Nomes sempre em MAIÚSCULAS, sem acentos extras, apenas o primeiro nome.
+- Copie o nome EXATAMENTE como aparece na imagem, caractere por caractere (incluindo sobrenome, abreviações, pontos e acentos). NÃO abrevie, NÃO corte para o primeiro nome, NÃO unifique nomes parecidos (ex.: "ANA" e "ANA PAULA" são pessoas diferentes e devem permanecer distintos). NÃO corrija ortografia.
 - Ignore domingos (não inclua).
 - Inclua TODOS os outros dias do mês mesmo que vazios.
 - Se houver coluna única (um único nome para o dia inteiro), use o mesmo nome em morning e afternoon.
