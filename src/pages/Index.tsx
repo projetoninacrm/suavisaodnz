@@ -99,11 +99,17 @@ const Index = () => {
       const orcamentos = filteredLeads.filter((l) => l.orcamento === "Sim").length;
       const vendas = filteredLeads.filter((l) => l.venda === "Sim").length;
       const conversao = orcamentos > 0 ? Math.round((vendas / orcamentos) * 100) : 0;
-      return { leads: total, orcamentos, vendas, conversao };
+      const valor = filteredLeads.reduce((sum, l) => {
+        const raw = (l.valor || "").replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+        const n = parseFloat(raw);
+        return sum + (isNaN(n) ? 0 : n);
+      }, 0);
+      return { leads: total, orcamentos, vendas, conversao, valor };
     };
 
     const suaVisaoLeads = baseLeads.filter(l => l.canal?.toLowerCase() === "sua visão");
     const lojaLeads = baseLeads.filter(l => l.canal?.toLowerCase() === "loja");
+    const duBeneficiosLeads = baseLeads.filter(l => l.canal?.toLowerCase() === "du benefícios" || l.canal?.toLowerCase() === "du beneficios");
     const internetLeads = baseLeads.filter(l => 
       l.canal?.toLowerCase() === "internet" || 
       l.canal?.toLowerCase() === "google" || 
@@ -114,6 +120,7 @@ const Index = () => {
       suaVisao: calcStats(suaVisaoLeads),
       loja: calcStats(lojaLeads),
       internet: calcStats(internetLeads),
+      duBeneficios: calcStats(duBeneficiosLeads),
       todos: calcStats(baseLeads),
     };
   }, [leads.leads, leadsFilters.data_registro, leadsFilters.vendedor]);
