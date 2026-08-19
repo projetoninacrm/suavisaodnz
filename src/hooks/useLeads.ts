@@ -15,6 +15,7 @@ export interface Lead {
   obs: string | null;
   status: string | null;
   vendedor: string | null;
+  valor: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +32,7 @@ export interface NewLeadData {
   obs: string;
   status?: string;
   vendedor?: string;
+  valor?: string;
 }
 
 export function useLeads() {
