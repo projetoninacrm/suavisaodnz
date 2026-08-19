@@ -283,6 +283,7 @@ const Index = () => {
                     <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Orçamentos</th>
                     <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendas</th>
                     <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Conversão</th>
+                    <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Valor</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -292,6 +293,7 @@ const Index = () => {
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.orcamentos}</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.vendas}</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.conversao}%</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.suaVisao.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
                   </tr>
                   <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 font-medium">Loja</td>
@@ -299,6 +301,7 @@ const Index = () => {
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.orcamentos}</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.vendas}</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.conversao}%</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.loja.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
                   </tr>
                   <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 font-medium">Internet</td>
@@ -306,6 +309,15 @@ const Index = () => {
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.orcamentos}</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.vendas}</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.conversao}%</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.internet.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
+                  </tr>
+                  <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-medium">Du Benefícios</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.leads}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.orcamentos}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.vendas}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.conversao}%</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
                   </tr>
                   <tr className="hover:bg-muted/30 transition-colors font-semibold bg-muted/20">
                     <td className="px-4 py-3">Todos</td>
@@ -313,6 +325,7 @@ const Index = () => {
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.orcamentos}</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.vendas}</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.conversao}%</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
                   </tr>
                 </tbody>
               </table>
