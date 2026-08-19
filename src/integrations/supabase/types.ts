@@ -374,6 +374,7 @@ export type Database = {
           orcamento: string | null
           status: string | null
           updated_at: string
+          valor: string | null
           venda: string | null
           vendedor: string | null
         }
@@ -391,6 +392,7 @@ export type Database = {
           orcamento?: string | null
           status?: string | null
           updated_at?: string
+          valor?: string | null
           venda?: string | null
           vendedor?: string | null
         }
@@ -408,6 +410,7 @@ export type Database = {
           orcamento?: string | null
           status?: string | null
           updated_at?: string
+          valor?: string | null
           venda?: string | null
           vendedor?: string | null
         }
