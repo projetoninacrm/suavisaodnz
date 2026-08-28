@@ -218,7 +218,6 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
                   <SelectItem value="Sua Visão">Sua Visão</SelectItem>
                   <SelectItem value="Loja">Loja</SelectItem>
                   <SelectItem value="Du Benefícios">Du Benefícios</SelectItem>
-                  <SelectItem value="Outro">Outro</SelectItem>
                 </SelectContent>
               </Select>
               {isCanalEmpty && (

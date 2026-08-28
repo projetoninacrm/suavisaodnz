@@ -411,7 +411,12 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                     </div>
                   </td>
                   <td className="px-1 py-1">
-                    <EditableCell value={lead.canal || ""} onSave={(v) => onUpdate(lead.id, "canal", v)} placeholder="Canal" />
+                    <ComboEditableCell
+                      value={lead.canal || ""}
+                      onSave={(v) => onUpdate(lead.id, "canal", v)}
+                      suggestions={CANAL_OPTIONS}
+                      placeholder="Canal"
+                    />
                   </td>
                   <td className="px-1 py-1">
                     <EditableCell value={lead.nome || ""} onSave={(v) => onUpdate(lead.id, "nome", v)} placeholder="Nome" />
