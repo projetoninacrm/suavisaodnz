@@ -83,16 +83,8 @@ const Index = () => {
 
   // Stats for Leads tab - by channel (filtered by date and vendedor if filters are active)
   const leadsStatsByChannel = useMemo(() => {
-    // First filter by date and vendedor if filters are active
-    let baseLeads = leads.leads;
-    if (leadsFilters.data_registro.length > 0) {
-      baseLeads = baseLeads.filter(l => 
-        leadsFilters.data_registro.includes(l.data_registro || "")
-      );
-    }
-    if (leadsFilters.vendedor) {
-      baseLeads = baseLeads.filter(l => l.vendedor === leadsFilters.vendedor);
-    }
+    // Apply ALL active table filters so the summary matches exactly what is shown
+    const baseLeads = applyLeadFilters(leads.leads, leadsFilters);
 
     const calcStats = (filteredLeads: typeof leads.leads) => {
       const total = filteredLeads.length;

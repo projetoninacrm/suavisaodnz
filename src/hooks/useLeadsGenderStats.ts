@@ -57,7 +57,7 @@ const isContactDateOverdue = (lead: Lead) => {
   return contactDate < today;
 };
 
-const applyLeadFilters = (leads: Lead[], filters: LeadsFilters) => {
+export const applyLeadFilters = (leads: Lead[], filters: LeadsFilters) => {
   return leads.filter((lead) => {
     if (filters.data_registro.length > 0 && !filters.data_registro.includes(lead.data_registro || "")) return false;
     if (filters.canal && lead.canal !== filters.canal) return false;
