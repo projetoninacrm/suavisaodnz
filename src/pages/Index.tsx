@@ -19,7 +19,7 @@ import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
 import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
-import { useLeadsGenderStats } from "@/hooks/useLeadsGenderStats";
+import { useLeadsGenderStats, applyLeadFilters } from "@/hooks/useLeadsGenderStats";
 
 const TABS_DNZ = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações", "Taxa de Retorno SV"];
 const TABS_SUA_VISAO = ["Conversas", "Automações"];
@@ -83,16 +83,8 @@ const Index = () => {
 
   // Stats for Leads tab - by channel (filtered by date and vendedor if filters are active)
   const leadsStatsByChannel = useMemo(() => {
-    // First filter by date and vendedor if filters are active
-    let baseLeads = leads.leads;
-    if (leadsFilters.data_registro.length > 0) {
-      baseLeads = baseLeads.filter(l => 
-        leadsFilters.data_registro.includes(l.data_registro || "")
-      );
-    }
-    if (leadsFilters.vendedor) {
-      baseLeads = baseLeads.filter(l => l.vendedor === leadsFilters.vendedor);
-    }
+    // Apply ALL active table filters so the summary matches exactly what is shown
+    const baseLeads = applyLeadFilters(leads.leads, leadsFilters);
 
     const calcStats = (filteredLeads: typeof leads.leads) => {
       const total = filteredLeads.length;
@@ -123,7 +115,7 @@ const Index = () => {
       duBeneficios: calcStats(duBeneficiosLeads),
       todos: calcStats(baseLeads),
     };
-  }, [leads.leads, leadsFilters.data_registro, leadsFilters.vendedor]);
+  }, [leads.leads, leadsFilters]);
 
   // Cálculo de dias com médico e períodos totais a partir da Agenda
   const { diasComMedico, periodosComMedico } = useMemo(() => {
