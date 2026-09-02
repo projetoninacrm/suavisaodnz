@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Header, type Unidade } from "@/components/Dashboard/Header";
+import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
 import { LeadsTable, type LeadsFilters } from "@/components/Dashboard/LeadsTable";
@@ -13,7 +13,6 @@ import { AnunciosTable } from "@/components/Dashboard/AnunciosTable";
 import { AutomacoesTable } from "@/components/Dashboard/AutomacoesTable";
 import { LeadGenderKanban } from "@/components/Dashboard/LeadGenderKanban";
 import { TaxaRetornoSection } from "@/components/Dashboard/TaxaRetornoSection";
-import { ConversasSection } from "@/components/Dashboard/ConversasSection";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
@@ -22,7 +21,6 @@ import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 import { useLeadsGenderStats, applyLeadFilters } from "@/hooks/useLeadsGenderStats";
 
 const TABS_DNZ = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações", "Taxa de Retorno SV"];
-const TABS_SUA_VISAO = ["Conversas", "Automações"];
 
 const INDICADORES_COLUMNS = [
   { key: "indicador", label: "Indicador", width: "200px" },
@@ -36,8 +34,7 @@ const INDICADORES_COLUMNS = [
 
 
 const Index = () => {
-  const [unidade, setUnidade] = useState<Unidade>("DNZ");
-  const TABS = unidade === "DNZ" ? TABS_DNZ : TABS_SUA_VISAO;
+  const TABS = TABS_DNZ;
   const [activeTab, setActiveTab] = useState(TABS_DNZ[0]);
   const [showNewLeadDialog, setShowNewLeadDialog] = useState(false);
   const [leadsFilters, setLeadsFilters] = useState<LeadsFilters>({
@@ -62,11 +59,6 @@ const Index = () => {
   const acompanhamento = useAcompanhamentoDiario();
   const leadGenderStats = useLeadsGenderStats(leads.leads, leadsFilters, activeTab === "Leads");
 
-  const handleUnidadeChange = (newUnidade: Unidade) => {
-    setUnidade(newUnidade);
-    setActiveTab(newUnidade === "DNZ" ? TABS_DNZ[0] : TABS_SUA_VISAO[0]);
-  };
-
   const isLoading = 
     activeTab === "Agenda" ? schedules.isLoading :
     activeTab === "Leads" ? leads.isLoading :
@@ -78,7 +70,6 @@ const Index = () => {
     activeTab === "Anúncios SV" ? false :
     activeTab === "Automações" ? false :
     activeTab === "Taxa de Retorno SV" ? false :
-    activeTab === "Conversas" ? false :
     false;
 
   // Stats for Leads tab - by channel (filtered by date and vendedor if filters are active)
@@ -229,8 +220,6 @@ const Index = () => {
         return <AutomacoesTable leads={leads.leads} />;
       case "Taxa de Retorno SV":
         return <TaxaRetornoSection />;
-      case "Conversas":
-        return <ConversasSection />;
       default:
         return null;
     }
@@ -242,8 +231,6 @@ const Index = () => {
         onRefresh={handleRefresh} 
         onAddRow={handleAddRow}
         isLoading={isLoading}
-        unidade={unidade}
-        onUnidadeChange={handleUnidadeChange}
       />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
