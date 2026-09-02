@@ -359,18 +359,13 @@ export function AcompanhamentoDiarioSection({
                             </span>
                           </td>
                           <td className="px-3 py-2">
-                            <Input
-                              type="number"
-                              step="1"
-                              min="0"
-                              value={registro?.vendas_realizadas !== null && registro?.vendas_realizadas !== undefined ? registro.vendas_realizadas : ""}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                onUpdateRegistro(schedule.date, "vendas_realizadas", val === "" ? null : parseInt(val));
-                              }}
+                            <DebouncedNumberInput
+                              value={registro?.vendas_realizadas}
+                              onCommit={(v) => onUpdateRegistro(schedule.date, "vendas_realizadas", v)}
                               className="h-8 w-20 text-center mx-auto"
                               placeholder="-"
                             />
+
                           </td>
                           <td className="px-3 py-2 text-center">
                             {temDados ? (
