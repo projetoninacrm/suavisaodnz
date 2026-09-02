@@ -43,7 +43,9 @@ export function useLeads() {
   const fetchLeads = async () => {
     setIsLoading(true);
     try {
-      const pageSize = 1000;
+      // Keep each request below the backend's 1,000-row response ceiling.
+      // Continue requesting pages until the backend returns an empty batch.
+      const pageSize = 500;
       let from = 0;
       const all: Lead[] = [];
 
@@ -51,13 +53,14 @@ export function useLeads() {
         const { data, error } = await supabase
           .from("leads")
           .select("*")
-          .order("data_registro", { ascending: false })
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
           .range(from, from + pageSize - 1);
 
         if (error) throw error;
         const batch = data || [];
+        if (batch.length === 0) break;
         all.push(...batch);
-        if (batch.length < pageSize) break;
         from += pageSize;
       }
 
