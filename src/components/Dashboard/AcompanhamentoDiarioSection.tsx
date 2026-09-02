@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { TrendingUp, TrendingDown, Target, DollarSign, Minus, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DebouncedNumberInput } from "./DebouncedNumberInput";
+
 import { Schedule } from "@/hooks/useSchedules";
 import { AcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
