@@ -28,14 +28,55 @@ Deno.serve(async (req) => {
         // Tipos de atendimento
         endpoint = '/events';
         break;
-      case 'attendances':
-        // Lista de atendimentos (requer start_date e end_date, opcional status)
-        endpoint = '/attendances';
+      case 'attendances': {
+        // Lista de atendimentos. A API do Amigo aceita no máximo ~90 dias por
+        // requisição, então dividimos o período em janelas menores.
         const startDate = params?.start_date || new Date().toISOString().split('T')[0];
         const endDate = params?.end_date || startDate;
         const status = params?.status || '';
-        queryParams = `?start_date=${startDate}&end_date=${endDate}${status ? `&status=${status}` : ''}`;
-        break;
+
+        const MAX_DAYS = 85;
+        const DAY_MS = 86400000;
+        const chunks: Array<{ s: string; e: string }> = [];
+        let cursor = new Date(`${startDate}T00:00:00Z`).getTime();
+        const finalMs = new Date(`${endDate}T00:00:00Z`).getTime();
+
+        while (cursor <= finalMs) {
+          const chunkEnd = Math.min(cursor + (MAX_DAYS - 1) * DAY_MS, finalMs);
+          chunks.push({
+            s: new Date(cursor).toISOString().split('T')[0],
+            e: new Date(chunkEnd).toISOString().split('T')[0],
+          });
+          cursor = chunkEnd + DAY_MS;
+        }
+
+        const merged: unknown[] = [];
+        for (const c of chunks) {
+          const chunkUrl = `${AMIGO_API_BASE}/attendances?start_date=${c.s}&end_date=${c.e}${status ? `&status=${status}` : ''}`;
+          console.log(`Fetching chunk: ${chunkUrl}`);
+          const res = await fetch(chunkUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          if (!res.ok) {
+            const errText = await res.text();
+            console.error(`API Error (${c.s} - ${c.e}): ${errText}`);
+            throw new Error(`API retornou status ${res.status}: ${errText}`);
+          }
+          const json = await res.json();
+          const items = Array.isArray(json?.data) ? json.data : [];
+          merged.push(...items);
+        }
+
+        console.log(`Atendimentos agregados: ${merged.length} em ${chunks.length} janelas`);
+        return new Response(
+          JSON.stringify({ success: true, data: { data: merged, status: 'success' } }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
       case 'patient':
         // Dados de um paciente específico
         endpoint = `/patients/${params.patientId}`;
