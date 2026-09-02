@@ -4,17 +4,13 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
-export type Unidade = "DNZ" | "SUA_VISAO";
-
 interface HeaderProps {
   onRefresh: () => void;
   onAddRow: () => void;
   isLoading: boolean;
-  unidade: Unidade;
-  onUnidadeChange: (unidade: Unidade) => void;
 }
 
-export function Header({ onRefresh, onAddRow, isLoading, unidade, onUnidadeChange }: HeaderProps) {
+export function Header({ onRefresh, onAddRow, isLoading }: HeaderProps) {
   const navigate = useNavigate();
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -33,31 +29,8 @@ export function Header({ onRefresh, onAddRow, isLoading, unidade, onUnidadeChang
               <p className="text-sm text-muted-foreground">Gerenciamento de turnos</p>
             </div>
           </div>
-          <div className="flex items-center gap-1 bg-muted p-1 rounded-lg ml-2">
-            <button
-              onClick={() => onUnidadeChange("DNZ")}
-              className={cn(
-                "px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200",
-                unidade === "DNZ"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              DNZ Óticas
-            </button>
-            <button
-              onClick={() => onUnidadeChange("SUA_VISAO")}
-              className={cn(
-                "px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200",
-                unidade === "SUA_VISAO"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Sua Visão
-            </button>
-          </div>
         </div>
+
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
