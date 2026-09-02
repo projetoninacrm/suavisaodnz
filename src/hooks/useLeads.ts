@@ -43,13 +43,25 @@ export function useLeads() {
   const fetchLeads = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("*")
-        .order("data_registro", { ascending: false });
+      const pageSize = 1000;
+      let from = 0;
+      const all: Lead[] = [];
 
-      if (error) throw error;
-      setLeads(data || []);
+      while (true) {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .order("data_registro", { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+      }
+
+      setLeads(all);
     } catch (error) {
       console.error("Error fetching leads:", error);
       toast({
