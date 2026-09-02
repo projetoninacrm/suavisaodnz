@@ -399,18 +399,13 @@ export function AcompanhamentoDiarioSection({
                             R$ {metaFatDia.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                           </td>
                           <td className="px-3 py-2">
-                            <Input
-                              type="number"
-                              step="1"
-                              min="0"
-                              value={registro?.faturamento_realizado !== null && registro?.faturamento_realizado !== undefined ? registro.faturamento_realizado : ""}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                onUpdateRegistro(schedule.date, "faturamento_realizado", val === "" ? null : parseInt(val));
-                              }}
+                            <DebouncedNumberInput
+                              value={registro?.faturamento_realizado}
+                              onCommit={(v) => onUpdateRegistro(schedule.date, "faturamento_realizado", v)}
                               className="h-8 w-24 text-center mx-auto"
                               placeholder="-"
                             />
+
                           </td>
                           <td className="px-3 py-2 text-center">
                             {temDados ? (
