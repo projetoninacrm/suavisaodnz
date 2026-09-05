@@ -1,5 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
-import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck, Search, Trash2 } from "lucide-react";
+import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck, Search, Trash2, MoreVertical, UserPlus } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -247,6 +250,23 @@ export function DetalhadoAmigoTable({
   };
 
   // Handler para editar campos do banco (receita, visitou_loja, como_conheceu)
+  const { toast } = useToast();
+
+  const handleAddToLeads = async (record: CombinedRecord) => {
+    try {
+      const { error } = await supabase.from("leads").insert({
+        nome: record.patient_name || "",
+        numero: record.patient_phone || "",
+        data_registro: record.date || "",
+      });
+      if (error) throw error;
+      toast({ title: "Adicionado aos Leads", description: `${record.patient_name} foi incluído na aba Leads com nome e telefone.` });
+    } catch (error) {
+      console.error("Erro ao adicionar lead:", error);
+      toast({ title: "Erro ao adicionar", description: "Não foi possível adicionar o lead.", variant: "destructive" });
+    }
+  };
+
   const handleDbUpdate = async (record: CombinedRecord, field: string, value: string) => {
     if (record.dbId) {
       // Atualizar registro existente no banco
@@ -775,7 +795,21 @@ export function DetalhadoAmigoTable({
                         />
                       </td>
                       <td className="px-1 py-1 text-center">
-                        <AlertDialog>
+                        <div className="flex items-center justify-center gap-0.5">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                                <MoreVertical className="w-3.5 h-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-popover border-border z-50">
+                              <DropdownMenuItem onClick={() => handleAddToLeads(record)} className="cursor-pointer">
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Adicionar aos Leads
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
                               <Trash2 className="w-3.5 h-3.5" />
@@ -802,8 +836,9 @@ export function DetalhadoAmigoTable({
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
-                        </AlertDialog>
-                      </td>
+                         </AlertDialog>
+                        </div>
+                       </td>
                     </tr>
                   );
                 })}
