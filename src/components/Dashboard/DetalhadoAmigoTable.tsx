@@ -1,5 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
-import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck, Search, Trash2 } from "lucide-react";
+import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck, Search, Trash2, MoreVertical, UserPlus } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
