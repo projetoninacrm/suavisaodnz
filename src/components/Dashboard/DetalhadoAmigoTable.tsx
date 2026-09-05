@@ -250,6 +250,23 @@ export function DetalhadoAmigoTable({
   };
 
   // Handler para editar campos do banco (receita, visitou_loja, como_conheceu)
+  const { toast } = useToast();
+
+  const handleAddToLeads = async (record: CombinedRecord) => {
+    try {
+      const { error } = await supabase.from("leads").insert({
+        nome: record.patient_name || "",
+        numero: record.patient_phone || "",
+        data_registro: record.date || "",
+      });
+      if (error) throw error;
+      toast({ title: "Adicionado aos Leads", description: `${record.patient_name} foi incluído na aba Leads com nome e telefone.` });
+    } catch (error) {
+      console.error("Erro ao adicionar lead:", error);
+      toast({ title: "Erro ao adicionar", description: "Não foi possível adicionar o lead.", variant: "destructive" });
+    }
+  };
+
   const handleDbUpdate = async (record: CombinedRecord, field: string, value: string) => {
     if (record.dbId) {
       // Atualizar registro existente no banco
