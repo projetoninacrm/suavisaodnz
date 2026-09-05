@@ -795,7 +795,21 @@ export function DetalhadoAmigoTable({
                         />
                       </td>
                       <td className="px-1 py-1 text-center">
-                        <AlertDialog>
+                        <div className="flex items-center justify-center gap-0.5">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                                <MoreVertical className="w-3.5 h-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-popover border-border z-50">
+                              <DropdownMenuItem onClick={() => handleAddToLeads(record)} className="cursor-pointer">
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Adicionar aos Leads
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
                               <Trash2 className="w-3.5 h-3.5" />
