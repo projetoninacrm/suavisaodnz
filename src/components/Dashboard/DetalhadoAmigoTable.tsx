@@ -836,8 +836,9 @@ export function DetalhadoAmigoTable({
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
-                        </AlertDialog>
-                      </td>
+                         </AlertDialog>
+                        </div>
+                       </td>
                     </tr>
                   );
                 })}
