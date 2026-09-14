@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
@@ -161,6 +162,20 @@ const Index = () => {
     leads.addLead(data);
   };
 
+  const handleDetailedLeadSubmit = async ({ nome, numero }: { nome: string; numero: string }) => {
+    await leads.addLead({
+      data_registro: format(new Date(), "dd/MM/yyyy"),
+      canal: "",
+      nome,
+      numero,
+      orcamento: "Não",
+      venda: "Não",
+      entrar_em_contato: "",
+      medico: "",
+      obs: "",
+    });
+  };
+
   const renderTable = () => {
     switch (activeTab) {
       case "Agenda":
@@ -206,6 +221,7 @@ const Index = () => {
             onCreateDb={detalhadoDb.createRecord}
             onDeleteDb={detalhadoDb.deleteRecord}
             onRefreshDb={detalhadoDb.fetchRecords}
+            onAddToLeads={handleDetailedLeadSubmit}
           />
         );
       case "Perdas":

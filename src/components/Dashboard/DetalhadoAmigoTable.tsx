@@ -1,8 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck, Search, Trash2, MoreVertical, UserPlus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +40,7 @@ interface DetalhadoAmigoTableProps {
   onCreateDb: (record: Partial<GenericRecord>) => Promise<string | null>;
   onDeleteDb: (id: string) => void;
   onRefreshDb: () => void;
+  onAddToLeads: (lead: { nome: string; numero: string }) => Promise<void>;
 }
 
 interface Filters {
@@ -83,7 +82,8 @@ export function DetalhadoAmigoTable({
   onUpdateDb,
   onCreateDb,
   onDeleteDb,
-  onRefreshDb
+  onRefreshDb,
+  onAddToLeads,
 }: DetalhadoAmigoTableProps) {
   const [filters, setFilters] = useState<Filters>({
     patient_name: "",
@@ -249,22 +249,11 @@ export function DetalhadoAmigoTable({
     }
   };
 
-  // Handler para editar campos do banco (receita, visitou_loja, como_conheceu)
-  const { toast } = useToast();
-
   const handleAddToLeads = async (record: CombinedRecord) => {
-    try {
-      const { error } = await supabase.from("leads").insert({
-        nome: record.patient_name || "",
-        numero: record.patient_phone || "",
-        data_registro: record.date || "",
-      });
-      if (error) throw error;
-      toast({ title: "Adicionado aos Leads", description: `${record.patient_name} foi incluído na aba Leads com nome e telefone.` });
-    } catch (error) {
-      console.error("Erro ao adicionar lead:", error);
-      toast({ title: "Erro ao adicionar", description: "Não foi possível adicionar o lead.", variant: "destructive" });
-    }
+    await onAddToLeads({
+      nome: record.patient_name || "",
+      numero: record.patient_phone || "",
+    });
   };
 
   const handleDbUpdate = async (record: CombinedRecord, field: string, value: string) => {

@@ -112,6 +112,7 @@ export function useLeads() {
       if (error) throw error;
       setLeads((prev) => [data, ...prev]);
       toast({ title: "Adicionado", description: "Novo lead criado com sucesso!" });
+      return data;
     } catch (error) {
       console.error("Error adding lead:", error);
       toast({
@@ -119,6 +120,7 @@ export function useLeads() {
         description: "Não foi possível adicionar o lead.",
         variant: "destructive",
       });
+      throw error;
     }
   };
 
