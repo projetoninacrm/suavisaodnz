@@ -28,6 +28,7 @@ interface NewLeadFormData {
   obs: string;
   status: string;
   vendedor: string;
+  valor: string;
 }
 
 interface NewLeadDialogProps {
@@ -53,6 +54,7 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
     obs: "",
     status: "Ativo",
     vendedor: "",
+    valor: "",
   });
 
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -128,6 +130,7 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
       obs: "",
       status: "Ativo",
       vendedor: "",
+      valor: "",
     });
     setShowConfirmation(false);
     onOpenChange(false);
@@ -413,6 +416,17 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
                 </PopoverContent>
               </Popover>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="valor">Valor</Label>
+            <Input
+              id="valor"
+              value={formData.valor}
+              onChange={(e) => updateField("valor", e.target.value)}
+              placeholder="R$ 0,00"
+              inputMode="decimal"
+            />
           </div>
 
           <div className="space-y-2">
