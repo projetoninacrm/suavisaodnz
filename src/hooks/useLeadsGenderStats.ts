@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Lead } from "@/hooks/useLeads";
 import type { LeadsFilters } from "@/components/Dashboard/LeadsTable";
+import { classifyCanal } from "@/components/Dashboard/LeadsTable";
 
 interface GenderStats {
   male: number;
@@ -60,7 +61,7 @@ const isContactDateOverdue = (lead: Lead) => {
 export const applyLeadFilters = (leads: Lead[], filters: LeadsFilters) => {
   return leads.filter((lead) => {
     if (filters.data_registro.length > 0 && !filters.data_registro.includes(lead.data_registro || "")) return false;
-    if (filters.canal && lead.canal !== filters.canal) return false;
+    if (filters.canal && classifyCanal(lead.canal) !== filters.canal) return false;
     if (filters.nome && !(lead.nome || "").toLowerCase().includes(filters.nome.toLowerCase())) return false;
     if (filters.orcamento && lead.orcamento !== filters.orcamento) return false;
     if (filters.venda && lead.venda !== filters.venda) return false;
