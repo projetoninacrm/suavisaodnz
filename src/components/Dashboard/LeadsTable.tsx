@@ -78,10 +78,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
 
   const uniqueValues = useMemo(() => ({
     data_registro: [...new Set(leads.map(l => l.data_registro).filter(Boolean))] as string[],
-    canal: [...new Set([
-      ...CANAL_OPTIONS,
-      ...leads.map(l => (l.canal || "").trim()).filter(Boolean),
-    ])] as string[],
+    canal: [...CANAL_OPTIONS, "Sem Canal"],
     nome: [...new Set(leads.map(l => l.nome).filter(Boolean))].sort() as string[],
     orcamento: ["Sim", "Não"],
     venda: ["Sim", "Não"],
