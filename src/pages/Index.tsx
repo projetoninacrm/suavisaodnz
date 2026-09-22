@@ -91,19 +91,11 @@ const Index = () => {
       return { leads: total, orcamentos, vendas, conversao, valor };
     };
 
-    const suaVisaoLeads = baseLeads.filter(l => l.canal?.toLowerCase() === "sua visão");
-    const lojaLeads = baseLeads.filter(l => l.canal?.toLowerCase() === "loja");
-    const duBeneficiosLeads = baseLeads.filter(l => l.canal?.toLowerCase() === "du benefícios" || l.canal?.toLowerCase() === "du beneficios");
-    const internetLeads = baseLeads.filter(l => 
-      l.canal?.toLowerCase() === "internet" || 
-      l.canal?.toLowerCase() === "google" || 
-      l.canal?.toLowerCase() === "facebook"
-    );
-
-    const classificados = new Set([
-      ...suaVisaoLeads, ...lojaLeads, ...duBeneficiosLeads, ...internetLeads,
-    ]);
-    const semCanalLeads = baseLeads.filter((l) => !classificados.has(l));
+    const suaVisaoLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Sua Visão");
+    const lojaLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Loja");
+    const duBeneficiosLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Du Benefícios");
+    const internetLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Internet");
+    const semCanalLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Sem Canal");
 
     return {
       suaVisao: calcStats(suaVisaoLeads),
