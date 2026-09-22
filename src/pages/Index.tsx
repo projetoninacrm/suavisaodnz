@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
-import { LeadsTable, type LeadsFilters } from "@/components/Dashboard/LeadsTable";
+import { LeadsTable, type LeadsFilters, classifyCanal } from "@/components/Dashboard/LeadsTable";
 
 import { DetalhadoAmigoTable } from "@/components/Dashboard/DetalhadoAmigoTable";
 import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
