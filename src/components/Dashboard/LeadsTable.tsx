@@ -78,7 +78,10 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
 
   const uniqueValues = useMemo(() => ({
     data_registro: [...new Set(leads.map(l => l.data_registro).filter(Boolean))] as string[],
-    canal: [...new Set(leads.map(l => l.canal).filter(Boolean))] as string[],
+    canal: [...new Set([
+      ...CANAL_OPTIONS,
+      ...leads.map(l => (l.canal || "").trim()).filter(Boolean),
+    ])] as string[],
     nome: [...new Set(leads.map(l => l.nome).filter(Boolean))].sort() as string[],
     orcamento: ["Sim", "Não"],
     venda: ["Sim", "Não"],
@@ -411,10 +414,10 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                     </div>
                   </td>
                   <td className="px-1 py-1">
-                    <ComboEditableCell
+                    <SelectCell
                       value={lead.canal || ""}
                       onSave={(v) => onUpdate(lead.id, "canal", v)}
-                      suggestions={CANAL_OPTIONS}
+                      options={uniqueValues.canal}
                       placeholder="Canal"
                     />
                   </td>
