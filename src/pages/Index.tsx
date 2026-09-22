@@ -100,11 +100,17 @@ const Index = () => {
       l.canal?.toLowerCase() === "facebook"
     );
 
+    const classificados = new Set([
+      ...suaVisaoLeads, ...lojaLeads, ...duBeneficiosLeads, ...internetLeads,
+    ]);
+    const semCanalLeads = baseLeads.filter((l) => !classificados.has(l));
+
     return {
       suaVisao: calcStats(suaVisaoLeads),
       loja: calcStats(lojaLeads),
       internet: calcStats(internetLeads),
       duBeneficios: calcStats(duBeneficiosLeads),
+      semCanal: calcStats(semCanalLeads),
       todos: calcStats(baseLeads),
     };
   }, [leads.leads, leadsFilters]);
@@ -314,6 +320,16 @@ const Index = () => {
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.conversao}%</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
                   </tr>
+                  {leadsStatsByChannel.semCanal.leads > 0 && (
+                    <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 font-medium">Sem Canal</td>
+                      <td className="px-4 py-3 text-center">{leadsStatsByChannel.semCanal.leads}</td>
+                      <td className="px-4 py-3 text-center">{leadsStatsByChannel.semCanal.orcamentos}</td>
+                      <td className="px-4 py-3 text-center">{leadsStatsByChannel.semCanal.vendas}</td>
+                      <td className="px-4 py-3 text-center">{leadsStatsByChannel.semCanal.conversao}%</td>
+                      <td className="px-4 py-3 text-center">{leadsStatsByChannel.semCanal.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
+                    </tr>
+                  )}
                   <tr className="hover:bg-muted/30 transition-colors font-semibold bg-muted/20">
                     <td className="px-4 py-3">Todos</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.todos.leads}</td>
