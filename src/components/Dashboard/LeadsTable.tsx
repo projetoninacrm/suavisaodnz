@@ -13,6 +13,16 @@ import { SyncedHorizontalScrollbar } from "@/components/ui/synced-horizontal-scr
 
 const CANAL_OPTIONS = ["Internet", "Sua Visão", "Loja", "Du Benefícios"];
 
+// Mesma classificação usada no relatório (Index.tsx)
+export const classifyCanal = (canal?: string | null): string => {
+  const c = (canal || "").trim().toLowerCase();
+  if (c === "sua visão" || c === "sua visao") return "Sua Visão";
+  if (c === "loja") return "Loja";
+  if (c === "du benefícios" || c === "du beneficios") return "Du Benefícios";
+  if (c === "internet" || c === "google" || c === "facebook") return "Internet";
+  return "Sem Canal";
+};
+
 export interface LeadsFilters {
   data_registro: string[];
   canal: string;
@@ -107,7 +117,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
   const filteredLeads = useMemo(() => {
     const filtered = leads.filter(lead => {
       if (filters.data_registro.length > 0 && !filters.data_registro.includes(lead.data_registro || "")) return false;
-      if (filters.canal && lead.canal !== filters.canal) return false;
+      if (filters.canal && classifyCanal(lead.canal) !== filters.canal) return false;
       if (filters.nome && !(lead.nome || "").toLowerCase().includes(filters.nome.toLowerCase())) return false;
       if (filters.orcamento && lead.orcamento !== filters.orcamento) return false;
       if (filters.venda && lead.venda !== filters.venda) return false;
@@ -414,7 +424,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                     <SelectCell
                       value={lead.canal || ""}
                       onSave={(v) => onUpdate(lead.id, "canal", v)}
-                      options={uniqueValues.canal}
+                      options={CANAL_OPTIONS}
                       placeholder="Canal"
                     />
                   </td>
