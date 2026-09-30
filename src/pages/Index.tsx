@@ -94,6 +94,7 @@ const Index = () => {
     const suaVisaoLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Sua Visão");
     const lojaLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Loja");
     const duBeneficiosLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Du Benefícios");
+    const indiqueGanheLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Indique e Ganhe");
     const internetLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Internet");
     const semCanalLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Sem Canal");
 
@@ -102,6 +103,7 @@ const Index = () => {
       loja: calcStats(lojaLeads),
       internet: calcStats(internetLeads),
       duBeneficios: calcStats(duBeneficiosLeads),
+      indiqueGanhe: calcStats(indiqueGanheLeads),
       semCanal: calcStats(semCanalLeads),
       todos: calcStats(baseLeads),
     };
@@ -311,6 +313,14 @@ const Index = () => {
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.vendas}</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.conversao}%</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
+                  </tr>
+                  <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-medium">Indique e Ganhe</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.indiqueGanhe.leads}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.indiqueGanhe.orcamentos}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.indiqueGanhe.vendas}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.indiqueGanhe.conversao}%</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.indiqueGanhe.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
                   </tr>
                   {leadsStatsByChannel.semCanal.leads > 0 && (
                     <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
