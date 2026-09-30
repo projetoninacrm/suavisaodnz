@@ -314,6 +314,14 @@ const Index = () => {
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.conversao}%</td>
                     <td className="px-4 py-3 text-center">{leadsStatsByChannel.duBeneficios.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
                   </tr>
+                  <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-medium">Indique e Ganhe</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.indiqueGanhe.leads}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.indiqueGanhe.orcamentos}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.indiqueGanhe.vendas}</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.indiqueGanhe.conversao}%</td>
+                    <td className="px-4 py-3 text-center">{leadsStatsByChannel.indiqueGanhe.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
+                  </tr>
                   {leadsStatsByChannel.semCanal.leads > 0 && (
                     <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-medium">Sem Canal</td>
