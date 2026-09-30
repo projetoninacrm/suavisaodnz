@@ -94,6 +94,7 @@ const Index = () => {
     const suaVisaoLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Sua Visão");
     const lojaLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Loja");
     const duBeneficiosLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Du Benefícios");
+    const indiqueGanheLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Indique e Ganhe");
     const internetLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Internet");
     const semCanalLeads = baseLeads.filter(l => classifyCanal(l.canal) === "Sem Canal");
 
@@ -102,6 +103,7 @@ const Index = () => {
       loja: calcStats(lojaLeads),
       internet: calcStats(internetLeads),
       duBeneficios: calcStats(duBeneficiosLeads),
+      indiqueGanhe: calcStats(indiqueGanheLeads),
       semCanal: calcStats(semCanalLeads),
       todos: calcStats(baseLeads),
     };
