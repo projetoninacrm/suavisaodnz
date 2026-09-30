@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Lead } from "@/hooks/useLeads";
 import { SyncedHorizontalScrollbar } from "@/components/ui/synced-horizontal-scrollbar";
 
-const CANAL_OPTIONS = ["Internet", "Sua Visão", "Loja", "Du Benefícios"];
+const CANAL_OPTIONS = ["Internet", "Sua Visão", "Loja", "Du Benefícios", "Indique e Ganhe"];
 
 // Mesma classificação usada no relatório (Index.tsx)
 export const classifyCanal = (canal?: string | null): string => {
@@ -19,6 +19,7 @@ export const classifyCanal = (canal?: string | null): string => {
   if (c === "sua visão" || c === "sua visao") return "Sua Visão";
   if (c === "loja") return "Loja";
   if (c === "du benefícios" || c === "du beneficios") return "Du Benefícios";
+  if (c === "indique e ganhe" || c === "indique ganhe") return "Indique e Ganhe";
   if (c === "internet" || c === "google" || c === "facebook") return "Internet";
   return "Sem Canal";
 };
