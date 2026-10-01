@@ -1,0 +1,1 @@
+ALTER TABLE public.metas_config ADD COLUMN IF NOT EXISTS vendas_loja numeric DEFAULT 0, ADD COLUMN IF NOT EXISTS vendas_internet numeric DEFAULT 0;
