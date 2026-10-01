@@ -43,6 +43,8 @@ interface ConfigValues {
   percentualComparecimento: number;
   percentualConversao: number;
   metaFaturamentoMensal: number;
+  vendasLoja: number;
+  vendasInternet: number;
 }
 
 // Helper: extrai o mês de uma data (suporta DD/MM/YYYY e DD/mes)
@@ -699,7 +701,7 @@ export function MetasCalculator({
                 {calculations.metaVendas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
               <p className="text-xs opacity-80 mt-1">
-                {calculations.pacientesComparecem.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {config.percentualConversao}%
+                Sua Visão {calculations.metaVendasSuaVisao.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} + Loja {config.vendasLoja} + Internet {config.vendasInternet}
               </p>
             </div>
 
@@ -716,6 +718,32 @@ export function MetasCalculator({
                 Meta + 20%
               </p>
             </div>
+          </div>
+
+          {/* Outros canais: Loja e Internet */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-sm font-medium text-muted-foreground mb-1">Vendas esperadas – Sua Visão</p>
+              <p className="text-2xl font-bold text-foreground">
+                {calculations.metaVendasSuaVisao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">{calculations.pacientesComparecem.toFixed(2)} × {config.percentualConversao}%</p>
+            </div>
+            {([["vendasLoja", "Loja"], ["vendasInternet", "Internet"]] as const).map(([field, label]) => (
+              <div key={field} className="bg-card border border-border rounded-lg p-4">
+                <label className="text-sm font-medium text-muted-foreground mb-1 block">Vendas esperadas – {label}</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={config[field] || ""}
+                  placeholder="0"
+                  onChange={(e) => handleConfigChange(field, e.target.value)}
+                  onBlur={handleSaveConfig}
+                  className="text-2xl font-bold h-11"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Somado à Meta de Vendas total</p>
+              </div>
+            ))}
           </div>
 
           {/* Metas por Período */}
