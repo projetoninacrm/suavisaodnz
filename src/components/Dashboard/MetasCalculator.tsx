@@ -236,6 +236,8 @@ export function MetasCalculator({
     percentualComparecimento: 50,
     percentualConversao: 66,
     metaFaturamentoMensal: 60000,
+    vendasLoja: 0,
+    vendasInternet: 0,
   });
 
   // Carrega configuração do mês selecionado
@@ -249,6 +251,8 @@ export function MetasCalculator({
         percentualComparecimento: monthConfig.percentual_comparecimento,
         percentualConversao: monthConfig.percentual_conversao,
         metaFaturamentoMensal: monthConfig.meta_faturamento_mensal,
+        vendasLoja: monthConfig.vendas_loja ?? 0,
+        vendasInternet: monthConfig.vendas_internet ?? 0,
       });
       setMediaAtendimentosText(String(monthConfig.media_atendimentos).replace(".", ","));
       setHasUnsavedChanges(false);
@@ -293,6 +297,8 @@ export function MetasCalculator({
       percentual_comparecimento: config.percentualComparecimento,
       percentual_conversao: config.percentualConversao,
       meta_faturamento_mensal: config.metaFaturamentoMensal,
+      vendas_loja: config.vendasLoja,
+      vendas_internet: config.vendasInternet,
     });
     setHasUnsavedChanges(false);
   }, [saveConfig, selectedMonth, config]);
@@ -311,7 +317,8 @@ export function MetasCalculator({
     const totalPacientes = config.periodos * config.mediaAtendimentos;
     const pacientesComReceita = totalPacientes * (config.percentualReceita / 100);
     const pacientesComparecem = pacientesComReceita * (config.percentualComparecimento / 100);
-    const metaVendas = pacientesComparecem * (config.percentualConversao / 100);
+    const metaVendasSuaVisao = pacientesComparecem * (config.percentualConversao / 100);
+    const metaVendas = metaVendasSuaVisao + (config.vendasLoja || 0) + (config.vendasInternet || 0);
 
     const superMeta = metaVendas * 1.2;
     
@@ -353,6 +360,7 @@ export function MetasCalculator({
       pacientesComReceita,
       pacientesComparecem,
       metaVendas,
+      metaVendasSuaVisao,
       superMeta,
       metaMensal,
       metaDiaria,

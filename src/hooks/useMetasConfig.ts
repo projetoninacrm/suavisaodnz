@@ -11,6 +11,8 @@ export interface MetasConfig {
   percentual_comparecimento: number;
   percentual_conversao: number;
   meta_faturamento_mensal: number;
+  vendas_loja?: number;
+  vendas_internet?: number;
 }
 
 const DEFAULT_CONFIG: Omit<MetasConfig, "mes"> = {
@@ -48,6 +50,8 @@ export function useMetasConfig() {
           percentual_comparecimento: Number(item.percentual_comparecimento) || 50,
           percentual_conversao: Number(item.percentual_conversao) || 66,
           meta_faturamento_mensal: Number(item.meta_faturamento_mensal) || 60000,
+          vendas_loja: Number((item as any).vendas_loja) || 0,
+          vendas_internet: Number((item as any).vendas_internet) || 0,
         };
       });
 
@@ -88,6 +92,8 @@ export function useMetasConfig() {
             percentual_comparecimento: config.percentual_comparecimento,
             percentual_conversao: config.percentual_conversao,
             meta_faturamento_mensal: config.meta_faturamento_mensal,
+            vendas_loja: config.vendas_loja ?? 0,
+            vendas_internet: config.vendas_internet ?? 0,
           })
           .eq("id", existingConfig.id);
 
@@ -109,6 +115,8 @@ export function useMetasConfig() {
             percentual_comparecimento: config.percentual_comparecimento,
             percentual_conversao: config.percentual_conversao,
             meta_faturamento_mensal: config.meta_faturamento_mensal,
+            vendas_loja: config.vendas_loja ?? 0,
+            vendas_internet: config.vendas_internet ?? 0,
           })
           .select()
           .single();
