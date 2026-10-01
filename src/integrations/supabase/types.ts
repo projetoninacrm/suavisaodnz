@@ -464,6 +464,8 @@ export type Database = {
           percentual_receita: number | null
           periodos: number | null
           updated_at: string
+          vendas_internet: number | null
+          vendas_loja: number | null
         }
         Insert: {
           created_at?: string
@@ -476,6 +478,8 @@ export type Database = {
           percentual_receita?: number | null
           periodos?: number | null
           updated_at?: string
+          vendas_internet?: number | null
+          vendas_loja?: number | null
         }
         Update: {
           created_at?: string
@@ -488,6 +492,8 @@ export type Database = {
           percentual_receita?: number | null
           periodos?: number | null
           updated_at?: string
+          vendas_internet?: number | null
+          vendas_loja?: number | null
         }
         Relationships: []
       }
