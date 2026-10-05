@@ -13,10 +13,10 @@ CREATE TABLE public.automacoes (
 
 ALTER TABLE public.automacoes ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read automacoes" ON public.automacoes FOR SELECT USING (true);
-CREATE POLICY "Allow public insert automacoes" ON public.automacoes FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update automacoes" ON public.automacoes FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete automacoes" ON public.automacoes FOR DELETE USING (true);
+CREATE POLICY "Allow authenticated read automacoes" ON public.automacoes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated insert automacoes" ON public.automacoes FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update automacoes" ON public.automacoes FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete automacoes" ON public.automacoes FOR DELETE TO authenticated USING (true);
 
 CREATE TRIGGER update_automacoes_updated_at
   BEFORE UPDATE ON public.automacoes
@@ -41,10 +41,10 @@ CREATE TABLE public.automacao_disparos (
 
 ALTER TABLE public.automacao_disparos ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read automacao_disparos" ON public.automacao_disparos FOR SELECT USING (true);
-CREATE POLICY "Allow public insert automacao_disparos" ON public.automacao_disparos FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update automacao_disparos" ON public.automacao_disparos FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete automacao_disparos" ON public.automacao_disparos FOR DELETE USING (true);
+CREATE POLICY "Allow authenticated read automacao_disparos" ON public.automacao_disparos FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated insert automacao_disparos" ON public.automacao_disparos FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update automacao_disparos" ON public.automacao_disparos FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete automacao_disparos" ON public.automacao_disparos FOR DELETE TO authenticated USING (true);
 
 CREATE TRIGGER update_automacao_disparos_updated_at
   BEFORE UPDATE ON public.automacao_disparos
@@ -60,7 +60,7 @@ CREATE TABLE public.automacoes_config (
 
 ALTER TABLE public.automacoes_config ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public all automacoes_config" ON public.automacoes_config FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated all automacoes_config" ON public.automacoes_config FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Inserir config padrão
 INSERT INTO public.automacoes_config (pausado) VALUES (false);

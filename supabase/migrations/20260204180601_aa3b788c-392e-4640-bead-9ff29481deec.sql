@@ -21,10 +21,10 @@ CREATE TABLE public.anuncios (
 -- Enable RLS
 ALTER TABLE public.anuncios ENABLE ROW LEVEL SECURITY;
 
--- Create policy for public access (no auth required)
+-- Create policy for authenticated access
 CREATE POLICY "Allow all access to anuncios" 
 ON public.anuncios 
-FOR ALL 
+FOR ALL TO authenticated
 USING (true) 
 WITH CHECK (true);
 

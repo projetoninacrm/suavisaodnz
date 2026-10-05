@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
     }
 
     const { action, params } = await req.json();
-    console.log(`Action: ${action}, Params:`, params);
+    console.log(`Action: ${action}`);
 
     let endpoint = '';
     let queryParams = '';
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
         const merged: unknown[] = [];
         for (const c of chunks) {
           const chunkUrl = `${AMIGO_API_BASE}/attendances?start_date=${c.s}&end_date=${c.e}${status ? `&status=${status}` : ''}`;
-          console.log(`Fetching chunk: ${chunkUrl}`);
+          console.log("Buscando atendimentos em lotes");
           const res = await fetch(chunkUrl, {
             method: 'GET',
             headers: {
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
           });
           if (!res.ok) {
             const errText = await res.text();
-            console.error(`API Error (${c.s} - ${c.e}): ${errText}`);
+            console.error(`API error: ${c.s} - ${c.e}`);
             throw new Error(`API retornou status ${res.status}: ${errText}`);
           }
           const json = await res.json();
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     const url = `${AMIGO_API_BASE}${endpoint}${queryParams}`;
-    console.log(`Fetching: ${url}`);
+    console.log("Consultando API Amigo");
 
     const response = await fetch(url, {
       method: 'GET',
@@ -108,12 +108,12 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`API Error: ${errorText}`);
+      console.error(`API error: ${response.status}`);
       throw new Error(`API retornou status ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
-    console.log(`Data received:`, JSON.stringify(data).substring(0, 500));
+    console.log("Resposta da API Amigo recebida");
 
     return new Response(JSON.stringify({ success: true, data }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

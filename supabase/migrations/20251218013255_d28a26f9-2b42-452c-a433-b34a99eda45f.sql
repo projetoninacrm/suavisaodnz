@@ -13,11 +13,11 @@ CREATE TABLE public.schedules (
 -- Enable RLS
 ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;
 
--- Allow public read/write for now (can be restricted later with auth)
-CREATE POLICY "Allow public read access" ON public.schedules FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access" ON public.schedules FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update access" ON public.schedules FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete access" ON public.schedules FOR DELETE USING (true);
+-- Allow authenticated users to read and write
+CREATE POLICY "Allow authenticated read access" ON public.schedules FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated insert access" ON public.schedules FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON public.schedules FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON public.schedules FOR DELETE TO authenticated USING (true);
 
 -- Create function to update timestamps
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -35,24 +35,4 @@ FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Insert initial data from the spreadsheet
-INSERT INTO public.schedules (date, morning_shift, afternoon_shift, day_of_week) VALUES
-('01/dez', 'ANA', 'ANA', 'SEG'),
-('02/dez', 'THABATA', 'THABATA', 'TER'),
-('03/dez', 'CAROL', 'ANA', 'QUA'),
-('04/dez', 'LARISSA', 'CASSIO', 'QUI'),
-('05/dez', 'AMANDA', 'AMANDA', 'SEX'),
-('06/dez', 'KAROLLYNE', '', 'SAB'),
-('08/dez', '', '', 'SEG'),
-('09/dez', 'THABATA', 'THABATA', 'TER'),
-('10/dez', 'CAROL', 'ANA', 'QUA'),
-('11/dez', 'LARISSA', 'ANA', 'QUI'),
-('12/dez', 'AMANDA', 'AMANDA', 'SEX'),
-('13/dez', '', '', 'SAB'),
-('15/dez', 'ANA', 'ANA', 'SEG'),
-('16/dez', 'THABATA', 'THABATA', 'TER'),
-('17/dez', 'CAROL', 'ANA', 'QUA'),
-('18/dez', 'LARISSA', 'CASSIO', 'QUI'),
-('19/dez', 'AMANDA', '', 'SEX'),
-('20/dez', 'KAROLLYNE', '', 'SAB'),
-('22/dez', 'ANA', 'ANA', 'SEG'),
-('23/dez', '', 'KAROLLYNE', 'TER');
+-- Production migration intentionally creates an empty table; source contact rows stay out of the database.

@@ -62,7 +62,7 @@ async function fetchMessages(phone: string, instancia: string): Promise<string |
 
     return lines.length > 0 ? lines.join("\n") : null;
   } catch (err) {
-    console.error(`Error fetching messages for ${phone}:`, err);
+    console.error("Falha ao consultar mensagens");
     return null;
   }
 }
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
       }
 
       const instancia = (disparo as any).automacoes?.instancia || "uazapi";
-      console.log(`Buscando: ${disparo.nome_cliente} (${phone}) via ${instancia}`);
+      console.log(`Buscando mensagens via ${instancia}`);
 
       const history = await fetchMessages(phone, instancia);
       if (!history) {
@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
         .eq("id", disparo.id);
 
       results.push({ id: disparo.id, nome: disparo.nome_cliente || "?", status: "ok", observacao: summary });
-      console.log(`✅ ${disparo.nome_cliente}: ${summary}`);
+      console.log("Resumo atualizado");
 
       // Delay to avoid AI rate limits
       await new Promise(r => setTimeout(r, 2000));

@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
       summary = smartFallback(history);
     }
 
-    console.log("Generated summary:", summary);
+    console.log("Resumo de conversa gerado");
 
     return new Response(JSON.stringify({ summary }), {
       status: 200,

@@ -119,9 +119,15 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
       setIsUploadingAudio(null);
       return;
     }
-    const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(data.path);
+    const { data: urlData, error: urlError } = await supabase.storage.from("whatsapp-media").createSignedUrl(data.path, 60 * 60 * 24 * 365);
+    if (urlError || !urlData) {
+      console.error("Falha ao gerar link temporário do áudio");
+      await supabase.storage.from("whatsapp-media").remove([data.path]);
+      setIsUploadingAudio(null);
+      return;
+    }
     const current = form.audios_vendedor || {};
-    setForm({ ...form, audios_vendedor: { ...current, [vendedor]: urlData.publicUrl } });
+    setForm({ ...form, audios_vendedor: { ...current, [vendedor]: urlData.signedUrl } });
     setIsUploadingAudio(null);
   };
 

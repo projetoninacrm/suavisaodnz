@@ -14,5 +14,4 @@ CREATE TABLE public.disparos_perdidos (
 
 ALTER TABLE public.disparos_perdidos ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public all disparos_perdidos" ON public.disparos_perdidos
-  FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated all disparos_perdidos" ON public.disparos_perdidos FOR ALL TO authenticated USING (true) WITH CHECK (true);

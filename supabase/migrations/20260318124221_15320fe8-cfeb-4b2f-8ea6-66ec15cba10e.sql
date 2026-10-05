@@ -51,3 +51,7 @@ AS $$
   WHERE (CURRENT_DATE - l.parsed_date)::integer >= (dias_limite - dias_janela)
   ORDER BY (CURRENT_DATE - l.parsed_date) DESC;
 $$;
+
+
+REVOKE ALL ON FUNCTION public.get_inactive_patients(integer, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_inactive_patients(integer, integer) TO authenticated, service_role;

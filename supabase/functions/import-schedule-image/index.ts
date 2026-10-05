@@ -71,7 +71,7 @@ Responda APENAS com JSON válido, sem markdown, no formato:
 
     if (!aiResp.ok) {
       const txt = await aiResp.text();
-      console.error("AI error", aiResp.status, txt);
+      console.error("Falha no processamento de imagem", aiResp.status);
       if (aiResp.status === 429) {
         return new Response(JSON.stringify({ error: "Limite de requisições atingido. Tente novamente em instantes." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },

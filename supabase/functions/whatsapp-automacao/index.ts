@@ -372,7 +372,7 @@ async function sendNextAgendado(
           ptt: true,
         });
       } catch (audioErr) {
-        console.error(`Audio send error for ${disparo.nome_cliente}:`, audioErr);
+        console.error("Falha no envio do áudio");
       }
     }
 
@@ -388,20 +388,20 @@ async function sendNextAgendado(
       .eq("id", automacao.id);
 
     // Send notification to admin via same instance
-    console.log(`[NOTIFY] Enviando notificação admin para disparo: ${disparo.nome_cliente}, automacao: ${automacao.nome}, instancia: ${automacao.instancia}`);
+    console.log("[NOTIFY] Enviando notificação admin");
     const NOTIFY_PHONE = "5531971759662";
     const instanciaLabel = automacao.instancia === "uazapi_dnz" ? "DNZ" : "Sua Visão";
     const notifyMsg = `✅ *Automação disparada (${instanciaLabel})*\n\n📋 *Automação:* ${automacao.nome}\n👤 *Cliente:* ${disparo.nome_cliente || "N/A"}\n📱 *Telefone:* ${disparo.telefone || "N/A"}\n🕐 *Horário:* ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
     try {
-      console.log(`[NOTIFY] URL: ${UAZAPI_URL}, token presente: ${!!uazapiToken}`);
+      console.log(`[NOTIFY] Token presente: ${!!uazapiToken}`);
       const notifyResp = await sendUazapiRequest(UAZAPI_URL!, uazapiToken, "/send/text", {
         number: NOTIFY_PHONE,
         text: notifyMsg,
       });
       const notifyBody = await notifyResp.text();
-      console.log(`[NOTIFY] Resposta: status=${notifyResp.status}, body=${notifyBody.substring(0, 200)}`);
+      console.log(`[NOTIFY] Resposta HTTP: ${notifyResp.status}`);
     } catch (notifyErr) {
-      console.error("[NOTIFY] Erro ao enviar notificação admin:", notifyErr);
+      console.error("[NOTIFY] Erro ao enviar notificação admin");
     }
 
     return { enviado: true };

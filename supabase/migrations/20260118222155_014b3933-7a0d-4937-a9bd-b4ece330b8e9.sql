@@ -15,25 +15,25 @@ CREATE TABLE public.metas_config (
 -- Enable RLS
 ALTER TABLE public.metas_config ENABLE ROW LEVEL SECURITY;
 
--- Políticas públicas (sem autenticação, como as outras tabelas do projeto)
-CREATE POLICY "Allow public read metas_config" 
-  ON public.metas_config 
-  FOR SELECT 
+-- Políticas restritas a usuários autenticados
+CREATE POLICY "Allow authenticated read metas_config"
+  ON public.metas_config
+  FOR SELECT TO authenticated
   USING (true);
 
-CREATE POLICY "Allow public insert metas_config" 
-  ON public.metas_config 
-  FOR INSERT 
+CREATE POLICY "Allow authenticated insert metas_config"
+  ON public.metas_config
+  FOR INSERT TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "Allow public update metas_config" 
-  ON public.metas_config 
-  FOR UPDATE 
+CREATE POLICY "Allow authenticated update metas_config"
+  ON public.metas_config
+  FOR UPDATE TO authenticated
   USING (true);
 
-CREATE POLICY "Allow public delete metas_config" 
-  ON public.metas_config 
-  FOR DELETE 
+CREATE POLICY "Allow authenticated delete metas_config"
+  ON public.metas_config
+  FOR DELETE TO authenticated
   USING (true);
 
 -- Trigger para atualizar updated_at

@@ -13,25 +13,25 @@ CREATE TABLE public.acompanhamento_diario (
 -- Enable Row Level Security
 ALTER TABLE public.acompanhamento_diario ENABLE ROW LEVEL SECURITY;
 
--- Policies for public access
-CREATE POLICY "Allow public read acompanhamento_diario" 
-ON public.acompanhamento_diario 
-FOR SELECT 
+-- Policies for authenticated access
+CREATE POLICY "Allow authenticated read acompanhamento_diario"
+ON public.acompanhamento_diario
+FOR SELECT TO authenticated
 USING (true);
 
-CREATE POLICY "Allow public insert acompanhamento_diario" 
-ON public.acompanhamento_diario 
-FOR INSERT 
+CREATE POLICY "Allow authenticated insert acompanhamento_diario"
+ON public.acompanhamento_diario
+FOR INSERT TO authenticated
 WITH CHECK (true);
 
-CREATE POLICY "Allow public update acompanhamento_diario" 
-ON public.acompanhamento_diario 
-FOR UPDATE 
+CREATE POLICY "Allow authenticated update acompanhamento_diario"
+ON public.acompanhamento_diario
+FOR UPDATE TO authenticated
 USING (true);
 
-CREATE POLICY "Allow public delete acompanhamento_diario" 
-ON public.acompanhamento_diario 
-FOR DELETE 
+CREATE POLICY "Allow authenticated delete acompanhamento_diario"
+ON public.acompanhamento_diario
+FOR DELETE TO authenticated
 USING (true);
 
 -- Trigger for updated_at

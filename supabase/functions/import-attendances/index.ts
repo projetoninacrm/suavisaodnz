@@ -61,10 +61,10 @@ async function fetchPatientDetails(patientId: string, apiToken: string): Promise
       return null;
     }
     const data = await response.json();
-    console.log(`Patient ${patientId} raw data: ${JSON.stringify(data).substring(0, 500)}`);
+    console.log("Dados do paciente recebidos");
     return data;
   } catch (error) {
-    console.error(`Error fetching patient ${patientId}:`, error);
+    console.error("Falha ao consultar paciente");
     return null;
   }
 }
@@ -111,7 +111,7 @@ serve(async (req) => {
 
     // Fetch done attendances from Amigo API
     const url = `${AMIGO_API_BASE}/attendances?start_date=${start_date}&end_date=${end_date}&status=DONE`;
-    console.log(`Fetching: ${url}`);
+    console.log("Consultando API de atendimentos");
 
     const response = await fetch(url, {
       method: 'GET',
@@ -208,7 +208,7 @@ serve(async (req) => {
       const batch = records.slice(i, i + batchSize);
       const { error } = await supabase.from('detalhado').insert(batch);
       if (error) {
-        console.error(`Batch insert error:`, error);
+        console.error("Falha ao salvar lote de atendimentos");
         throw error;
       }
       inserted += batch.length;

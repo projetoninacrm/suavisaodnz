@@ -177,8 +177,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log("Webhook payload keys:", Object.keys(body));
-    console.log("Webhook recebido:", JSON.stringify(body).substring(0, 2000));
+    console.log("Webhook recebido");
 
     const { phone: senderPhone, fromMe } = detectMessage(body);
 
@@ -201,7 +200,7 @@ Deno.serve(async (req) => {
 
     const cleanedPhone = cleanPhone(senderPhone);
     if (!cleanedPhone) {
-      console.log("Telefone inválido:", senderPhone);
+      console.log("Telefone inválido");
       return new Response(JSON.stringify({ received: true, action: "invalid_phone" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -209,7 +208,7 @@ Deno.serve(async (req) => {
     }
 
     const role = fromMe === true ? "Vendedor" : "Cliente";
-    console.log(`Mensagem de ${role} (${cleanedPhone}): ${messageText.substring(0, 100)}`);
+    console.log(`Mensagem de ${role} recebida`);
 
     // Connect to Supabase
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -220,14 +219,14 @@ Deno.serve(async (req) => {
     const disparos = await findDisparos(supabase, cleanedPhone);
 
     if (!disparos || disparos.length === 0) {
-      console.log(`Nenhum disparo encontrado para ${cleanedPhone}`);
+      console.log("Nenhum disparo encontrado");
       return new Response(JSON.stringify({ received: true, action: "no_match" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Encontrados ${disparos.length} disparo(s) para ${cleanedPhone}`);
+    console.log(`Encontrados ${disparos.length} disparo(s)`);
 
     for (const disparo of disparos) {
       // Get current state
@@ -255,7 +254,7 @@ Deno.serve(async (req) => {
       const summary = await summarizeConversation(newHistory, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, current?.mensagem_enviada || null);
       if (summary) {
         updateData.observacao = summary;
-        console.log(`Resumo IA para disparo ${disparo.id}: ${summary}`);
+        console.log("Resumo IA atualizado");
       }
 
       await supabase

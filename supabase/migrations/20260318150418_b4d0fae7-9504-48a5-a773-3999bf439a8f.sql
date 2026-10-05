@@ -84,3 +84,7 @@ AS $$
   JOIN patient_stats ps ON ps.phone_clean = pi.phone_clean
   ORDER BY ps.first_visit_in_period;
 $$;
+
+
+REVOKE ALL ON FUNCTION public.get_return_rate_patients(text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_return_rate_patients(text, text) TO authenticated, service_role;

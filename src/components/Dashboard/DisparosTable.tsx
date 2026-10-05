@@ -151,11 +151,11 @@ export function DisparosTable({ leads }: DisparosTableProps) {
 
       if (error) throw error;
 
-      const { data: urlData } = supabase.storage
+      const { data: urlData, error: urlError } = await supabase.storage
         .from("whatsapp-media")
-        .getPublicUrl(data.path);
-
-      setMediaUrl(urlData.publicUrl);
+        .createSignedUrl(data.path, 60 * 60 * 24 * 365);
+      if (urlError || !urlData) throw urlError || new Error("Falha ao gerar link temporário da mídia");
+      setMediaUrl(urlData.signedUrl);
       toast({ title: "Arquivo anexado", description: `${isAudio ? "Áudio" : "Vídeo"} carregado com sucesso.` });
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
@@ -169,7 +169,7 @@ export function DisparosTable({ leads }: DisparosTableProps) {
 
   const removeMedia = async () => {
     if (mediaUrl) {
-      const path = mediaUrl.split("/whatsapp-media/")[1];
+      const path = mediaUrl.split("/whatsapp-media/")[1]?.split("?")[0];
       if (path) {
         await supabase.storage.from("whatsapp-media").remove([path]);
       }

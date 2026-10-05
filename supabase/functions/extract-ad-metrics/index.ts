@@ -80,7 +80,7 @@ Return ONLY the JSON object, no other text.`,
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
 
-    console.log("AI Response:", content);
+    console.log("Métricas de anúncio extraídas");
 
     // Try to parse JSON from the response
     let rawMetrics: ExtractedRawMetrics | null = null;
