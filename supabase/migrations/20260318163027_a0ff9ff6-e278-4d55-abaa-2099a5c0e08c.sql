@@ -1,1 +1,3 @@
-UPDATE automacoes SET instancia = 'uazapi' WHERE id = 'b3f6794f-4fa3-422d-bb91-0ad184dfa838';
+-- The original update targeted a deleted seed row and a column that was never
+-- added to this table. Keep this migration as a no-op so Supabase can record
+-- its version without writing seed data into production.
