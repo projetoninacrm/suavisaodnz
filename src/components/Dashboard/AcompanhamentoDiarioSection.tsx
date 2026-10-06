@@ -174,7 +174,7 @@ export function AcompanhamentoDiarioSection({
       metaTicketMedio,
       realTicketMedio,
     };
-  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaFaturamentoDiarioCompleto, pesoPorDia]);
+  }, [diasComMedico, registrosMap, metaDiariaVendasCompleta, metaFaturamentoDiarioCompleto, pesoPorDia, metasFaturamentoPorDia, metasVendasPorDia]);
 
   const StatusBadge = ({ diferenca, tipo }: { diferenca: number; tipo: "vendas" | "faturamento" }) => {
     const isPositivo = diferenca >= 0;
