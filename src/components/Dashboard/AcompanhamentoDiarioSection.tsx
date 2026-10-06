@@ -113,8 +113,10 @@ export function AcompanhamentoDiarioSection({
       const restanteFat = Math.max(0, metaMensalFaturamento - realFatAcumuladoAnterior);
       const restanteVen = Math.max(0, metaMensalVendas - realVenAcumuladoAnterior);
 
-      metasFat[s.date] = pesoAberto > 0 ? (restanteFat * pesoDia) / pesoAberto : 0;
-      metasVen[s.date] = pesoAberto > 0 ? (restanteVen * pesoDia) / pesoAberto : 0;
+      // Meta diária fixa (uniforme): não muda conforme o realizado é preenchido
+      void restanteFat; void restanteVen;
+      metasFat[s.date] = pesoTotal > 0 ? (metaMensalFaturamento * pesoDia) / pesoTotal : 0;
+      metasVen[s.date] = pesoTotal > 0 ? (metaMensalVendas * pesoDia) / pesoTotal : 0;
 
       if (temRegistroPreenchido(registro)) {
         realFatAcumuladoAnterior += registro.faturamento_realizado || 0;
