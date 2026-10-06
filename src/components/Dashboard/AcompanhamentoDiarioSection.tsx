@@ -144,8 +144,8 @@ export function AcompanhamentoDiarioSection({
       // não a meta dinâmica redistribuída. Assim o card mostra exatamente
       // "quanto deveríamos ter faturado até este dia dentro dos 70k mensais"
       // e o "atrás da meta" reflete o desvio real frente ao plano.
-      const metaVendasDiaBase = metaDiariaVendasCompleta * pesoDia;
-      const metaFatDiaBase = metaFaturamentoDiarioCompleto * pesoDia;
+      const metaVendasDiaBase = metasVendasPorDia[schedule.date] ?? 0;
+      const metaFatDiaBase = metasFaturamentoPorDia[schedule.date] ?? 0;
 
       // Conta como preenchido se existe registro (mesmo com valores 0)
       if (registro && (registro.vendas_realizadas !== null || registro.faturamento_realizado !== null)) {
@@ -349,7 +349,7 @@ export function AcompanhamentoDiarioSection({
                         // com o card Consolidado — assim o "atrás da meta" reflete o desvio
                         // real frente ao plano mensal (ex.: 70k), sem inflar pelas
                         // redistribuições dos dias futuros.
-                        metaAcumuladaConsol += metaFatDiaBase;
+                        metaAcumuladaConsol += metaFatDia;
                       }
                       const diferencaConsolidada = acumuladoFaturamento - metaAcumuladaConsol;
 
