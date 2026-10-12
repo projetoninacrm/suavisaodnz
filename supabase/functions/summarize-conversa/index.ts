@@ -1,3 +1,5 @@
+import { generateOpenAIText, OpenAIError } from "../_shared/openai.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -12,45 +14,23 @@ Foque em:
 Responda em 1-2 frases curtas, APENAS sobre a posição do cliente. Não mencione o que o vendedor disse.
 Se o cliente não respondeu nada relevante, diga "Sem resposta relevante do cliente."`;
 
-async function tryLovableAI(history: string, mensagemOriginal: string | null): Promise<string | null> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) return null;
+async function tryOpenAI(history: string, mensagemOriginal: string | null): Promise<string | null> {
+  if (!Deno.env.get("OPENAI_API_KEY")) return null;
 
   const context = mensagemOriginal
     ? `A mensagem da automação enviada ao cliente foi:\n"${mensagemOriginal}"\n\nHistórico da conversa:\n${history}`
     : `Histórico da conversa:\n${history}`;
 
-  const endpoints = [
-    "https://ai.gateway.lovable.dev/v1/chat/completions",
-  ];
-
-  for (const endpoint of endpoints) {
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: `Resuma apenas a resposta do cliente:\n\n${context}` },
-          ],
-          max_tokens: 200,
-          temperature: 0.3,
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        return result.choices?.[0]?.message?.content?.trim() || null;
-      }
-      console.log(`Endpoint ${endpoint} returned ${response.status}`);
-    } catch (err) {
-      console.log(`Endpoint ${endpoint} failed: ${(err as Error).message}`);
-    }
+  try {
+    return await generateOpenAIText({
+      modelEnv: "OPENAI_SUMMARY_MODEL",
+      instructions: SYSTEM_PROMPT,
+      input: `Resuma apenas a resposta do cliente:\n\n${context}`,
+      maxOutputTokens: 256,
+      timeoutMs: 15_000,
+    });
+  } catch (err) {
+    console.warn("OpenAI summary unavailable", err instanceof OpenAIError ? err.message : "Falha no processamento");
   }
   return null;
 }
@@ -117,7 +97,8 @@ Deno.serve(async (req) => {
     }
 
     // Try AI first
-    let summary = await tryLovableAI(history, mensagem_enviada || null);
+    let summary = await tryOpenAI(history, mensagem_enviada || null);
+    const provider = summary ? "openai" : "fallback";
     
     // Fallback to smart keyword extraction
     if (!summary) {
@@ -127,7 +108,7 @@ Deno.serve(async (req) => {
 
     console.log("Resumo de conversa gerado");
 
-    return new Response(JSON.stringify({ summary }), {
+    return new Response(JSON.stringify({ summary, provider }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

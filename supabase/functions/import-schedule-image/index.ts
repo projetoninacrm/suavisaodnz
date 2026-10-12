@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { generateOpenAIText, OpenAIError, parseOpenAIJSON, type OpenAIContent } from "../_shared/openai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,23 +17,21 @@ Deno.serve(async (req) => {
 
   try {
     const { fileBase64, mimeType, month, year, sheetName } = await req.json();
-    if (!fileBase64 || !mimeType || typeof month !== "number" || typeof year !== "number") {
+    if (typeof fileBase64 !== "string" || !fileBase64 || !["image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"].includes(mimeType)
+      || !Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 2000 || year > 2100) {
       return new Response(JSON.stringify({ error: "Missing fileBase64, mimeType, month or year" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
-
     const monthName = MONTH_NAMES[month - 1];
     const dataUrl = `data:${mimeType};base64,${fileBase64}`;
     const isImage = mimeType.startsWith("image/");
 
-    const userContent: unknown[] = [
+    const userContent: OpenAIContent[] = [
       {
-        type: "text",
+        type: "input_text",
         text: `Você está olhando uma escala de trabalho mensal de uma clínica.
 Extraia EXATAMENTE como está na imagem/documento a escala do mês ${monthName.toUpperCase()}/${year}.
 
@@ -54,46 +53,38 @@ Responda APENAS com JSON válido, sem markdown, no formato:
     ];
 
     if (isImage) {
-      userContent.push({ type: "image_url", image_url: { url: dataUrl } });
+      userContent.push({ type: "input_image", image_url: dataUrl, detail: "high" });
     } else {
-      userContent.push({ type: "file", file: { filename: `escala.${mimeType.split("/")[1] || "pdf"}`, file_data: dataUrl } });
+      userContent.push({ type: "input_file", filename: "escala.pdf", file_data: dataUrl });
     }
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [{ role: "user", content: userContent }],
-        response_format: { type: "json_object" },
-      }),
+    const raw = await generateOpenAIText({
+      modelEnv: "OPENAI_SCHEDULE_MODEL",
+      defaultModel: "gpt-4.1",
+      input: [{ role: "user", content: userContent }],
+      maxOutputTokens: 4000,
+      schema: {
+        name: "monthly_schedule",
+        schema: {
+          type: "object", additionalProperties: false,
+          properties: {
+            days: {
+              type: "array", minItems: 1, maxItems: 31,
+              items: {
+                type: "object", additionalProperties: false,
+                properties: {
+                  day: { type: "integer", minimum: 1, maximum: 31 },
+                  morning: { type: "string" }, afternoon: { type: "string" },
+                },
+                required: ["day", "morning", "afternoon"],
+              },
+            },
+          },
+          required: ["days"],
+        },
+      },
     });
-
-    if (!aiResp.ok) {
-      const txt = await aiResp.text();
-      console.error("Falha no processamento de imagem", aiResp.status);
-      if (aiResp.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições atingido. Tente novamente em instantes." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiResp.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error(`AI gateway error: ${aiResp.status}`);
-    }
-
-    const aiJson = await aiResp.json();
-    const raw = aiJson?.choices?.[0]?.message?.content ?? "{}";
-    let parsed: { days?: Array<{ day: number; morning?: string; afternoon?: string }> };
-    try {
-      parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    } catch {
-      const match = String(raw).match(/\{[\s\S]*\}/);
-      parsed = match ? JSON.parse(match[0]) : { days: [] };
-    }
+    const parsed = parseOpenAIJSON<{ days?: Array<{ day: number; morning?: string; afternoon?: string }> }>(raw);
 
     const days = Array.isArray(parsed?.days) ? parsed.days : [];
     if (days.length === 0) {
@@ -103,6 +94,11 @@ Responda APENAS com JSON válido, sem markdown, no formato:
     }
 
     const daysInMonth = new Date(year, month, 0).getDate();
+    if (days.some(d => !Number.isInteger(d.day) || d.day < 1 || d.day > daysInMonth
+      || typeof d.morning !== "string" || typeof d.afternoon !== "string")
+      || new Set(days.map(d => d.day)).size !== days.length) {
+      throw new OpenAIError("A escala extraída contém dias inválidos ou duplicados. Revise o arquivo.", 422);
+    }
     const rows = days
       .filter((d) => Number.isInteger(d.day) && d.day >= 1 && d.day <= daysInMonth)
       .map((d) => {
@@ -118,6 +114,8 @@ Responda APENAS com JSON válido, sem markdown, no formato:
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    if (rows.length === 0) throw new OpenAIError("Não foram encontrados dias úteis na escala. Revise o arquivo.", 422);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -153,7 +151,7 @@ Responda APENAS com JSON válido, sem markdown, no formato:
   } catch (err) {
     console.error("import-schedule-image error", err);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500,
+      status: err instanceof OpenAIError ? err.status : 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
