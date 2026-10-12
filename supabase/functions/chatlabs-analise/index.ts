@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { generateOpenAIText, OpenAIError } from "../_shared/openai.ts";
 
 const BASE = "https://apimain3.chatlabs.com.br";
 const SLUG_API = "suavisao";
@@ -75,9 +76,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const TOKEN = Deno.env.get("CHATLABS_TOKEN");
-    const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!TOKEN) throw new Error("CHATLABS_TOKEN ausente");
-    if (!LOVABLE_KEY) throw new Error("LOVABLE_API_KEY ausente");
+    if (!Deno.env.get("OPENAI_API_KEY")) throw new OpenAIError("OPENAI_API_KEY não configurada nos secrets do Supabase.", 503);
 
     const url = new URL(req.url);
     const today = new Date();
@@ -143,21 +143,12 @@ Seja específico, cite exemplos curtos entre aspas tirados das conversas. Não i
 
     const user = `PERÍODO: ${start} a ${end}\nAMOSTRA: ${convA.length} agendadas e ${convN.length} não agendadas.\n\n=== AGENDADAS ===\n${blocoA}\n\n=== NÃO AGENDADAS ===\n${blocoN}`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_KEY}` },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: user },
-        ],
-        temperature: 0.4,
-      }),
+    const report = await generateOpenAIText({
+      modelEnv: "OPENAI_ANALYSIS_MODEL",
+      instructions: SYSTEM,
+      input: user,
+      maxOutputTokens: 4500,
     });
-    if (!aiRes.ok) throw new Error(`AI ${aiRes.status}: ${await aiRes.text()}`);
-    const aiJ = await aiRes.json();
-    const report = aiJ.choices?.[0]?.message?.content ?? "";
 
     return new Response(JSON.stringify({
       periodo: { start, end },
@@ -172,7 +163,7 @@ Seja específico, cite exemplos curtos entre aspas tirados das conversas. Não i
   } catch (e) {
     console.error("chatlabs-analise error", e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: e instanceof OpenAIError ? e.status : 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
