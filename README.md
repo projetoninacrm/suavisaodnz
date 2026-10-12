@@ -8,7 +8,7 @@ vamos fazer um dashboard a partir dessa planilha do google sheets. use o cloud p
 
 This project was built with [Lovable](https://lovable.dev).
 
-**Live app**: https://suavisaodnz.lovable.app
+**Live app**: https://gerenciadnz.vercel.app/
 
 ## Build with Lovable
 

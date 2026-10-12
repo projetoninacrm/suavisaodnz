@@ -66,3 +66,28 @@ ChatLabs busca conversas reais; sua validação deve respeitar o escopo autoriza
 Referências: [Responses](https://developers.openai.com/api/docs/guides/text),
 [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs),
 [arquivos e PDFs](https://developers.openai.com/api/docs/guides/file-inputs).
+
+## Publicação e evidências de 12/10/2026
+
+- `OPENAI_API_KEY` salva nos secrets de `zwowpjdftalmlrocieog`.
+- As quatro funções foram publicadas no projeto de produção pelo dashboard.
+  O código anterior baixado de cada função correspondia à versão do repositório
+  antes da migração. Foram preservados ZIPs locais para rollback.
+- Para publicar pelo editor, cada `index.ts` inclui o conteúdo do helper
+  compartilhado; o repositório mantém o helper separado. O código completo no
+  editor foi conferido antes de cada publicação. A publicação pela CLI inclui
+  normalmente o helper através do import relativo.
+- TypeScript das quatro funções verificado, 10 testes fictícios aprovados e
+  build Vite concluído. A build manteve avisos existentes de CSS e tamanho de bundle.
+- API OpenAI real: GPT-4.1 mini retornou JSON estrito correto; GPT-4.1 leu um PDF
+  fictício e preservou o dia e os nomes esperados.
+- Endpoint `summarize-conversa` em produção: HTTP 200, resumo do conteúdo fictício
+  e `provider: "openai"`.
+- Endpoint `extract-ad-metrics` em produção: HTTP 200; print fictício retornou
+  investimento `10.5`, mensagens `3` e cliques `25`, conforme a imagem.
+- Não foi executada importação de escala no banco como teste, pois ela substitui
+  os registros do mês. O caminho de PDF foi verificado diretamente na API e a
+  validação anterior à escrita foi coberta por testes simulados.
+- `CHATLABS_TOKEN` não está configurado no projeto. O código de `chatlabs-analise`
+  já usa OpenAI, mas a análise real de ChatLabs depende desse secret. Não foram
+  enviadas conversas reais do ChatLabs durante a validação.
