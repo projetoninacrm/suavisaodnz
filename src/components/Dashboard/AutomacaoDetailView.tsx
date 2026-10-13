@@ -1173,7 +1173,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Enviado em</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Resposta</th>
-                      <th className="px-4 py-3 text-left font-semibold text-muted-foreground min-w-[200px]">Observação</th>
+                      <th className="px-4 py-3 text-left font-semibold text-muted-foreground min-w-[200px]">
+                        <span className="inline-flex items-center gap-2">
+                          Observação
+                          <Badge variant="secondary" className="px-1.5 py-0 text-[10px] leading-4">IA</Badge>
+                        </span>
+                      </th>
                       <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
                     </tr>
                   </thead>

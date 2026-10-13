@@ -7,7 +7,7 @@ As funções usam diretamente a API Responses da OpenAI. `OPENAI_API_KEY` perman
 | extract-ad-metrics | Extração de métricas de prints | gpt-4.1-mini |
 | import-schedule-image | Leitura de imagem/PDF da escala | gpt-4.1 |
 | summarize-conversa | Resumo das novas mensagens de automações | gpt-4.1-mini |
-| whatsapp-analise | Classificação e relatório na aba Análise WhatsApp | gpt-4.1-mini |
+| whatsapp-webhook → summarize-conversa | Resume a posição do cliente em novas conversas vinculadas a automações e grava em automacao_disparos.observacao | gpt-4.1-mini |
 
 ## WhatsApp a partir da ativação
 
@@ -17,7 +17,7 @@ A migração `20261013120000_whatsapp_forward_capture.sql` registra o instante i
 
 O receptor confirma a entrega após persistir a mensagem. Resumos de automações são calculados em segundo plano; falhas preservam a mensagem na caixa de entrada. Identificadores LID são armazenados sem tentativa de adivinhar o telefone do lead. Conteúdo histórico já importado permanece no banco, mas não entra na análise nova.
 
-A análise considera até 1.000 mensagens recentes do período, até 50 mensagens por conversa e até 20 conversas pela interface. A classificação é inferida pela IA e não altera agendas ou cadastros. Áudio e outras mídias aparecem como marcadores, sem transcrição. Respostas automáticas a clientes ainda não estão implementadas.
+O resumo de cada automação considera somente as mensagens recebidas após a ativação, até 50 por conversa. Apenas resultados retornados pela OpenAI são gravados no campo observacao; uma falha da OpenAI não substitui o campo com uma classificação heurística. O conteúdo pode ser revisto na tabela Enviados e agregado pela aba Relatório. Áudio e outras mídias aparecem como marcadores, sem transcrição. Respostas automáticas a clientes não são usadas.
 
 Os nomes `chatlabs-analise` e `chatlabs-conversas` ficam como aliases de compatibilidade para os novos endpoints. Nenhuma chamada ao ChatLabs nem `CHATLABS_TOKEN` é necessária. Os aliases retornam o novo contrato baseado nas mensagens do Supabase.
 
