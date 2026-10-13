@@ -10,7 +10,9 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.whatsapp-webhook]
-verify_jwt = true
+# UAZAPI supplies its instance token in the event envelope.
+# The handler rejects any payload without the exact UAZAPI_TOKEN_DNZ secret.
+verify_jwt = false
 
 
 [functions.backfill-observacoes]
@@ -23,6 +25,12 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.chatlabs-conversas]
+verify_jwt = true
+
+[functions.whatsapp-analise]
+verify_jwt = true
+
+[functions.whatsapp-conversas]
 verify_jwt = true
 
 [functions.extract-ad-metrics]

@@ -1,93 +1,37 @@
 # Integração de IA
 
-As quatro funções de IA usam diretamente `https://api.openai.com/v1/responses`.
-A chave `OPENAI_API_KEY` fica nos secrets do Supabase, nunca no frontend ou na Vercel.
-O cliente REST compartilhado usa `store: false`, timeout e tratamento de recusa,
-resposta incompleta, chave inválida, cota esgotada e limite temporário de requisições.
-Logs não incluem prompts, arquivos, respostas do modelo ou credenciais.
+As funções usam diretamente a API Responses da OpenAI. `OPENAI_API_KEY` permanece nos secrets do Supabase `zwowpjdftalmlrocieog`, sem exposição no frontend. O cliente compartilhado usa `store: false`, timeout, respostas estruturadas e erros sanitizados.
 
-| Função | Como é usada | Resultado | Modelo padrão / secret opcional |
-| --- | --- | --- | --- |
-| `extract-ad-metrics` | `useAnuncios.ts` envia um print de Meta/Google Ads | JSON com investimento, mensagens e cliques; o dashboard calcula conversão/CPL e salva as métricas | `gpt-4.1-mini` / `OPENAI_METRICS_MODEL` |
-| `import-schedule-image` | `ScheduleTable.tsx` envia imagem/PDF da escala mensal | JSON com dias e médicos; a função substitui a escala do mês/aba no banco | `gpt-4.1` / `OPENAI_SCHEDULE_MODEL` |
-| `summarize-conversa` | `whatsapp-webhook` envia histórico e mensagem original para resumir respostas do cliente | `{ summary, provider }`; preserva o fallback local por palavras-chave quando a API falha | `gpt-4.1-mini` / `OPENAI_SUMMARY_MODEL` |
-| `chatlabs-analise` | Endpoint com período e amostra; busca conversas agendadas/não agendadas no ChatLabs | Relatório de padrões, perdas, scripts e treinamento; exige também `CHATLABS_TOKEN` | `gpt-4.1-mini` / `OPENAI_ANALYSIS_MODEL` |
+| Função | Uso | Modelo padrão |
+| --- | --- | --- |
+| extract-ad-metrics | Extração de métricas de prints | gpt-4.1-mini |
+| import-schedule-image | Leitura de imagem/PDF da escala | gpt-4.1 |
+| summarize-conversa | Resumo das novas mensagens de automações | gpt-4.1-mini |
+| whatsapp-analise | Classificação e relatório na aba Análise WhatsApp | gpt-4.1-mini |
 
-Não foi encontrada chamada de `chatlabs-analise` no frontend atual. O endpoint
-continua disponível para seus consumidores existentes. Os plugins Vite e o
-adaptador de autenticação de preview do Lovable não são modelos de IA.
+## WhatsApp a partir da ativação
 
-As extrações de métricas e escala usam JSON Schema estrito. Os contratos existentes
-do dashboard foram mantidos. Na escala, dias inválidos/duplicados e resultados
-sem dias úteis são rejeitados antes de modificar o banco. O resumo continua
-priorizando a posição do cliente, e informa `provider: "fallback"` quando usa
-regras locais em vez da OpenAI.
+A UAZAPI DNZ entrega os eventos ao receptor `whatsapp-webhook`. O receptor exige o token da instância (`UAZAPI_TOKEN_DNZ`) no envelope; por isso ele usa `verify_jwt = false`. Os endpoints de consulta e análise exigem JWT e usuário autenticado.
 
-## Configuração e publicação
+A migração `20261013120000_whatsapp_forward_capture.sql` registra o instante inicial e cria uma caixa de entrada com RLS, leitura para usuários autenticados e escrita exclusiva do backend. Mensagens anteriores ao instante inicial, eventos de histórico e grupos são ignorados. A chave única de instância/mensagem impede duplicatas. O envelope e seus tokens não são armazenados.
 
-Projeto: `zwowpjdftalmlrocieog` (`suavisaodnz`).
+O receptor confirma a entrega após persistir a mensagem. Resumos de automações são calculados em segundo plano; falhas preservam a mensagem na caixa de entrada. Identificadores LID são armazenados sem tentativa de adivinhar o telefone do lead. Conteúdo histórico já importado permanece no banco, mas não entra na análise nova.
 
-1. Salve `OPENAI_API_KEY` nos secrets desse projeto. A conta da API precisa ter
-   crédito/cota e acesso aos modelos. A assinatura ChatGPT não substitui a chave da API.
-2. Os secrets por função são opcionais. `OPENAI_MODEL` é um override global;
-   um override específico por função tem prioridade sobre ele.
-3. Autentique a CLI do Supabase com uma conta que acessa a organização Nina.
-   Confira o acesso e o secret antes de publicar:
+A análise considera até 1.000 mensagens recentes do período, até 50 mensagens por conversa e até 20 conversas pela interface. A classificação é inferida pela IA e não altera agendas ou cadastros. Áudio e outras mídias aparecem como marcadores, sem transcrição. Respostas automáticas a clientes ainda não estão implementadas.
 
-```sh
-npx supabase projects list
-npx supabase secrets list --project-ref zwowpjdftalmlrocieog
-npx supabase functions deploy extract-ad-metrics --project-ref zwowpjdftalmlrocieog --use-api
-npx supabase functions deploy import-schedule-image --project-ref zwowpjdftalmlrocieog --use-api
-npx supabase functions deploy summarize-conversa --project-ref zwowpjdftalmlrocieog --use-api
-npx supabase functions deploy chatlabs-analise --project-ref zwowpjdftalmlrocieog --use-api
-```
+Os nomes `chatlabs-analise` e `chatlabs-conversas` ficam como aliases de compatibilidade para os novos endpoints. Nenhuma chamada ao ChatLabs nem `CHATLABS_TOKEN` é necessária. Os aliases retornam o novo contrato baseado nas mensagens do Supabase.
 
-O JWT das funções permanece habilitado conforme `supabase/config.toml`.
-Essas alterações não exigem migração de tabelas nem mudança de variáveis na Vercel.
-A implantação das Edge Functions é separada do deploy do frontend na Vercel.
-O secret antigo do Lovable não é usado pelo código migrado; mantenha-o enquanto
-uma versão antiga puder precisar de rollback.
+## Publicação
 
-## Validação
+1. Aplicar a migração e publicar as funções pelo GitHub integrado à branch main.
+2. Confirmar que `OPENAI_API_KEY` e `UAZAPI_TOKEN_DNZ` estão configurados no projeto correto.
+3. Somente depois, atualizar o webhook existente da UAZAPI para `https://zwowpjdftalmlrocieog.supabase.co/functions/v1/whatsapp-webhook`, mantendo o evento messages e a exclusão de grupos.
+4. Publicar o frontend na Vercel e conferir a aba Análise WhatsApp.
 
-```sh
-npx deno check --no-lock --node-modules-dir=none supabase/functions/extract-ad-metrics/index.ts supabase/functions/import-schedule-image/index.ts supabase/functions/summarize-conversa/index.ts supabase/functions/chatlabs-analise/index.ts
-npx deno test --no-lock --node-modules-dir=none --allow-env supabase/functions/_shared/
-npm run build
-```
+Overrides opcionais: `OPENAI_MODEL`, `OPENAI_METRICS_MODEL`, `OPENAI_SCHEDULE_MODEL`, `OPENAI_SUMMARY_MODEL`, `OPENAI_ANALYSIS_MODEL`.
 
-Os testes do cliente usam apenas conteúdo fictício e rede simulada. Para validar
-a API real após publicação, comece com um resumo fictício e um print de métricas
-fictício; confirme `provider: "openai"` no resumo. Não use a importação de escala
-em produção como teste: ela substitui registros do mês selecionado. A integração
-ChatLabs busca conversas reais; sua validação deve respeitar o escopo autorizado.
+## Validação local de 13/10/2026
 
-Referências: [Responses](https://developers.openai.com/api/docs/guides/text),
-[Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs),
-[arquivos e PDFs](https://developers.openai.com/api/docs/guides/file-inputs).
+TypeScript do frontend e das funções verificado, build concluída e 16 testes simulados aprovados. Os testes cobrem token, corte temporal, grupos, histórico, identificadores LID, deduplicação, persistência e falhas para retry. Nenhuma mensagem foi enviada a clientes como teste.
 
-## Publicação e evidências de 12/10/2026
-
-- `OPENAI_API_KEY` salva nos secrets de `zwowpjdftalmlrocieog`.
-- As quatro funções foram publicadas no projeto de produção pelo dashboard.
-  O código anterior baixado de cada função correspondia à versão do repositório
-  antes da migração. Foram preservados ZIPs locais para rollback.
-- Para publicar pelo editor, cada `index.ts` inclui o conteúdo do helper
-  compartilhado; o repositório mantém o helper separado. O código completo no
-  editor foi conferido antes de cada publicação. A publicação pela CLI inclui
-  normalmente o helper através do import relativo.
-- TypeScript das quatro funções verificado, 10 testes fictícios aprovados e
-  build Vite concluído. A build manteve avisos existentes de CSS e tamanho de bundle.
-- API OpenAI real: GPT-4.1 mini retornou JSON estrito correto; GPT-4.1 leu um PDF
-  fictício e preservou o dia e os nomes esperados.
-- Endpoint `summarize-conversa` em produção: HTTP 200, resumo do conteúdo fictício
-  e `provider: "openai"`.
-- Endpoint `extract-ad-metrics` em produção: HTTP 200; print fictício retornou
-  investimento `10.5`, mensagens `3` e cliques `25`, conforme a imagem.
-- Não foi executada importação de escala no banco como teste, pois ela substitui
-  os registros do mês. O caminho de PDF foi verificado diretamente na API e a
-  validação anterior à escrita foi coberta por testes simulados.
-- `CHATLABS_TOKEN` não está configurado no projeto. O código de `chatlabs-analise`
-  já usa OpenAI, mas a análise real de ChatLabs depende desse secret. Não foram
-  enviadas conversas reais do ChatLabs durante a validação.
+Referências: [OpenAI Responses](https://developers.openai.com/api/docs/guides/text), [UAZAPI webhooks](https://docs.uazapi.com/docs/integrations-webhooks), [eventos de mensagens](https://docs.uazapi.com/webhook/messages).
