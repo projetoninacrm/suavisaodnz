@@ -44,13 +44,11 @@ async function mocked(
     "OPENAI_SCHEDULE_MODEL",
     "OPENAI_SUMMARY_MODEL",
     "OPENAI_ANALYSIS_MODEL",
-    "CHATLABS_TOKEN",
   ];
   const old = names.map((n) => Deno.env.get(n));
   const oldFetch = globalThis.fetch;
   names.forEach((n) => Deno.env.delete(n));
   if (key) Deno.env.set("OPENAI_API_KEY", key);
-  Deno.env.set("CHATLABS_TOKEN", "synthetic-chatlabs-token");
   globalThis.fetch = fetcher;
   try {
     await fn();
@@ -149,26 +147,17 @@ Deno.test("WhatsApp summary distinguishes OpenAI from local fallback without fai
   }, null);
 });
 
-Deno.test("ChatLabs analysis preserves report metadata and uses OpenAI for the report", async () => {
+Deno.test("legacy analysis alias rejects unauthenticated access without calling ChatLabs", async () => {
   await mocked(async () => {
     const response = await analysis(
       new Request("https://synthetic.test?start=2026-10-01&end=2026-10-02"),
     );
     const data = await response.json();
     assert(
-      response.status === 200 &&
-        data.relatorio === "Sem mensagens na amostra fictícia." &&
-        data.totais.timeline === 0,
-      "Analysis response contract changed",
+      response.status === 401 && typeof data.error === "string",
+      "Analysis must require an authenticated user",
     );
-  }, async (url) => {
-    if (String(url).startsWith("https://apimain3.chatlabs.com.br/reports/")) {
-      return Response.json({ data: [], paginationInfo: {} });
-    }
-    assert(
-      url === "https://api.openai.com/v1/responses",
-      "Unexpected outbound request",
-    );
-    return output("Sem mensagens na amostra fictícia.");
+  }, () => {
+    throw new Error("Unauthenticated requests must not access any provider");
   });
 });
