@@ -23,7 +23,10 @@ async function updateAutomationSummary(db: SupabaseClient, message: IncomingMess
     body: JSON.stringify({ history }),
     signal: AbortSignal.timeout(20_000),
   });
-  if (response.ok) summary = (await response.json()).summary || null;
+  if (response.ok) {
+    const result = await response.json();
+    if (result.provider === "openai") summary = result.summary || null;
+  }
   // Historical imported content is preserved in the UI, but never sent to OpenAI here.
   const entry = "[" + new Date(message.message_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) + " - " + (message.from_me ? "Vendedor" : "Cliente") + "] " + message.body;
   for (const disparo of disparos) {
