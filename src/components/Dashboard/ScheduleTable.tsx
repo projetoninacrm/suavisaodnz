@@ -10,6 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { Schedule } from "@/hooks/useSchedules";
+import { PersonSelect } from "@/components/Dashboard/PersonSelect";
+import { useDirectory } from "@/hooks/useDirectory";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -47,6 +50,15 @@ const MONTH_LABELS: Record<string, string> = {
   out: "Outubro",
   nov: "Novembro",
   dez: "Dezembro",
+};
+const LEGACY_SCHEDULE_YEAR = 2026;
+
+type SchedulePreviewRow = {
+  sheet_name: string;
+  date: string;
+  day_of_week: string;
+  morning_shift: string;
+  afternoon_shift: string;
 };
 
 const DAY_OF_WEEK_MAP: Record<number, string> = {
@@ -99,6 +111,16 @@ function getMonthFromDate(dateStr: string): string | null {
   return null;
 }
 
+function getYearFromDate(dateStr: string): number | null {
+  if (!dateStr) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return Number(dateStr.slice(0, 4));
+  const parts = dateStr.split("/");
+  if (parts.length >= 3 && /^\d{4}$/.test(parts[2].trim())) return Number(parts[2].trim());
+  // Schedules created by the earlier UI stored only DD/mon and were generated for 2026.
+  if (parts.length === 2) return LEGACY_SCHEDULE_YEAR;
+  return null;
+}
+
 // Helper: formata data ISO (YYYY-MM-DD) para DD/mes
 function formatDateForDisplay(dateStr: string): string {
   if (!dateStr) return "";
@@ -107,7 +129,7 @@ function formatDateForDisplay(dateStr: string): string {
     if (parts.length === 3) {
       const monthNum = parseInt(parts[1], 10);
       if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
-        return `${parts[2]}/${MONTH_NAMES[monthNum - 1]}`;
+        return `${parts[2]}/${MONTH_NAMES[monthNum - 1]}/${parts[0]}`;
       }
     }
   }
@@ -117,7 +139,6 @@ function formatDateForDisplay(dateStr: string): string {
 // Gera todos os dias de um mês (exceto domingos)
 function generateMonthDays(monthIndex: number, year: number): { date: string; dayOfWeek: string }[] {
   const days: { date: string; dayOfWeek: string }[] = [];
-  const monthName = MONTH_NAMES[monthIndex];
   
   // Primeiro dia do mês
   const firstDay = new Date(year, monthIndex, 1);
@@ -132,7 +153,7 @@ function generateMonthDays(monthIndex: number, year: number): { date: string; da
     if (dayOfWeek !== "DOM") {
       const dayStr = day.toString().padStart(2, "0");
       days.push({
-        date: `${dayStr}/${monthName}`,
+        date: `${year}-${String(monthIndex + 1).padStart(2, "0")}-${dayStr}`,
         dayOfWeek,
       });
     }
@@ -144,18 +165,22 @@ function generateMonthDays(monthIndex: number, year: number): { date: string; da
 interface ScheduleTableProps {
   schedules: Schedule[];
   onUpdate: (id: string, field: keyof Schedule, value: string) => void;
+  onUpdateProfessional: (id: string, shift: "morning" | "afternoon", professionalId: string | null, name: string | null) => void;
   onDelete: (id: string) => void;
   onRefresh?: () => void;
 }
 
-export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: ScheduleTableProps) {
+export function ScheduleTable({ schedules, onUpdate, onUpdateProfessional, onDelete, onRefresh }: ScheduleTableProps) {
   const { toast } = useToast();
+  const { people: professionals, isLoading: professionalsLoading } = useDirectory("professionals");
   // Inicia com o mês atual
   const currentMonthIndex = new Date().getMonth();
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTH_NAMES[currentMonthIndex]);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [isGenerating, setIsGenerating] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [previewRows, setPreviewRows] = useState<SchedulePreviewRow[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,18 +190,26 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
     const monthsSet = new Set<string>();
     schedules.forEach(s => {
       const month = getMonthFromDate(s.date);
-      if (month) monthsSet.add(month);
+      if (month && getYearFromDate(s.date) === selectedYear) monthsSet.add(month);
     });
     return MONTH_NAMES.filter(m => monthsSet.has(m));
+  }, [schedules, selectedYear]);
+
+  const availableYears = useMemo(() => {
+    const years = new Set(schedules.map((schedule) => getYearFromDate(schedule.date)).filter((year): year is number => year !== null));
+    years.add(new Date().getFullYear() - 1);
+    years.add(new Date().getFullYear());
+    years.add(new Date().getFullYear() + 1);
+    return [...years].sort((a, b) => a - b);
   }, [schedules]);
 
   // Filtra schedules pelo mês selecionado
   const filteredSchedules = useMemo(() => {
     return schedules.filter(s => {
       const month = getMonthFromDate(s.date);
-      return month === selectedMonth;
+      return month === selectedMonth && getYearFromDate(s.date) === selectedYear;
     });
-  }, [schedules, selectedMonth]);
+  }, [schedules, selectedMonth, selectedYear]);
 
   const scheduleCount = filteredSchedules.length;
   const hasDataInMonth = availableMonths.includes(selectedMonth);
@@ -187,8 +220,7 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
     
     try {
       const monthIndex = MONTH_NAMES.indexOf(selectedMonth);
-      // Usa 2026 como ano padrão (baseado no contexto do projeto)
-      const year = 2026;
+      const year = selectedYear;
       
       const days = generateMonthDays(monthIndex, year);
       
@@ -210,7 +242,7 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
       
       toast({
         title: "Escala gerada!",
-        description: `${newSchedules.length} dias criados para ${MONTH_LABELS[selectedMonth]}.`,
+        description: `${newSchedules.length} dias criados para ${MONTH_LABELS[selectedMonth]} de ${selectedYear}.`,
       });
       
       // Atualiza a lista
@@ -228,12 +260,12 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
     }
   };
 
-  const handleImportSchedule = async () => {
+  const handlePreviewSchedule = async () => {
     if (!importFile) return;
     setIsImporting(true);
     try {
       const monthIndex = MONTH_NAMES.indexOf(selectedMonth);
-      const year = 2026;
+      const year = selectedYear;
 
       const fileBase64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -247,6 +279,7 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
 
       const { data, error } = await supabase.functions.invoke("import-schedule-image", {
         body: {
+          action: "preview",
           fileBase64,
           mimeType: importFile.type || "image/png",
           month: monthIndex + 1,
@@ -258,19 +291,55 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
       if (error) throw error;
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
 
+      const rows = (data as { rows?: SchedulePreviewRow[] })?.rows || [];
+      if (!rows.length) throw new Error("A IA não encontrou dias para mostrar na prévia.");
+      setPreviewRows(rows);
+      toast({
+        title: "Prévia pronta",
+        description: `${rows.length} dias reconhecidos. Revise antes de gravar.`,
+      });
+    } catch (err) {
+      console.error("Schedule preview error:", err);
+      toast({
+        title: "Erro ao ler a escala",
+        description: (err as Error).message || "Tente outra imagem mais nítida.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!previewRows.length) return;
+    setIsImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("import-schedule-image", {
+        body: {
+          action: "confirm",
+          rows: previewRows,
+          month: MONTH_NAMES.indexOf(selectedMonth) + 1,
+          year: selectedYear,
+          sheetName: "Escala",
+        },
+      });
+      if (error) throw error;
+      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+
       const inserted = (data as { inserted?: number })?.inserted ?? 0;
       toast({
-        title: "Agenda importada!",
-        description: `${inserted} dias replicados para ${MONTH_LABELS[selectedMonth]}.`,
+        title: "Escala importada",
+        description: `${inserted} dias gravados para ${MONTH_LABELS[selectedMonth]} de ${selectedYear}.`,
       });
       setImportOpen(false);
       setImportFile(null);
+      setPreviewRows([]);
       if (onRefresh) onRefresh();
     } catch (err) {
-      console.error("Import error:", err);
+      console.error("Schedule import error:", err);
       toast({
-        title: "Erro ao importar agenda",
-        description: (err as Error).message || "Tente outra imagem mais nítida.",
+        title: "Erro ao importar escala",
+        description: (err as Error).message || "Não foi possível gravar a escala.",
         variant: "destructive",
       });
     } finally {
@@ -290,6 +359,7 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
       return;
     }
     setImportFile(file);
+    setPreviewRows([]);
   };
 
   return (
@@ -335,6 +405,12 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Select value={String(selectedYear)} onValueChange={(year) => setSelectedYear(Number(year))}>
+              <SelectTrigger aria-label="Ano da escala" className="w-[110px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {availableYears.map((year) => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <span className="text-sm text-muted-foreground">
               ({scheduleCount} registros)
             </span>
@@ -358,7 +434,7 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
                     ) : (
                       <Wand2 className="h-4 w-4" />
                     )}
-                    Gerar Escala de {MONTH_LABELS[selectedMonth]}
+                    Gerar Escala de {MONTH_LABELS[selectedMonth]} de {selectedYear}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -366,7 +442,7 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
                     <AlertDialogTitle>Gerar Escala Automática</AlertDialogTitle>
                     <AlertDialogDescription className="space-y-2">
                       <p>
-                        Isso criará a escala de <strong>{MONTH_LABELS[selectedMonth]}</strong> seguindo o padrão semanal:
+                        Isso criará a escala de <strong>{MONTH_LABELS[selectedMonth]} de {selectedYear}</strong> seguindo o padrão semanal:
                       </p>
                       <div className="mt-3 p-3 bg-muted rounded-lg text-sm space-y-1">
                         <p><strong>SEG:</strong> ANA (manhã e tarde)</p>
@@ -395,13 +471,12 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
       </Card>
 
       {/* Modal Importar Agenda */}
-      <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) setImportFile(null); }}>
+      <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) { setImportFile(null); setPreviewRows([]); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Importar Agenda — {MONTH_LABELS[selectedMonth]}</DialogTitle>
+            <DialogTitle>Importar Escala — {MONTH_LABELS[selectedMonth]} de {selectedYear}</DialogTitle>
             <DialogDescription>
-              Arraste uma foto/print ou PDF da escala. A IA vai ler e replicar exatamente os médicos
-              de cada turno. Os registros já existentes em {MONTH_LABELS[selectedMonth]} serão substituídos.
+              A IA lê os profissionais por turno. Você verá a prévia antes de gravar; os registros atuais só serão substituídos na confirmação.
             </DialogDescription>
           </DialogHeader>
 
@@ -444,13 +519,46 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
             )}
           </div>
 
+          {previewRows.length > 0 && (
+            <section aria-label="Prévia da escala reconhecida" className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium">Prévia: {previewRows.length} dias</p>
+                <p className="text-xs text-muted-foreground">
+                  {scheduleCount > 0 ? `${scheduleCount} registros atuais serão substituídos.` : "Nenhum registro atual será removido."}
+                </p>
+              </div>
+              <div className="max-h-56 overflow-auto rounded-md border" role="region" aria-label="Dias e turnos identificados">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-muted text-left text-xs text-muted-foreground">
+                    <tr><th className="px-3 py-2">Data</th><th className="px-3 py-2">Manhã</th><th className="px-3 py-2">Tarde</th></tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {previewRows.map((row) => (
+                      <tr key={row.date}>
+                        <td className="whitespace-nowrap px-3 py-2">{formatDateForDisplay(row.date)}</td>
+                        <td className="px-3 py-2">{row.morning_shift || "—"}</td>
+                        <td className="px-3 py-2">{row.afternoon_shift || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportOpen(false)} disabled={isImporting}>
               Cancelar
             </Button>
-            <Button onClick={handleImportSchedule} disabled={!importFile || isImporting} className="gap-2">
+            <Button
+              onClick={previewRows.length > 0 ? handleConfirmImport : handlePreviewSchedule}
+              disabled={!importFile || isImporting}
+              className="gap-2"
+            >
               {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              {isImporting ? "Importando..." : "Importar"}
+              {isImporting ? "Processando…" : previewRows.length > 0
+                ? scheduleCount > 0 ? `Confirmar e substituir ${scheduleCount}` : `Confirmar escala (${previewRows.length} dias)`
+                : "Ler e mostrar prévia"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -494,17 +602,25 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
                     />
                   </td>
                   <td className="px-4 py-1">
-                    <EditableCell
-                      value={schedule.morning_shift || ""}
-                      onSave={(value) => onUpdate(schedule.id, "morning_shift", value)}
-                      placeholder="Nome"
+                    <PersonSelect
+                      people={professionals}
+                      value={schedule.morning_shift_professional_id}
+                      currentLabel={schedule.morning_shift}
+                      onValueChange={(id, person) => onUpdateProfessional(schedule.id, "morning", id, person?.name || null)}
+                      placeholder="Selecionar profissional"
+                      emptyLabel="Sem profissional"
+                      disabled={professionalsLoading}
                     />
                   </td>
                   <td className="px-4 py-1">
-                    <EditableCell
-                      value={schedule.afternoon_shift || ""}
-                      onSave={(value) => onUpdate(schedule.id, "afternoon_shift", value)}
-                      placeholder="Nome"
+                    <PersonSelect
+                      people={professionals}
+                      value={schedule.afternoon_shift_professional_id}
+                      currentLabel={schedule.afternoon_shift}
+                      onValueChange={(id, person) => onUpdateProfessional(schedule.id, "afternoon", id, person?.name || null)}
+                      placeholder="Selecionar profissional"
+                      emptyLabel="Sem profissional"
+                      disabled={professionalsLoading}
                     />
                   </td>
                   <td className="px-4 py-2 text-center">
@@ -527,11 +643,11 @@ export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: Sche
         </div>
         {filteredSchedules.length === 0 && (
           <div className="px-6 py-12 text-center text-muted-foreground">
-            <p>Nenhum registro encontrado para {MONTH_LABELS[selectedMonth]}.</p>
+            <p>Nenhum registro encontrado para {MONTH_LABELS[selectedMonth]} de {selectedYear}.</p>
             <p className="text-sm mt-1">
               {hasDataInMonth 
                 ? 'Clique em "Nova Linha" para adicionar.' 
-                : `Clique em "Gerar Escala de ${MONTH_LABELS[selectedMonth]}" para criar automaticamente.`
+                : `Clique em "Gerar Escala de ${MONTH_LABELS[selectedMonth]} de ${selectedYear}" para criar automaticamente.`
               }
             </p>
           </div>

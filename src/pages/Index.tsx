@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
@@ -10,10 +11,9 @@ import { IndicadoresTable } from "@/components/Dashboard/IndicadoresTable";
 import { MetasCalculator } from "@/components/Dashboard/MetasCalculator";
 import { NewLeadDialog } from "@/components/Dashboard/NewLeadDialog";
 import { PerdasSection } from "@/components/Dashboard/PerdasSection";
-import { AnunciosTable } from "@/components/Dashboard/AnunciosTable";
 import { AutomacoesTable } from "@/components/Dashboard/AutomacoesTable";
 import { LeadGenderKanban } from "@/components/Dashboard/LeadGenderKanban";
-import { TaxaRetornoSection } from "@/components/Dashboard/TaxaRetornoSection";
+import { DirectoryManagement } from "@/components/Dashboard/DirectoryManagement";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useLeads, type NewLeadData } from "@/hooks/useLeads";
 import { useGenericTable } from "@/hooks/useGenericTable";
@@ -21,7 +21,7 @@ import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useAcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 import { useLeadsGenderStats, applyLeadFilters } from "@/hooks/useLeadsGenderStats";
 
-const TABS_DNZ = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Anúncios DNZ", "Anúncios SV", "Automações", "Taxa de Retorno SV"];
+const TABS_DNZ = ["Agenda", "Leads", "Perdas", "Detalhado", "Indicadores", "Metas", "Automações", "Cadastros"];
 
 const INDICADORES_COLUMNS = [
   { key: "indicador", label: "Indicador", width: "200px" },
@@ -36,7 +36,9 @@ const INDICADORES_COLUMNS = [
 
 const Index = () => {
   const TABS = TABS_DNZ;
-  const [activeTab, setActiveTab] = useState(TABS_DNZ[0]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(TABS_DNZ.includes(requestedTab || "") ? requestedTab! : TABS_DNZ[0]);
   const [showNewLeadDialog, setShowNewLeadDialog] = useState(false);
   const [leadsFilters, setLeadsFilters] = useState<LeadsFilters>({
     data_registro: [],
@@ -45,11 +47,20 @@ const Index = () => {
     orcamento: "",
     venda: "",
     entrar_em_contato: [],
-    medico: "",
+    medico_id: "",
     status: "",
-    vendedor: "",
+    vendedor_id: "",
     pendente: false,
   });
+
+  useEffect(() => {
+    if (requestedTab && TABS_DNZ.includes(requestedTab)) setActiveTab(requestedTab);
+  }, [requestedTab]);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
   
   const schedules = useSchedules("Escala");
   const leads = useLeads();
@@ -67,10 +78,7 @@ const Index = () => {
     activeTab === "Metas" ? false :
     activeTab === "Detalhado" ? detalhadoAmigo.isLoading :
     activeTab === "Perdas" ? leads.isLoading :
-    activeTab === "Anúncios DNZ" ? false :
-    activeTab === "Anúncios SV" ? false :
     activeTab === "Automações" ? false :
-    activeTab === "Taxa de Retorno SV" ? false :
     false;
 
   // Stats for Leads tab - by channel (filtered by date and vendedor if filters are active)
@@ -138,9 +146,8 @@ const Index = () => {
       case "Metas": schedules.fetchSchedules(); break;
       case "Detalhado": detalhadoAmigo.refresh(); break;
       case "Perdas": leads.fetchLeads(); break;
-      case "Anúncios DNZ": break;
-      case "Anúncios SV": break;
       case "Automações": break;
+      case "Cadastros": break;
     }
   };
 
@@ -152,14 +159,12 @@ const Index = () => {
       case "Metas": break;
       case "Detalhado": break;
       case "Perdas": break;
-      case "Anúncios DNZ": break;
-      case "Anúncios SV": break;
       case "Automações": break;
     }
   };
 
-  const handleNewLeadSubmit = (data: NewLeadData) => {
-    leads.addLead(data);
+  const handleNewLeadSubmit = async (data: NewLeadData) => {
+    await leads.addLead(data);
   };
 
   const handleDetailedLeadSubmit = async ({ nome, numero }: { nome: string; numero: string }) => {
@@ -183,6 +188,7 @@ const Index = () => {
           <ScheduleTable
             schedules={schedules.schedules}
             onUpdate={schedules.updateSchedule}
+            onUpdateProfessional={schedules.updateScheduleProfessional}
             onDelete={schedules.deleteSchedule}
             onRefresh={schedules.fetchSchedules}
           />
@@ -192,6 +198,7 @@ const Index = () => {
           <LeadsTable
             leads={leads.leads}
             onUpdate={leads.updateLead}
+            onUpdatePerson={leads.updateLeadPerson}
             onDelete={leads.deleteLead}
             onFiltersChange={setLeadsFilters}
           />
@@ -228,14 +235,10 @@ const Index = () => {
         return (
           <PerdasSection leads={leads.leads} />
         );
-      case "Anúncios DNZ":
-        return <AnunciosTable tipo="DNZ" />;
-      case "Anúncios SV":
-        return <AnunciosTable tipo="SV" />;
       case "Automações":
-        return <AutomacoesTable leads={leads.leads} />;
-      case "Taxa de Retorno SV":
-        return <TaxaRetornoSection />;
+        return <AutomacoesTable />;
+      case "Cadastros":
+        return <DirectoryManagement />;
       default:
         return null;
     }
@@ -244,8 +247,9 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header 
-        onRefresh={handleRefresh} 
-        onAddRow={handleAddRow}
+        legacy
+        onRefresh={activeTab === "Cadastros" ? undefined : handleRefresh}
+        onAddRow={["Agenda", "Leads", "Indicadores"].includes(activeTab) ? handleAddRow : undefined}
         isLoading={isLoading}
       />
 
@@ -255,7 +259,7 @@ const Index = () => {
           <TabNavigation
             tabs={TABS}
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={handleTabChange}
           />
         </div>
 
@@ -349,12 +353,14 @@ const Index = () => {
         {renderTable()}
       </main>
 
-      <NewLeadDialog 
-        open={showNewLeadDialog} 
-        onOpenChange={setShowNewLeadDialog}
-        onSubmit={handleNewLeadSubmit}
-        existingLeads={leads.leads}
-      />
+      {showNewLeadDialog && (
+        <NewLeadDialog
+          open={showNewLeadDialog}
+          onOpenChange={setShowNewLeadDialog}
+          onSubmit={handleNewLeadSubmit}
+          existingLeads={leads.leads}
+        />
+      )}
     </div>
   );
 };

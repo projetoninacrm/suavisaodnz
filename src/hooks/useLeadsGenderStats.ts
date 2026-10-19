@@ -66,9 +66,9 @@ export const applyLeadFilters = (leads: Lead[], filters: LeadsFilters) => {
     if (filters.orcamento && lead.orcamento !== filters.orcamento) return false;
     if (filters.venda && lead.venda !== filters.venda) return false;
     if (filters.entrar_em_contato.length > 0 && !filters.entrar_em_contato.includes(lead.entrar_em_contato || "")) return false;
-    if (filters.medico && lead.medico !== filters.medico) return false;
+    if (filters.medico_id && lead.medico_id !== filters.medico_id) return false;
     if (filters.status && lead.status !== filters.status) return false;
-    if (filters.vendedor && lead.vendedor !== filters.vendedor) return false;
+    if (filters.vendedor_id && lead.vendedor_id !== filters.vendedor_id) return false;
     if (filters.pendente && !isContactDateOverdue(lead)) return false;
     return true;
   });

@@ -15,6 +15,8 @@ export interface Lead {
   obs: string | null;
   status: string | null;
   vendedor: string | null;
+  vendedor_id: string | null;
+  medico_id: string | null;
   valor: string | null;
   created_at: string;
   updated_at: string;
@@ -32,8 +34,16 @@ export interface NewLeadData {
   obs: string;
   status?: string;
   vendedor?: string;
+  vendedor_id?: string | null;
+  medico_id?: string | null;
   valor?: string;
 }
+
+export type LeadChanges = Partial<Pick<Lead,
+  "data_registro" | "canal" | "nome" | "numero" | "orcamento" | "venda" |
+  "entrar_em_contato" | "medico" | "medico_id" | "obs" | "status" |
+  "vendedor" | "vendedor_id" | "valor"
+>>;
 
 export function useLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -101,6 +111,50 @@ export function useLeads() {
     }
   };
 
+  const updateLeadFields = async (id: string, changes: LeadChanges) => {
+    try {
+      const { data, error } = await supabase
+        .from("leads")
+        .update(changes)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setLeads((previous) => previous.map((lead) => lead.id === id ? data : lead));
+      toast({ title: "Lead atualizado", description: "As alterações foram salvas." });
+      return data;
+    } catch (error) {
+      console.error("Error updating lead:", error);
+      toast({ title: "Erro ao salvar", description: "As alterações não foram salvas. Revise os dados e tente novamente.", variant: "destructive" });
+      throw error;
+    }
+  };
+
+  const updateLeadPerson = async (
+    id: string,
+    person: "employee" | "professional",
+    personId: string | null,
+    name: string | null,
+  ) => {
+    try {
+      const result = person === "employee"
+        ? await supabase.from("leads").update({ vendedor_id: personId, vendedor: name }).eq("id", id)
+        : await supabase.from("leads").update({ medico_id: personId, medico: name }).eq("id", id);
+      const { error } = result;
+      if (error) throw error;
+      setLeads((prev) => prev.map((lead) => lead.id === id
+        ? person === "employee"
+          ? { ...lead, vendedor_id: personId, vendedor: name }
+          : { ...lead, medico_id: personId, medico: name }
+        : lead));
+      toast({ title: "Responsável atualizado", description: name || "Atribuição removida." });
+    } catch (error) {
+      console.error("Error updating lead assignment:", error);
+      toast({ title: "Erro ao salvar", description: "Não foi possível atualizar a pessoa vinculada.", variant: "destructive" });
+    }
+  };
+
   const addLead = async (leadData: NewLeadData) => {
     try {
       const { data, error } = await supabase
@@ -144,5 +198,5 @@ export function useLeads() {
     fetchLeads();
   }, []);
 
-  return { leads, isLoading, fetchLeads, updateLead, addLead, deleteLead };
+  return { leads, isLoading, fetchLeads, updateLead, updateLeadFields, updateLeadPerson, addLead, deleteLead };
 }

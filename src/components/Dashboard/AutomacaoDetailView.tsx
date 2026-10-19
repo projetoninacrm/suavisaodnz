@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { Automacao, AutomacaoDisparo } from "@/hooks/useAutomacoes";
+import { getEmployeeAudioUrl } from "@/lib/employeeAudio";
 
 interface ClienteAgendado {
   id: string;
@@ -584,7 +585,9 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       const textError = error ? String(error.message || error) : (sendResult?.erro || null);
 
       let audioOk = true;
-      const audioUrl = (cliente.vendedor && automacao.audios_vendedor?.[cliente.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
+      const audioUrl = getEmployeeAudioUrl(automacao.audios_vendedor, cliente.vendedor)
+        || getEmployeeAudioUrl(automacao.audios_vendedor, "Thayssa")
+        || automacao.audio_url;
       if (textSent && audioUrl) {
         await new Promise(resolve => setTimeout(resolve, 1500));
         const { data: audioData, error: audioErr } = await supabase.functions.invoke("whatsapp-disparo", {
@@ -766,7 +769,9 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         const textError = error ? String(error.message || error) : (sendResult?.erro || null);
 
         let audioOk = true;
-        const audioUrl = (cliente.vendedor && automacao.audios_vendedor?.[cliente.vendedor]) || automacao.audios_vendedor?.["Thayssa"] || automacao.audio_url;
+        const audioUrl = getEmployeeAudioUrl(automacao.audios_vendedor, cliente.vendedor)
+          || getEmployeeAudioUrl(automacao.audios_vendedor, "Thayssa")
+          || automacao.audio_url;
         if (textSent && audioUrl) {
           await new Promise(resolve => setTimeout(resolve, 1500));
           const { data: audioData, error: audioErr } = await supabase.functions.invoke("whatsapp-disparo", {

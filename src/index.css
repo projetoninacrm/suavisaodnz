@@ -1,61 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 25% 10%;
+    /* Tokens exported from shadcn preset b1sRltPJg (Blue / Neutral / Cyan). */
+    --background: 1 0 0;
+    --foreground: 0.145 0 0;
+    --card: 1 0 0;
+    --card-foreground: 0.145 0 0;
+    --popover: 1 0 0;
+    --popover-foreground: 0.145 0 0;
+    --primary: 0.488 0.243 264.376;
+    --primary-foreground: 0.97 0.014 254.604;
+    --secondary: 0.967 0.001 286.375;
+    --secondary-foreground: 0.21 0.006 285.885;
+    --muted: 0.97 0 0;
+    --muted-foreground: 0.556 0 0;
+    --accent: 0.97 0 0;
+    --accent-foreground: 0.205 0 0;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.97 0.014 254.604;
+    --border: 0.922 0 0;
+    --border-alpha: 100%;
+    --input: 0.922 0 0;
+    --input-alpha: 100%;
+    --ring: 0.708 0 0;
+    --chart-1: 0.865 0.127 207.078;
+    --chart-2: 0.715 0.143 215.221;
+    --chart-3: 0.609 0.126 221.723;
+    --chart-4: 0.52 0.105 223.128;
+    --chart-5: 0.45 0.085 224.283;
+    --radius: 0.625rem;
+    --sidebar: 0.985 0 0;
+    --sidebar-foreground: 0.145 0 0;
+    --sidebar-primary: 0.546 0.245 262.881;
+    --sidebar-primary-foreground: 0.97 0.014 254.604;
+    --sidebar-accent: 0.97 0 0;
+    --sidebar-accent-foreground: 0.205 0 0;
+    --sidebar-border: var(--border);
+    --sidebar-ring: 0.708 0 0;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
+    /* Compatibility aliases for modules still on the previous layout. */
+    --sidebar-background: var(--sidebar);
+    --table-header: var(--muted);
+    --table-row-hover: var(--muted);
+    --table-border: var(--border);
+    --success: 0.52 0.14 165;
+    --warning: 0.68 0.16 65;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
-
-    --primary: 217 91% 50%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 25% 25%;
-
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 45%;
-
-    --accent: 165 82% 40%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 13% 90%;
-    --input: 220 13% 90%;
-    --ring: 217 91% 50%;
-
-    --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 25% 25%;
-    --sidebar-primary: 217 91% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 220 25% 25%;
-    --sidebar-border: 220 13% 90%;
-    --sidebar-ring: 217 91% 50%;
-
-    /* Custom colors */
-    --chart-1: 217 91% 50%;
-    --chart-2: 165 82% 40%;
-    --chart-3: 280 68% 55%;
-    --chart-4: 35 92% 55%;
-    --chart-5: 340 75% 55%;
-
-    --table-header: 220 14% 96%;
-    --table-row-hover: 220 14% 98%;
-    --table-border: 220 13% 92%;
-
+    /* Schedule colors stay HSL until the Escala screen is migrated. */
     --day-seg: 217 91% 50%;
     --day-ter: 165 82% 40%;
     --day-qua: 280 68% 55%;
@@ -65,57 +61,61 @@
   }
 
   .dark {
-    --background: 220 25% 8%;
-    --foreground: 220 14% 96%;
-
-    --card: 220 25% 12%;
-    --card-foreground: 220 14% 96%;
-
-    --popover: 220 25% 12%;
-    --popover-foreground: 220 14% 96%;
-
-    --primary: 217 91% 60%;
-    --primary-foreground: 220 25% 8%;
-
-    --secondary: 220 25% 18%;
-    --secondary-foreground: 220 14% 96%;
-
-    --muted: 220 25% 18%;
-    --muted-foreground: 220 10% 60%;
-
-    --accent: 165 82% 45%;
-    --accent-foreground: 220 25% 8%;
-
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 25% 20%;
-    --input: 220 25% 20%;
-    --ring: 217 91% 60%;
-
-    --sidebar-background: 220 25% 10%;
-    --sidebar-foreground: 220 14% 96%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 220 25% 8%;
-    --sidebar-accent: 220 25% 18%;
-    --sidebar-accent-foreground: 220 14% 96%;
-    --sidebar-border: 220 25% 20%;
-    --sidebar-ring: 217 91% 60%;
-
-    --table-header: 220 25% 15%;
-    --table-row-hover: 220 25% 14%;
-    --table-border: 220 25% 20%;
+    --background: 0.145 0 0;
+    --foreground: 0.985 0 0;
+    --card: 0.205 0 0;
+    --card-foreground: 0.985 0 0;
+    --popover: 0.205 0 0;
+    --popover-foreground: 0.985 0 0;
+    --primary: 0.424 0.199 265.638;
+    --primary-foreground: 0.97 0.014 254.604;
+    --secondary: 0.274 0.006 286.033;
+    --secondary-foreground: 0.985 0 0;
+    --muted: 0.269 0 0;
+    --muted-foreground: 0.708 0 0;
+    --accent: 0.269 0 0;
+    --accent-foreground: 0.985 0 0;
+    --destructive: 0.704 0.191 22.216;
+    --destructive-foreground: 0.985 0 0;
+    --border: 1 0 0;
+    --border-alpha: 10%;
+    --input: 1 0 0;
+    --input-alpha: 15%;
+    --ring: 0.556 0 0;
+    --chart-1: 0.865 0.127 207.078;
+    --chart-2: 0.715 0.143 215.221;
+    --chart-3: 0.609 0.126 221.723;
+    --chart-4: 0.52 0.105 223.128;
+    --chart-5: 0.45 0.085 224.283;
+    --sidebar: 0.205 0 0;
+    --sidebar-foreground: 0.985 0 0;
+    --sidebar-primary: 0.623 0.214 259.815;
+    --sidebar-primary-foreground: 0.97 0.014 254.604;
+    --sidebar-accent: 0.269 0 0;
+    --sidebar-accent-foreground: 0.985 0 0;
+    --sidebar-border: var(--border);
+    --sidebar-ring: 0.556 0 0;
+    --sidebar-background: var(--sidebar);
+    --table-header: var(--muted);
+    --table-row-hover: var(--muted);
+    --table-border: var(--border);
+    --success: 0.72 0.14 165;
+    --warning: 0.78 0.16 75;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: Inter, system-ui, sans-serif;
+    font-feature-settings: "tnum";
+    min-width: 320px;
+  }
+
+  button, input, select, textarea {
+    font: inherit;
   }
 }
 
@@ -145,66 +145,27 @@
   }
 
   .card-shadow-lg {
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+    box-shadow: 0 4px 6px 0 rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
   }
 
-
-  /* Scrollbar visível para área de filtros */
   .scrollbar-visible {
-    overflow-x: scroll !important;
-    scrollbar-width: auto;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.5) hsl(var(--muted) / 0.5);
-  }
-
-  .scrollbar-visible::-webkit-scrollbar {
-    height: 12px;
-    display: block !important;
-  }
-
-  .scrollbar-visible::-webkit-scrollbar-track {
-    background: hsl(var(--border));
-    border-radius: 6px;
-  }
-
-  .scrollbar-visible::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.5);
-    border-radius: 6px;
-    border: 2px solid hsl(var(--border));
-  }
-
-  .scrollbar-visible::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.7);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: oklch(var(--muted-foreground) / 0.5) oklch(var(--muted) / 0.5);
   }
 }
 
 @layer utilities {
-  .animate-fade-in {
-    animation: fade-in 0.3s ease-out;
-  }
+  .animate-fade-in { animation: fade-in 0.3s ease-out; }
+  .animate-slide-in { animation: slide-in 0.2s ease-out; }
 
   @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .animate-slide-in {
-    animation: slide-in 0.2s ease-out;
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   @keyframes slide-in {
-    from {
-      opacity: 0;
-      transform: translateX(-8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
   }
 }

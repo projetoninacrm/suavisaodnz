@@ -34,6 +34,7 @@ interface MetasCalculatorProps {
   schedules: Schedule[];
   acompanhamentoRegistros: AcompanhamentoDiario[];
   onUpdateAcompanhamento: (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number) => void;
+  view?: "all" | "targets" | "tracking";
 }
 
 interface ConfigValues {
@@ -78,7 +79,8 @@ function getMonthFromDate(dateStr: string): string | null {
 export function MetasCalculator({ 
   schedules, 
   acompanhamentoRegistros, 
-  onUpdateAcompanhamento 
+  onUpdateAcompanhamento,
+  view = "all",
 }: MetasCalculatorProps) {
   const { getConfigForMonth, saveConfig, isLoading: isLoadingConfig } = useMetasConfig();
 
@@ -176,7 +178,9 @@ export function MetasCalculator({
           sheet_name: "Escala",
           date: iso,
           morning_shift: "",
+          morning_shift_professional_id: null,
           afternoon_shift: "",
+          afternoon_shift_professional_id: null,
           day_of_week: dayNames[dt.getDay()],
           created_at: "",
           updated_at: "",
@@ -480,6 +484,8 @@ export function MetasCalculator({
         </CardContent>
       </Card>
 
+      {view !== "tracking" && (
+        <>
       {/* Bloco 1: Configurações Gerais */}
       <Card className={`border-border ${hasUnsavedChanges ? "ring-2 ring-amber-500/50" : ""}`}>
         <CardHeader className="pb-4">
@@ -1021,9 +1027,11 @@ export function MetasCalculator({
           </div>
         </CardContent>
       </Card>
+        </>
+      )}
 
       {/* Seção de Acompanhamento Diário */}
-      <AcompanhamentoDiarioSection
+      {view !== "targets" && <AcompanhamentoDiarioSection
         schedules={displaySchedules}
         registros={filteredAcompanhamento}
         onUpdateRegistro={onUpdateAcompanhamento}
@@ -1034,7 +1042,7 @@ export function MetasCalculator({
         metaMensalFaturamento={calculations.faturamentoMensal}
         pesoTotalDias={pesoDistribuicao}
         pesoPorDia={pesoPorDia}
-      />
+      />}
     </div>
   );
 }

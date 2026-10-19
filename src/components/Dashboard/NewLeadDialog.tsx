@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { format, parse, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, AlertTriangle, ChevronsUpDown, Check } from "lucide-react";
+import { CalendarIcon, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import type { Lead } from "@/hooks/useLeads";
-
-const BASE_VENDEDORES = ["Bernardo", "Thayssa"];
+import { PersonSelect } from "@/components/Dashboard/PersonSelect";
+import { useDirectory } from "@/hooks/useDirectory";
+import type { Lead, NewLeadData } from "@/hooks/useLeads";
 
 interface NewLeadFormData {
   data_registro: string;
@@ -25,20 +25,24 @@ interface NewLeadFormData {
   venda: string;
   entrar_em_contato: string;
   medico: string;
+  medico_id: string | null;
   obs: string;
   status: string;
   vendedor: string;
+  vendedor_id: string | null;
   valor: string;
 }
 
 interface NewLeadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: NewLeadFormData) => void;
+  onSubmit: (data: NewLeadData) => void | Promise<void>;
   existingLeads?: Lead[];
 }
 
 export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = [] }: NewLeadDialogProps) {
+  const { people: employees, isLoading: employeesLoading } = useDirectory("employees");
+  const { people: professionals, isLoading: professionalsLoading } = useDirectory("professionals");
   const today = new Date();
   const formattedToday = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
@@ -51,13 +55,16 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
     venda: "Não",
     entrar_em_contato: "",
     medico: "",
+    medico_id: null,
     obs: "",
     status: "Ativo",
     vendedor: "",
+    vendedor_id: null,
     valor: "",
   });
 
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Normalize phone number for comparison
   const normalizePhone = (phone: string | null): string => {
@@ -101,7 +108,7 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
 
   const isCanalEmpty = !formData.canal.trim();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Block submission if canal is not filled
@@ -116,24 +123,32 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
     }
 
     // Proceed with submission
-    onSubmit(formData);
-    // Reset form
-    setFormData({
-      data_registro: formattedToday,
-      canal: "",
-      nome: "",
-      numero: "",
-      orcamento: "Não",
-      venda: "Não",
-      entrar_em_contato: "",
-      medico: "",
-      obs: "",
-      status: "Ativo",
-      vendedor: "",
-      valor: "",
-    });
-    setShowConfirmation(false);
-    onOpenChange(false);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(formData);
+      setFormData({
+        data_registro: formattedToday,
+        canal: "",
+        nome: "",
+        numero: "",
+        orcamento: "Não",
+        venda: "Não",
+        entrar_em_contato: "",
+        medico: "",
+        medico_id: null,
+        obs: "",
+        status: "Ativo",
+        vendedor: "",
+        vendedor_id: null,
+        valor: "",
+      });
+      setShowConfirmation(false);
+      onOpenChange(false);
+    } catch {
+      // Keep the draft visible so the employee can retry after a failed save.
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
@@ -152,24 +167,16 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
       setShowConfirmation(false);
     }
   };
-
-  const vendedorOptions = useMemo(() => {
-    const set = new Set<string>(BASE_VENDEDORES);
-    existingLeads.forEach(l => {
-      if (l.vendedor && l.vendedor.trim()) set.add(l.vendedor.trim());
-    });
-    return Array.from(set).sort();
-  }, [existingLeads]);
-
-  const [vendedorOpen, setVendedorOpen] = useState(false);
-  const filteredVendedores = useMemo(() => {
-    const q = formData.vendedor.toLowerCase().trim();
-    if (!q) return vendedorOptions;
-    return vendedorOptions.filter(v => v.toLowerCase().includes(q));
-  }, [vendedorOptions, formData.vendedor]);
+  const updatePerson = (kind: "employee" | "professional", id: string | null, name: string | null) => {
+    setFormData((prev) => kind === "employee"
+      ? { ...prev, vendedor_id: id, vendedor: name || "" }
+      : { ...prev, medico_id: id, medico: name || "" });
+    if (showConfirmation) setShowConfirmation(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!newOpen && isSubmitting) return;
       if (!newOpen) {
         setShowConfirmation(false);
       }
@@ -179,7 +186,7 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
         <DialogHeader>
           <DialogTitle>Novo Lead</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4" aria-busy={isSubmitting}>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Data</Label>
@@ -329,21 +336,15 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="medico">Médico</Label>
-              <Select value={formData.medico} onValueChange={(v) => updateField("medico", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Ana">Ana</SelectItem>
-                  <SelectItem value="Thabata">Thabata</SelectItem>
-                  <SelectItem value="Carol">Carol</SelectItem>
-                  <SelectItem value="Larissa">Larissa</SelectItem>
-                  <SelectItem value="Amanda">Amanda</SelectItem>
-                  <SelectItem value="Cassio">Cassio</SelectItem>
-                  <SelectItem value="Karollyne">Karollyne</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Médico</Label>
+              <PersonSelect
+                people={professionals}
+                value={formData.medico_id}
+                onValueChange={(id, person) => updatePerson("professional", id, person?.name || null)}
+                placeholder="Selecionar profissional"
+                emptyLabel="Sem médico"
+                disabled={professionalsLoading}
+              />
             </div>
           </div>
 
@@ -362,60 +363,15 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="vendedor">Vendedor</Label>
-              <Popover open={vendedorOpen} onOpenChange={setVendedorOpen}>
-                <PopoverTrigger asChild>
-                  <div className="relative">
-                    <Input
-                      id="vendedor"
-                      value={formData.vendedor}
-                      onChange={(e) => {
-                        updateField("vendedor", e.target.value);
-                        if (!vendedorOpen) setVendedorOpen(true);
-                      }}
-                      onFocus={() => setVendedorOpen(true)}
-                      placeholder="Digite ou selecione"
-                      className="pr-8"
-                      autoComplete="off"
-                    />
-                    <ChevronsUpDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="p-1 z-50"
-                  align="start"
-                  style={{ width: "var(--radix-popover-trigger-width)" }}
-                  onOpenAutoFocus={(e) => e.preventDefault()}
-                >
-                  {filteredVendedores.length === 0 ? (
-                    <div className="px-2 py-2 text-xs text-muted-foreground">
-                      Nenhum vendedor salvo. O nome digitado será usado.
-                    </div>
-                  ) : (
-                    <div className="max-h-[200px] overflow-y-auto">
-                      {filteredVendedores.map((v) => {
-                        const isSelected = v === formData.vendedor;
-                        return (
-                          <div
-                            key={v}
-                            onClick={() => {
-                              updateField("vendedor", v);
-                              setVendedorOpen(false);
-                            }}
-                            className={cn(
-                              "flex items-center gap-2 px-2 py-1.5 rounded-sm cursor-pointer text-sm hover:bg-accent hover:text-accent-foreground",
-                              isSelected && "bg-accent/50"
-                            )}
-                          >
-                            <Check className={cn("h-3 w-3", isSelected ? "opacity-100" : "opacity-0")} />
-                            <span className="truncate">{v}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </PopoverContent>
-              </Popover>
+              <Label>Vendedor</Label>
+              <PersonSelect
+                people={employees}
+                value={formData.vendedor_id}
+                onValueChange={(id, person) => updatePerson("employee", id, person?.name || null)}
+                placeholder="Selecionar funcionário"
+                emptyLabel="Sem vendedor"
+                disabled={employeesLoading}
+              />
             </div>
           </div>
 
@@ -444,20 +400,20 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
           <div className="flex justify-end gap-2 pt-4">
             {showConfirmation ? (
               <>
-                <Button type="button" variant="outline" onClick={handleCancelConfirmation}>
+                <Button type="button" variant="outline" onClick={handleCancelConfirmation} disabled={isSubmitting}>
                   Voltar
                 </Button>
-                <Button type="submit" variant="destructive">
-                  Adicionar Mesmo Assim
+                <Button type="submit" variant="destructive" disabled={isSubmitting}>
+                  {isSubmitting ? "Salvando…" : "Adicionar Mesmo Assim"}
                 </Button>
               </>
             ) : (
               <>
-                <Button type="button" variant="outline" onClick={handleCancel}>
+                <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  Adicionar Lead
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Salvando…" : "Adicionar Lead"}
                 </Button>
               </>
             )}

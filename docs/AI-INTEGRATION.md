@@ -19,14 +19,14 @@ O receptor confirma a entrega após persistir a mensagem. Resumos de automaçõe
 
 O resumo de cada automação considera somente as mensagens recebidas após a ativação, até 50 por conversa. Apenas resultados retornados pela OpenAI são gravados no campo observacao; uma falha da OpenAI não substitui o campo com uma classificação heurística. O conteúdo pode ser revisto na tabela Enviados e agregado pela aba Relatório. Áudio e outras mídias aparecem como marcadores, sem transcrição. Respostas automáticas a clientes não são usadas.
 
-Os nomes `chatlabs-analise` e `chatlabs-conversas` ficam como aliases de compatibilidade para os novos endpoints. Nenhuma chamada ao ChatLabs nem `CHATLABS_TOKEN` é necessária. Os aliases retornam o novo contrato baseado nas mensagens do Supabase.
+Os nomes `chatlabs-analise` e `chatlabs-conversas` ficam como aliases de compatibilidade para os novos endpoints. Eles consultam apenas a implementação baseada em OpenAI e mensagens do Supabase; não há chamada ao ChatLabs nem `CHATLABS_TOKEN`.
 
 ## Publicação
 
 1. Aplicar a migração e publicar as funções pelo GitHub integrado à branch main.
 2. Confirmar que `OPENAI_API_KEY` e `UAZAPI_TOKEN_DNZ` estão configurados no projeto correto.
 3. Somente depois, atualizar o webhook existente da UAZAPI para `https://zwowpjdftalmlrocieog.supabase.co/functions/v1/whatsapp-webhook`, mantendo o evento messages e a exclusão de grupos.
-4. Publicar o frontend na Vercel e conferir a aba Análise WhatsApp.
+4. Publicar o frontend na Vercel e conferir a Observação com badge IA na aba Enviados das automações. A análise completa por período permanece disponível como endpoint autenticado, sem uma aba operacional separada.
 
 Overrides opcionais: `OPENAI_MODEL`, `OPENAI_METRICS_MODEL`, `OPENAI_SCHEDULE_MODEL`, `OPENAI_SUMMARY_MODEL`, `OPENAI_ANALYSIS_MODEL`.
 

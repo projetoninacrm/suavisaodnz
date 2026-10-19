@@ -5,24 +5,16 @@ import { Button } from "@/components/ui/button";
 import { EditableCell } from "./EditableCell";
 import { DatePickerCell } from "./DatePickerCell";
 import { SelectCell } from "./SelectCell";
-import { ComboEditableCell } from "./ComboEditableCell";
 import { CalendarFilterPopover } from "./CalendarFilterPopover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PersonSelect } from "@/components/Dashboard/PersonSelect";
+import { useDirectory } from "@/hooks/useDirectory";
 import type { Lead } from "@/hooks/useLeads";
 import { SyncedHorizontalScrollbar } from "@/components/ui/synced-horizontal-scrollbar";
+import { classifyCanal } from "@/lib/leads";
+export { classifyCanal } from "@/lib/leads";
 
 const CANAL_OPTIONS = ["Internet", "Sua Visão", "Loja", "Du Benefícios", "Indique e Ganhe"];
-
-// Mesma classificação usada no relatório (Index.tsx)
-export const classifyCanal = (canal?: string | null): string => {
-  const c = (canal || "").trim().toLowerCase();
-  if (c === "sua visão" || c === "sua visao") return "Sua Visão";
-  if (c === "loja") return "Loja";
-  if (c === "du benefícios" || c === "du beneficios") return "Du Benefícios";
-  if (c === "indique e ganhe" || c === "indique ganhe") return "Indique e Ganhe";
-  if (c === "internet" || c === "google" || c === "facebook") return "Internet";
-  return "Sem Canal";
-};
 
 export interface LeadsFilters {
   data_registro: string[];
@@ -31,22 +23,25 @@ export interface LeadsFilters {
   orcamento: string;
   venda: string;
   entrar_em_contato: string[];
-  medico: string;
+  medico_id: string;
   status: string;
-  vendedor: string;
+  vendedor_id: string;
   pendente: boolean;
 }
 
 interface LeadsTableProps {
   leads: Lead[];
   onUpdate: (id: string, field: keyof Lead, value: string) => void;
+  onUpdatePerson: (id: string, person: "employee" | "professional", personId: string | null, name: string | null) => void;
   onDelete: (id: string) => void;
   onFiltersChange?: (filters: LeadsFilters) => void;
 }
 
-export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: LeadsTableProps) {
+export function LeadsTable({ leads, onUpdate, onUpdatePerson, onDelete, onFiltersChange }: LeadsTableProps) {
   const filtersScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
+  const { people: employees } = useDirectory("employees");
+  const { people: professionals } = useDirectory("professionals");
   
   // Calcular datas do mês atual para filtro inicial
   const getCurrentMonthDates = () => {
@@ -71,9 +66,9 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     orcamento: "",
     venda: "",
     entrar_em_contato: [],
-    medico: "",
+    medico_id: "",
     status: "",
-    vendedor: "",
+    vendedor_id: "",
     pendente: false,
   }));
 
@@ -94,13 +89,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     orcamento: ["Sim", "Não"],
     venda: ["Sim", "Não"],
     entrar_em_contato: [...new Set(leads.map(l => l.entrar_em_contato).filter(Boolean))] as string[],
-    medico: [...new Set(leads.map(l => l.medico).filter(Boolean))] as string[],
     status: ["Ativo", "Perdido", "Pós Venda"],
-    vendedor: [...new Set([
-      "Bernardo",
-      "Thayssa",
-      ...leads.map(l => (l.vendedor || "").trim()).filter(Boolean),
-    ])].sort() as string[],
   }), [leads]);
 
   const isContactDateOverdue = (lead: Lead) => {
@@ -123,9 +112,9 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
       if (filters.orcamento && lead.orcamento !== filters.orcamento) return false;
       if (filters.venda && lead.venda !== filters.venda) return false;
       if (filters.entrar_em_contato.length > 0 && !filters.entrar_em_contato.includes(lead.entrar_em_contato || "")) return false;
-      if (filters.medico && lead.medico !== filters.medico) return false;
+      if (filters.medico_id && lead.medico_id !== filters.medico_id) return false;
       if (filters.status && lead.status !== filters.status) return false;
-      if (filters.vendedor && lead.vendedor !== filters.vendedor) return false;
+      if (filters.vendedor_id && lead.vendedor_id !== filters.vendedor_id) return false;
       if (filters.pendente && !isContactDateOverdue(lead)) return false;
       return true;
     });
@@ -137,7 +126,7 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
     });
   }, [leads, filters]);
 
-  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.nome !== "" || filters.orcamento !== "" || filters.venda !== "" || filters.entrar_em_contato.length > 0 || filters.medico !== "" || filters.status !== "" || filters.vendedor !== "" || filters.pendente;
+  const hasActiveFilters = filters.data_registro.length > 0 || filters.canal !== "" || filters.nome !== "" || filters.orcamento !== "" || filters.venda !== "" || filters.entrar_em_contato.length > 0 || filters.medico_id !== "" || filters.status !== "" || filters.vendedor_id !== "" || filters.pendente;
 
   const clearFilters = () => {
     const newFilters = {
@@ -147,9 +136,9 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
       orcamento: "",
       venda: "",
       entrar_em_contato: [],
-      medico: "",
+      medico_id: "",
       status: "",
-      vendedor: "",
+      vendedor_id: "",
       pendente: false,
     };
     setFilters(newFilters);
@@ -342,11 +331,13 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
             </div>
             <div className="space-y-1 min-w-[120px]">
               <label className="text-xs text-muted-foreground">Médico</label>
-              <FilterSelect
-                value={filters.medico}
-                onChange={(v) => updateFilters({ ...filters, medico: v === "all" ? "" : v })}
-                options={uniqueValues.medico}
+              <PersonSelect
+                people={professionals}
+                value={filters.medico_id || null}
+                onValueChange={(id) => updateFilters({ ...filters, medico_id: id || "" })}
                 placeholder="Todos"
+                emptyLabel="Todos"
+                includeInactive
               />
             </div>
             <div className="space-y-1 min-w-[120px]">
@@ -360,11 +351,13 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
             </div>
             <div className="space-y-1 min-w-[120px]">
               <label className="text-xs text-muted-foreground">Vendedor</label>
-              <FilterSelect
-                value={filters.vendedor}
-                onChange={(v) => updateFilters({ ...filters, vendedor: v === "all" ? "" : v })}
-                options={uniqueValues.vendedor}
+              <PersonSelect
+                people={employees}
+                value={filters.vendedor_id || null}
+                onValueChange={(id) => updateFilters({ ...filters, vendedor_id: id || "" })}
                 placeholder="Todos"
+                emptyLabel="Todos"
+                includeInactive
               />
             </div>
             <div className="space-y-1 min-w-[100px]">
@@ -449,14 +442,21 @@ export function LeadsTable({ leads, onUpdate, onDelete, onFiltersChange }: Leads
                     <DatePickerCell value={lead.entrar_em_contato || ""} onSave={(v) => onUpdate(lead.id, "entrar_em_contato", v)} placeholder="Selecionar" />
                   </td>
                   <td className="px-1 py-1">
-                    <EditableCell value={lead.medico || ""} onSave={(v) => onUpdate(lead.id, "medico", v)} placeholder="Médico" />
+                    <PersonSelect
+                      people={professionals}
+                      value={lead.medico_id}
+                      onValueChange={(id, person) => onUpdatePerson(lead.id, "professional", id, person?.name || null)}
+                      placeholder="Médico"
+                      currentLabel={lead.medico}
+                    />
                   </td>
                   <td className="px-1 py-1">
-                    <ComboEditableCell
-                      value={lead.vendedor || ""}
-                      onSave={(v) => onUpdate(lead.id, "vendedor", v)}
-                      suggestions={uniqueValues.vendedor}
+                    <PersonSelect
+                      people={employees}
+                      value={lead.vendedor_id}
+                      onValueChange={(id, person) => onUpdatePerson(lead.id, "employee", id, person?.name || null)}
                       placeholder="Vendedor"
+                      currentLabel={lead.vendedor}
                     />
                   </td>
                   <td className="px-1 py-1">

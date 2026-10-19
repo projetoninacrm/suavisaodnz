@@ -7,7 +7,9 @@ export interface Schedule {
   sheet_name: string;
   date: string;
   morning_shift: string | null;
+  morning_shift_professional_id: string | null;
   afternoon_shift: string | null;
+  afternoon_shift_professional_id: string | null;
   day_of_week: string;
   created_at: string;
   updated_at: string;
@@ -65,6 +67,29 @@ export function useSchedules(sheetName: string) {
         description: "Não foi possível salvar as alterações.",
         variant: "destructive",
       });
+    }
+  };
+
+  const updateScheduleProfessional = async (
+    id: string,
+    shift: "morning" | "afternoon",
+    professionalId: string | null,
+    name: string | null,
+  ) => {
+    try {
+      const result = shift === "morning"
+        ? await supabase.from("schedules").update({ morning_shift_professional_id: professionalId, morning_shift: name }).eq("id", id)
+        : await supabase.from("schedules").update({ afternoon_shift_professional_id: professionalId, afternoon_shift: name }).eq("id", id);
+      if (result.error) throw result.error;
+      setSchedules((previous) => previous.map((schedule) => schedule.id === id
+        ? shift === "morning"
+          ? { ...schedule, morning_shift_professional_id: professionalId, morning_shift: name }
+          : { ...schedule, afternoon_shift_professional_id: professionalId, afternoon_shift: name }
+        : schedule));
+      toast({ title: "Profissional atualizado", description: name || "Turno sem profissional." });
+    } catch (error) {
+      console.error("Error updating schedule professional:", error);
+      toast({ title: "Erro ao salvar", description: "Não foi possível atualizar o profissional.", variant: "destructive" });
     }
   };
 
@@ -136,6 +161,7 @@ export function useSchedules(sheetName: string) {
     isLoading,
     fetchSchedules,
     updateSchedule,
+    updateScheduleProfessional,
     addSchedule,
     deleteSchedule,
   };

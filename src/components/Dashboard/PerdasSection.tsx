@@ -51,11 +51,11 @@ const CATEGORIAS_MOTIVOS = [
 ];
 
 const COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
+  "oklch(var(--chart-1))",
+  "oklch(var(--chart-2))",
+  "oklch(var(--chart-3))",
+  "oklch(var(--chart-4))",
+  "oklch(var(--chart-5))",
   "hsl(220, 70%, 50%)",
   "hsl(280, 65%, 60%)",
   "hsl(340, 75%, 55%)",
@@ -227,8 +227,8 @@ export function PerdasSection({ leads }: PerdasSectionProps) {
                     <Tooltip 
                       formatter={(value: number) => [`${value} leads`, "Quantidade"]}
                       contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
+                        backgroundColor: 'oklch(var(--card))',
+                        border: '1px solid oklch(var(--border) / var(--border-alpha, 100%))',
                         borderRadius: '8px'
                       }}
                     />

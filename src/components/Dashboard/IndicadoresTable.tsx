@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { format, getDaysInMonth, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Lead } from "@/hooks/useLeads";
 import { useIndicadoresData, DayMetrics } from "@/hooks/useIndicadoresData";
-import { Loader2, Calendar, TrendingUp, BarChart3, X, Calculator } from "lucide-react";
+import { Loader2, Calendar, TrendingUp, BarChart3, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -28,18 +28,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-
-interface SimulatorValues {
-  vendas: number;
-  ticketMedio: number;
-  potencial: number;
-  taxaPresenca: number;
-  conversao: number;
-}
+import { GoalSimulator, type GoalSimulatorValues } from "@/components/Dashboard/GoalSimulator";
 
 interface IndicadoresTableProps {
   leads: Lead[];
+  showSimulator?: boolean;
 }
 
 const MONTHS = [
@@ -57,10 +50,8 @@ const MONTHS = [
   { value: 12, label: "Dezembro", short: "Dez" },
 ];
 
-const YEARS = [
-  { value: "2025", label: "2025" },
-  { value: "2026", label: "2026" },
-];
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: 5 }, (_, index) => String(CURRENT_YEAR - 2 + index));
 
 const SUA_VISAO_METRICS = [
   { key: "atendimentos", label: "Atendimentos" },
@@ -94,7 +85,7 @@ const DAY_FULL_NAMES: Record<number, string> = {
   6: "Sábado",
 };
 
-export function IndicadoresTable({ leads }: IndicadoresTableProps) {
+export function IndicadoresTable({ leads, showSimulator = true }: IndicadoresTableProps) {
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
   const [selectedMonths, setSelectedMonths] = useState<number[]>([currentMonth]);
@@ -102,34 +93,6 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
 
   const { isLoading, getMetricsForDay } = 
     useIndicadoresData(leads, selectedMonths, parseInt(selectedYear));
-
-  // Chave para localStorage
-  const SIMULATOR_STORAGE_KEY = "indicadores_simulator_values";
-
-  // Estado do simulador - inicializa do localStorage ou com valores padrão
-  const [simulator, setSimulator] = useState<SimulatorValues>(() => {
-    const saved = localStorage.getItem(SIMULATOR_STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return { vendas: 0, ticketMedio: 0, potencial: 0, taxaPresenca: 0, conversao: 0 };
-      }
-    }
-    return { vendas: 0, ticketMedio: 0, potencial: 0, taxaPresenca: 0, conversao: 0 };
-  });
-
-  // Flag para saber se já carregou do localStorage
-  const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(() => {
-    return localStorage.getItem(SIMULATOR_STORAGE_KEY) !== null;
-  });
-
-  // Salvar no localStorage quando o simulador mudar
-  useEffect(() => {
-    if (simulator.vendas > 0 || simulator.potencial > 0) {
-      localStorage.setItem(SIMULATOR_STORAGE_KEY, JSON.stringify(simulator));
-    }
-  }, [simulator]);
 
   // Toggle month selection
   const toggleMonth = (month: number) => {
@@ -285,42 +248,13 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
     };
   }, [periodData, leadsVendas]);
 
-  // Inicializar simulador com valores consolidados APENAS se não tiver dados salvos
-  useEffect(() => {
-    if (!hasLoadedFromStorage && (consolidatedData.vendas > 0 || consolidatedData.potencial > 0)) {
-      setSimulator({
-        vendas: consolidatedData.vendas,
-        ticketMedio: consolidatedData.ticket,
-        potencial: consolidatedData.potencial,
-        taxaPresenca: consolidatedData.taxa_presenca,
-        conversao: consolidatedData.conversao,
-      });
-    }
-  }, [consolidatedData, hasLoadedFromStorage]);
-
-  // Cálculos reversos do simulador
-  const simulatorResults = useMemo(() => {
-    const { vendas, ticketMedio, potencial, taxaPresenca, conversao } = simulator;
-    
-    // Faturamento = Vendas × Ticket Médio
-    const faturamento = vendas * ticketMedio;
-    
-    // Visitou DNZ = Vendas / (Conversão/100)
-    const visitouDnz = conversao > 0 ? vendas / (conversao / 100) : 0;
-    
-    // Receitas = Visitou DNZ / (Taxa de Presença/100)
-    const receitas = taxaPresenca > 0 ? visitouDnz / (taxaPresenca / 100) : 0;
-    
-    // Atendimentos = Receitas / (Potencial/100)
-    const atendimentos = potencial > 0 ? receitas / (potencial / 100) : 0;
-    
-    return {
-      faturamento,
-      visitouDnz: Math.round(visitouDnz),
-      receitas: Math.round(receitas),
-      atendimentos: Math.round(atendimentos),
-    };
-  }, [simulator]);
+  const simulatorInitialValues: GoalSimulatorValues = {
+    vendas: consolidatedData.vendas,
+    ticketMedio: consolidatedData.ticket,
+    potencial: consolidatedData.potencial,
+    taxaPresenca: consolidatedData.taxa_presenca,
+    conversao: consolidatedData.conversao,
+  };
 
   // Helper: parse data do lead para obter dia/mês/ano
   const parseLeadDate = (dateStr: string | null): { day: number; month: number; year: number } | null => {
@@ -530,8 +464,8 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
           </SelectTrigger>
           <SelectContent className="bg-popover z-50">
             {YEARS.map((year) => (
-              <SelectItem key={year.value} value={year.value}>
-                {year.label}
+              <SelectItem key={year} value={year}>
+                {year}
               </SelectItem>
             ))}
           </SelectContent>
@@ -699,109 +633,7 @@ export function IndicadoresTable({ leads }: IndicadoresTableProps) {
           </CardContent>
         </Card>
 
-        {/* Simulador de Metas */}
-        <Card className="bg-card border-border border-2 border-primary/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Calculator className="h-4 w-4 text-primary" />
-              Simulador de Metas
-              <Badge variant="default" className="ml-auto text-xs">
-                Editável
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 text-sm">
-              {/* Campos editáveis */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Vendas (meta)</label>
-                  <Input
-                    type="number"
-                    value={simulator.vendas || ""}
-                    onChange={(e) => setSimulator(prev => ({ ...prev, vendas: Number(e.target.value) || 0 }))}
-                    className="h-8 text-right font-bold"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Ticket Médio (R$)</label>
-                  <Input
-                    type="number"
-                    value={simulator.ticketMedio || ""}
-                    onChange={(e) => setSimulator(prev => ({ ...prev, ticketMedio: Number(e.target.value) || 0 }))}
-                    className="h-8 text-right font-bold"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Potencial (%)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={simulator.potencial || ""}
-                    onChange={(e) => setSimulator(prev => ({ ...prev, potencial: Number(e.target.value) || 0 }))}
-                    className="h-8 text-right text-sm"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Tx. Presença (%)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={simulator.taxaPresenca || ""}
-                    onChange={(e) => setSimulator(prev => ({ ...prev, taxaPresenca: Number(e.target.value) || 0 }))}
-                    className="h-8 text-right text-sm"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Conversão (%)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={simulator.conversao || ""}
-                    onChange={(e) => setSimulator(prev => ({ ...prev, conversao: Number(e.target.value) || 0 }))}
-                    className="h-8 text-right text-sm"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              {/* Resultados calculados */}
-              <div className="pt-2 border-t border-border space-y-2">
-                <p className="text-xs text-muted-foreground font-medium">Resultados Calculados:</p>
-                <div className="flex justify-between items-center p-2 rounded bg-blue-500/10 border border-blue-500/20">
-                  <span className="text-muted-foreground">Atendimentos necessários</span>
-                  <span className="font-bold text-blue-600">{simulatorResults.atendimentos}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 rounded bg-muted/30">
-                  <span className="text-muted-foreground">Receitas necessárias</span>
-                  <span className="font-bold">{simulatorResults.receitas}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 rounded bg-muted/30">
-                  <span className="text-muted-foreground">Visitou DNZ necessários</span>
-                  <span className="font-bold">{simulatorResults.visitouDnz}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 rounded bg-primary/10 border border-primary/20">
-                  <span className="text-muted-foreground">Faturamento projetado</span>
-                  <span className="font-bold text-primary">{formatCurrencyFull(simulatorResults.faturamento)}</span>
-                </div>
-              </div>
-
-              {/* Fórmulas */}
-              <div className="pt-2 border-t border-border">
-                <p className="text-xs text-muted-foreground">
-                  Fórmulas: Atend = Rec ÷ Pot% | Rec = Visita ÷ Pres% | Visita = Vendas ÷ Conv% | Fat = Vendas × Ticket
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {showSimulator && <GoalSimulator initialValues={simulatorInitialValues} />}
       </div>
 
       {/* Tabela Principal */}

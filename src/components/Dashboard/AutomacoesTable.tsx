@@ -32,13 +32,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DisparosTable } from "./DisparosTable";
 import { EnviadosTable } from "./EnviadosTable";
 import { AutomacaoDetailView } from "./AutomacaoDetailView";
-import type { Lead } from "@/hooks/useLeads";
+import { useDirectory } from "@/hooks/useDirectory";
+import { getEmployeeAudioKey, getEmployeeAudioUrl, normalizeEmployeeName } from "@/lib/employeeAudio";
 
-interface AutomacoesTableProps {
-  leads?: Lead[];
-}
-
-export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
+export function AutomacoesTable() {
   const {
     automacoes,
     disparos,
@@ -67,22 +64,8 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
   const [isUploadingAudio, setIsUploadingAudio] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const [uploadingVendedor, setUploadingVendedor] = useState<string | null>(null);
-  const baseVendedores = ["Bernardo", "Thayssa"];
-  const [extraVendedores, setExtraVendedores] = useState<string[]>([]);
-  const [novoVendedor, setNovoVendedor] = useState("");
-
-  const vendedoresFromLeads = Array.from(
-    new Set((leads || []).map((l) => l.vendedor).filter(Boolean) as string[])
-  );
-  const vendedoresFromAudios = Object.keys(form.audios_vendedor || {});
-  const vendedores = Array.from(
-    new Set([
-      ...baseVendedores,
-      ...vendedoresFromLeads,
-      ...vendedoresFromAudios,
-      ...extraVendedores,
-    ])
-  );
+  const { people: employees, isLoading: employeesLoading } = useDirectory("employees");
+  const vendedores = employees.map((employee) => employee.name);
 
   const [comoConheceuOptions, setComoConheceuOptions] = useState<string[]>([]);
 
@@ -126,7 +109,10 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
       setIsUploadingAudio(null);
       return;
     }
-    const current = form.audios_vendedor || {};
+    const current = { ...(form.audios_vendedor || {}) };
+    Object.keys(current).forEach((key) => {
+      if (normalizeEmployeeName(key) === normalizeEmployeeName(vendedor)) delete current[key];
+    });
     setForm({ ...form, audios_vendedor: { ...current, [vendedor]: urlData.signedUrl } });
     setIsUploadingAudio(null);
   };
@@ -323,7 +309,8 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                 </label>
                 <div className="space-y-3">
                   {vendedores.map((vendedor) => {
-                    const audioUrl = form.audios_vendedor?.[vendedor];
+                    const audioKey = getEmployeeAudioKey(form.audios_vendedor, vendedor) || vendedor;
+                    const audioUrl = getEmployeeAudioUrl(form.audios_vendedor, vendedor);
                     return (
                       <div key={vendedor} className="border rounded p-2.5 bg-muted/20 space-y-1.5">
                         <span className="text-sm font-medium">{vendedor}</span>
@@ -337,7 +324,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                               className="h-7 w-7 text-destructive"
                               onClick={() => {
                                 const current = { ...form.audios_vendedor };
-                                delete current[vendedor];
+                                delete current[audioKey];
                                 setForm({ ...form, audios_vendedor: Object.keys(current).length > 0 ? current : null });
                               }}
                             >
@@ -370,29 +357,7 @@ export function AutomacoesTable({ leads = [] }: AutomacoesTableProps) {
                     );
                   })}
                 </div>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    value={novoVendedor}
-                    onChange={(e) => setNovoVendedor(e.target.value)}
-                    placeholder="Adicionar outro vendedor (nome)"
-                    className="h-8 text-sm"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const nome = novoVendedor.trim();
-                      if (!nome) return;
-                      if (!vendedores.includes(nome)) {
-                        setExtraVendedores((prev) => [...prev, nome]);
-                      }
-                      setNovoVendedor("");
-                    }}
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Adicionar
-                  </Button>
-                </div>
+                {employeesLoading ? <p className="text-xs text-muted-foreground">Carregando funcionários…</p> : vendedores.length === 0 && <p className="text-xs text-muted-foreground">Cadastre funcionários na aba Cadastros para configurar áudios.</p>}
                 <p className="text-xs text-muted-foreground mt-1.5">
                   O áudio do vendedor que fez a venda será enviado automaticamente após a mensagem de texto.
                 </p>
