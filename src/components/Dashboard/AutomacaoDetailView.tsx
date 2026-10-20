@@ -1,11 +1,22 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp, Search, Download, BarChart3, RefreshCw } from "lucide-react";
+import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
+import { ArrowLeft, Send, XCircle, Clock, CheckCircle, AlertCircle, Loader2, Eye, Volume2, ChevronDown, ChevronUp, Download, BarChart3, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DataState } from "@/components/data/DataState";
+import { DataTablePagination } from "@/components/data/DataTablePagination";
+import { EntityDataTable } from "@/components/data/EntityDataTable";
+import { FilterPanel } from "@/components/data/FilterPanel";
+import { FilterField } from "@/components/data/FilterField";
+import { SearchInput } from "@/components/data/SearchInput";
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useRouteState } from "@/hooks/useRouteState";
+import { useInlineEditorFocus } from "@/hooks/useInlineEditorFocus";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +30,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { Automacao, AutomacaoDisparo } from "@/hooks/useAutomacoes";
 import { getEmployeeAudioUrl } from "@/lib/employeeAudio";
+
+const AUTOMATION_DETAIL_QUERY_TIMEOUT_MS = 30_000;
+const AUTOMATION_DETAIL_QUERY_TIMEOUT_MESSAGE = "A consulta demorou mais de 30 segundos. Tente novamente.";
 
 interface ClienteAgendado {
   id: string;
@@ -37,9 +51,267 @@ interface ClienteAgendado {
   observacao?: string;
 }
 
+type DispatchTableActionMeta = {
+  actionsUnavailable: boolean;
+  isBulkSending: boolean;
+  sendingId: string | null;
+  cancellingId: string | null;
+  onSend: (client: ClienteAgendado, isRetry?: boolean) => Promise<void>;
+  onCancel: (client: ClienteAgendado) => Promise<void>;
+};
+
+type PendingDispatchTableMeta = DispatchTableActionMeta & {
+  source: Automacao["fonte"];
+  referenceDateLabel: string;
+  durationLabel: string;
+};
+
+type ProcessedDispatchTableMeta = DispatchTableActionMeta & {
+  referenceDateLabel: string;
+  onUpdateObservation: (dispatchId: string, value: string) => Promise<boolean>;
+};
+
+const pendingDispatchTableFeatures = tableFeatures({ tableMeta: {} as PendingDispatchTableMeta });
+const pendingDispatchColumn = createColumnHelper<typeof pendingDispatchTableFeatures, ClienteAgendado>();
+const processedDispatchTableFeatures = tableFeatures({ tableMeta: {} as ProcessedDispatchTableMeta });
+const processedDispatchColumn = createColumnHelper<typeof processedDispatchTableFeatures, ClienteAgendado>();
+
+const pendingDispatchColumns = pendingDispatchColumn.columns([
+  pendingDispatchColumn.display({
+    id: "cliente",
+    header: "Cliente",
+    cell: ({ row }) => (
+      <div>
+        <span className="font-medium">{row.original.nome}</span>
+        <span className="block text-xs text-muted-foreground">{row.original.telefone}</span>
+      </div>
+    ),
+  }),
+  pendingDispatchColumn.accessor("vendedor", {
+    header: "Vendedor",
+    cell: ({ getValue }) => <span className="text-muted-foreground">{getValue() || "—"}</span>,
+  }),
+  pendingDispatchColumn.accessor("data_compra", {
+    id: "data_referencia",
+    header: ({ table }) => table.options.meta.referenceDateLabel,
+    cell: ({ getValue }) => <span className="text-muted-foreground">{getValue()}</span>,
+  }),
+  pendingDispatchColumn.accessor("data_envio_programada", {
+    header: "Data do Envio",
+    cell: ({ getValue }) => <span className="text-muted-foreground">{getValue()}</span>,
+  }),
+  pendingDispatchColumn.accessor("dias_faltam", {
+    header: ({ table }) => table.options.meta.durationLabel,
+    cell: ({ getValue, table }) => {
+      const daysRemaining = getValue();
+      const isInactive = table.options.meta.source === "detalhado_inativos";
+      return (
+        <Badge
+          variant={isInactive ? (daysRemaining <= 0 ? "destructive" : "info") : "warning"}
+          className="gap-1"
+        >
+          <Clock className="w-3 h-3" />
+          {isInactive
+            ? daysRemaining <= 0
+              ? `${Math.abs(daysRemaining)}d em atraso`
+              : `${daysRemaining}d restantes`
+            : daysRemaining === 0
+              ? "Hoje"
+              : `${daysRemaining}d`}
+        </Badge>
+      );
+    },
+  }),
+  pendingDispatchColumn.display({
+    id: "acoes",
+    header: "Ações",
+    cell: ({ row, table }) => {
+      const client = row.original;
+      const { actionsUnavailable, isBulkSending, sendingId, cancellingId, onSend, onCancel } = table.options.meta;
+      const actionsLocked = actionsUnavailable || isBulkSending || sendingId !== null || cancellingId !== null;
+      const isSending = sendingId === client.id;
+      const isCancelling = cancellingId === client.id;
+      return (
+        <div className="flex items-center justify-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 text-xs h-7"
+            disabled={actionsLocked}
+            aria-busy={isSending}
+            aria-label={isSending ? `Enviando para ${client.nome}` : `Enviar agora para ${client.nome}`}
+            onClick={() => void onSend(client)}
+          >
+            {isSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+            {isSending ? "Enviando…" : "Enviar agora"}
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger render={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-xs h-7 text-muted-foreground hover:text-destructive"
+                disabled={actionsLocked}
+                aria-busy={isCancelling}
+              >
+                {isCancelling ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                Cancelar
+              </Button>
+            } />
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancelar disparo</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja cancelar o disparo para {client.nome}? A mensagem não será enviada.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  disabled={actionsLocked}
+                  onClick={() => void onCancel(client)}
+                >
+                  Cancelar disparo
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      );
+    },
+  }),
+]);
+
+const processedDispatchColumns = processedDispatchColumn.columns([
+  processedDispatchColumn.display({
+    id: "cliente",
+    header: "Cliente",
+    cell: ({ row }) => (
+      <div>
+        <span className="font-medium">{row.original.nome}</span>
+        <span className="block text-xs text-muted-foreground">{row.original.telefone}</span>
+      </div>
+    ),
+  }),
+  processedDispatchColumn.accessor("vendedor", {
+    header: "Vendedor",
+    cell: ({ getValue }) => <span className="text-muted-foreground">{getValue() || "—"}</span>,
+  }),
+  processedDispatchColumn.accessor("data_compra", {
+    id: "data_referencia",
+    header: ({ table }) => table.options.meta.referenceDateLabel,
+    cell: ({ getValue }) => <span className="text-muted-foreground">{getValue()}</span>,
+  }),
+  processedDispatchColumn.accessor("data_envio_real", {
+    header: "Enviado em",
+    cell: ({ getValue }) => <span className="text-muted-foreground">{getValue() || "—"}</span>,
+  }),
+  processedDispatchColumn.accessor("status", {
+    header: "Status",
+    cell: ({ row }) => (
+      <div className="flex flex-col items-center gap-1">
+        <Badge variant={dispatchStatusVariant(row.original.status)} className="gap-1">
+          {dispatchStatusIcon(row.original.status)} {row.original.status}
+        </Badge>
+        {row.original.erro && (
+          <span className="text-[10px] text-muted-foreground max-w-[200px] truncate" title={describeDispatchError(row.original.erro)}>
+            {describeDispatchError(row.original.erro)}
+          </span>
+        )}
+      </div>
+    ),
+  }),
+  processedDispatchColumn.accessor("resposta_cliente", {
+    header: "Resposta",
+    cell: ({ getValue }) => (
+      <Badge variant={getValue() ? "success" : "secondary"} className="gap-1">
+        {getValue() ? <><CheckCircle className="w-3 h-3" /> Sim</> : <><Clock className="w-3 h-3" /> Não</>}
+      </Badge>
+    ),
+  }),
+  processedDispatchColumn.accessor("observacao", {
+    header: () => (
+      <span className="inline-flex items-center gap-2">
+        Observação
+        <Badge variant="secondary" className="px-1.5 py-0 text-[10px] leading-4">IA</Badge>
+      </span>
+    ),
+    cell: ({ row, getValue, table }) => (
+      <ObservacaoCell
+        value={getValue() || ""}
+        customerName={row.original.nome}
+        onSave={(value) => row.original.disparo_id
+          ? table.options.meta.onUpdateObservation(row.original.disparo_id, value)
+          : Promise.resolve(false)}
+      />
+    ),
+  }),
+  processedDispatchColumn.display({
+    id: "acoes",
+    header: "Ações",
+    cell: ({ row, table }) => {
+      const client = row.original;
+      const { actionsUnavailable, isBulkSending, sendingId, cancellingId, onSend } = table.options.meta;
+      const isSending = sendingId === client.id;
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1 text-xs h-7"
+          disabled={actionsUnavailable || isBulkSending || sendingId !== null || cancellingId !== null}
+          aria-busy={isSending}
+          aria-label={isSending ? `Reenviando para ${client.nome}` : `Reenviar para ${client.nome}`}
+          onClick={() => void onSend(client, true)}
+        >
+          {isSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+          {isSending ? "Reenviando…" : "Reenviar"}
+        </Button>
+      );
+    },
+  }),
+]);
+
 interface AutomacaoDetailViewProps {
   automacao: Automacao;
   onBack: () => void;
+}
+
+type AutomationDetailTab = "pendentes" | "enviados" | "relatorio";
+type AutomationResponseFilter = "todos" | "sim" | "nao";
+
+interface AutomationDetailViewState {
+  searchQuery: string;
+  respostaFilter: AutomationResponseFilter;
+  activeTab: AutomationDetailTab;
+  pendingPage: number;
+  sentPage: number;
+  pageSize: number;
+}
+
+function defaultAutomationDetailViewState(): AutomationDetailViewState {
+  return { searchQuery: "", respostaFilter: "todos", activeTab: "pendentes", pendingPage: 1, sentPage: 1, pageSize: 25 };
+}
+
+function parseAutomationDetailViewState(value: unknown): AutomationDetailViewState {
+  if (typeof value !== "object" || value === null) return defaultAutomationDetailViewState();
+  const searchQuery = "searchQuery" in value && typeof value.searchQuery === "string" ? value.searchQuery : "";
+  const respostaFilter = "respostaFilter" in value && (value.respostaFilter === "sim" || value.respostaFilter === "nao")
+    ? value.respostaFilter
+    : "todos";
+  const activeTab = "activeTab" in value && (value.activeTab === "enviados" || value.activeTab === "relatorio")
+    ? value.activeTab
+    : "pendentes";
+  const pendingPage = "pendingPage" in value && Number.isInteger(value.pendingPage) && Number(value.pendingPage) > 0
+    ? Number(value.pendingPage)
+    : 1;
+  const sentPage = "sentPage" in value && Number.isInteger(value.sentPage) && Number(value.sentPage) > 0
+    ? Number(value.sentPage)
+    : 1;
+  const pageSize = "pageSize" in value && [25, 50, 100].includes(Number(value.pageSize))
+    ? Number(value.pageSize)
+    : 25;
+  return { searchQuery, respostaFilter, activeTab, pendingPage, sentPage, pageSize };
 }
 
 function parseDate(dateStr: string | null): Date | null {
@@ -54,6 +326,40 @@ function parseDate(dateStr: string | null): Date | null {
 
 function formatDateBR(date: Date): string {
   return date.toLocaleDateString("pt-BR");
+}
+
+function normalizeDispatchStatus(status: string): ClienteAgendado["status"] {
+  switch (status) {
+    case "pendente":
+    case "agendado":
+    case "enviado":
+    case "erro":
+    case "cancelado":
+      return status;
+    default:
+      return "erro";
+  }
+}
+
+function describeWhatsAppSendFailure(error: unknown, resultError?: string | null): string | null {
+  if (!error && !resultError) return null;
+  if (!error && resultError === "Telefone inválido") {
+    return "O número de telefone parece inválido. Confira o cadastro do cliente.";
+  }
+  return error
+    ? "Não foi possível confirmar o envio da mensagem. Confira o histórico antes de tentar novamente."
+    : "Não foi possível enviar a mensagem. Confira o histórico antes de tentar novamente.";
+}
+
+function describeDispatchError(error: string): string {
+  const normalized = error.trim().toLocaleLowerCase("pt-BR");
+  if (normalized === "telefone inválido") return "O número de telefone parece inválido. Confira o cadastro do cliente.";
+  if (normalized === "cancelado manualmente") return "Disparo cancelado manualmente.";
+  if (normalized === "mensagem enviada, mas o áudio falhou") return "Mensagem enviada, mas o áudio falhou.";
+  if (normalized === "automação não encontrada") return "Regra indisponível. Atualize a lista de automações.";
+  if (normalized === "uazapi não configurada") return "WhatsApp indisponível. Avise a pessoa administradora da plataforma.";
+  if (normalized.startsWith("limite diário")) return "Limite diário de envios atingido.";
+  return "Falha no envio. Confira o histórico antes de tentar novamente.";
 }
 
 function cleanPhone(phone: string | null): string | null {
@@ -104,46 +410,214 @@ function buildLatestDetalhadoClients(records: Array<{ id: string; nome: string |
   return Array.from(latestMap.values()).map(({ parsedDate, ...client }) => client);
 }
 
-const CHART_COLORS = [
-  "#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd",
-  "#818cf8", "#7c3aed", "#5b21b6", "#4f46e5",
-  "#10b981", "#f59e0b", "#ec4899", "#14b8a6",
-];
-
-function ObservacaoCell({ value, onSave }: { value: string; onSave: (val: string) => void }) {
+function ObservacaoCell({
+  value,
+  customerName,
+  onSave,
+}: {
+  value: string;
+  customerName: string;
+  onSave: (val: string) => Promise<boolean>;
+}) {
   const [editing, setEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [text, setText] = useState(value);
+  const { triggerRef, restoreFocusOnClose, clearPendingFocusRestore } = useInlineEditorFocus(editing);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cancelEditRef = useRef(false);
+  const saveInFlightRef = useRef(false);
 
   useEffect(() => { setText(value); }, [value]);
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
 
-  const handleSave = () => {
-    setEditing(false);
-    if (text !== value) onSave(text);
+  const handleSave = async () => {
+    if (saveInFlightRef.current) return;
+    if (cancelEditRef.current) {
+      cancelEditRef.current = false;
+      return;
+    }
+    if (text === value) {
+      setEditing(false);
+      return;
+    }
+
+    saveInFlightRef.current = true;
+    setIsSaving(true);
+    try {
+      const saved = await onSave(text);
+      if (saved) {
+        setEditing(false);
+      } else {
+        clearPendingFocusRestore();
+        requestAnimationFrame(() => inputRef.current?.focus());
+      }
+    } finally {
+      saveInFlightRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   if (!editing) {
     return (
-      <div
-        className="cursor-pointer text-sm text-muted-foreground hover:text-foreground min-h-[24px] px-1 py-0.5 rounded hover:bg-muted/50 transition-colors"
+      <Button
+        ref={triggerRef}
+        variant="ghost"
+        size="sm"
+        type="button"
+        className="h-auto min-h-[24px] w-full min-w-0 max-w-full justify-start whitespace-pre-wrap break-words rounded px-1 py-0.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
         onClick={() => setEditing(true)}
-        title="Clique para editar"
+        aria-label={`${value ? "Editar observação" : "Adicionar observação"} de ${customerName}`}
       >
-        {value || <span className="italic text-muted-foreground/50">Clique para adicionar...</span>}
-      </div>
+        {value || <span className="italic text-muted-foreground">Clique para adicionar...</span>}
+      </Button>
     );
   }
 
   return (
-    <input
-      ref={inputRef}
-      className="w-full text-sm border border-border rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={handleSave}
-      onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") { setText(value); setEditing(false); } }}
-    />
+    <div className="min-w-0 space-y-1">
+      <Input
+        ref={inputRef}
+        aria-label={isSaving ? `Salvando observação de ${customerName}` : `Observação de ${customerName}`}
+        aria-busy={isSaving}
+        className="h-9 w-full px-2 py-1 text-sm"
+        value={text}
+        disabled={isSaving}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => { void handleSave(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            restoreFocusOnClose();
+            inputRef.current?.blur();
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            restoreFocusOnClose();
+            cancelEditRef.current = true;
+            setText(value);
+            inputRef.current?.blur();
+            setEditing(false);
+          }
+        }}
+      />
+      {isSaving && (
+        <span role="status" className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <Loader2 aria-hidden="true" className="size-3 animate-spin" />
+          Salvando observação de {customerName}…
+        </span>
+      )}
+    </div>
+  );
+}
+
+function dispatchStatusIcon(status: string) {
+  switch (status) {
+    case "enviado": return <CheckCircle className="size-3.5 text-success-foreground" aria-hidden="true" />;
+    case "erro": return <AlertCircle className="size-3.5 text-destructive" aria-hidden="true" />;
+    case "cancelado": return <XCircle className="size-3.5 text-muted-foreground" aria-hidden="true" />;
+    default: return <Clock className="size-3.5 text-warning-foreground" aria-hidden="true" />;
+  }
+}
+
+function dispatchStatusVariant(status: string): NonNullable<BadgeProps["variant"]> {
+  switch (status) {
+    case "enviado": return "success";
+    case "erro": return "destructive";
+    case "cancelado": return "secondary";
+    default: return "warning";
+  }
+}
+
+function PendingDispatchCard({ automacao, client, disabled, isSending, isCancelling, onSend, onCancel }: {
+  automacao: Automacao;
+  client: ClienteAgendado;
+  disabled: boolean;
+  isSending: boolean;
+  isCancelling: boolean;
+  onSend: () => void;
+  onCancel: () => void;
+}) {
+  const isInactiveAttendanceSource = automacao.fonte === "detalhado_inativos";
+  const daysLabel = isInactiveAttendanceSource
+    ? client.dias_faltam <= 0 ? `${Math.abs(client.dias_faltam)}d em atraso` : `${client.dias_faltam}d restantes`
+    : client.dias_faltam === 0 ? "Hoje" : `${client.dias_faltam}d`;
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="break-words font-semibold">{client.nome}</p>
+            <p className="mt-0.5 break-all text-xs text-muted-foreground">{client.telefone}</p>
+          </div>
+          <Badge variant={isInactiveAttendanceSource ? client.dias_faltam <= 0 ? "destructive" : "info" : "warning"} className="shrink-0 gap-1">
+            <Clock className="size-3" aria-hidden="true" />{daysLabel}
+          </Badge>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3 text-sm">
+          <div><dt className="text-xs text-muted-foreground">Vendedor</dt><dd className="mt-0.5">{client.vendedor || "—"}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">{isInactiveAttendanceSource ? "Último atendimento" : automacao.fonte === "perdidos" ? "Marcado como perdido" : "Data da compra"}</dt><dd className="mt-0.5">{client.data_compra}</dd></div>
+          <div className="col-span-2"><dt className="text-xs text-muted-foreground">Data do envio</dt><dd className="mt-0.5">{client.data_envio_programada}</dd></div>
+        </dl>
+        <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+          <Button variant="outline" size="sm" className="flex-1 gap-1.5" disabled={disabled} aria-busy={isSending} aria-label={isSending ? `Enviando para ${client.nome}` : `Enviar agora para ${client.nome}`} onClick={onSend}>
+            {isSending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Send className="size-4" aria-hidden="true" />}
+            {isSending ? "Enviando…" : "Enviar agora"}
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger render={<Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-destructive" disabled={disabled} aria-busy={isCancelling}>{isCancelling ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <XCircle className="size-4" aria-hidden="true" />}Cancelar</Button>} />
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancelar disparo</AlertDialogTitle>
+                <AlertDialogDescription>Tem certeza que deseja cancelar o disparo para {client.nome}? A mensagem não será enviada.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={disabled} onClick={onCancel}>Cancelar disparo</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SentDispatchCard({ automacao, client, disabled, isSending, onResend, onUpdateObservation }: {
+  automacao: Automacao;
+  client: ClienteAgendado;
+  disabled: boolean;
+  isSending: boolean;
+  onResend: () => void;
+  onUpdateObservation: (value: string) => Promise<boolean>;
+}) {
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="break-words font-semibold">{client.nome}</p>
+            <p className="mt-0.5 break-all text-xs text-muted-foreground">{client.telefone}</p>
+          </div>
+          <Badge variant={dispatchStatusVariant(client.status)} className="shrink-0 gap-1">{dispatchStatusIcon(client.status)}{client.status}</Badge>
+        </div>
+        {client.erro && <p className="rounded-md bg-muted/60 px-2 py-1.5 text-xs text-muted-foreground">{client.erro}</p>}
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3 text-sm">
+          <div><dt className="text-xs text-muted-foreground">Vendedor</dt><dd className="mt-0.5">{client.vendedor || "—"}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como perdido" : automacao.fonte === "detalhado_inativos" ? "Último atendimento" : "Data da compra"}</dt><dd className="mt-0.5">{client.data_compra}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Enviado em</dt><dd className="mt-0.5">{client.data_envio_real || "—"}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Resposta do cliente</dt><dd className="mt-0.5"><Badge variant={client.resposta_cliente ? "success" : "secondary"} className="gap-1">{client.resposta_cliente ? <CheckCircle className="size-3" aria-hidden="true" /> : <Clock className="size-3" aria-hidden="true" />}{client.resposta_cliente ? "Sim" : "Não"}</Badge></dd></div>
+        </dl>
+        <div className="space-y-1 border-t border-border pt-3">
+          <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">Observação <Badge variant="secondary" className="px-1.5 py-0 text-[10px] leading-4">IA</Badge></p>
+          <ObservacaoCell value={client.observacao || ""} customerName={client.nome} onSave={onUpdateObservation} />
+        </div>
+        <Button variant="outline" size="sm" className="w-full gap-1.5" disabled={disabled} aria-busy={isSending} aria-label={isSending ? `Reenviando para ${client.nome}` : `Reenviar para ${client.nome}`} onClick={onResend}>
+          {isSending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <RefreshCw className="size-4" aria-hidden="true" />}
+          {isSending ? "Reenviando…" : "Reenviar"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -190,11 +664,12 @@ function RelatorioTab({ clientes }: { clientes: ClienteAgendado[] }) {
 
   if (chartData.length === 0) {
     return (
-      <div className="py-12 text-center text-muted-foreground">
-        <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-40" />
-        <p>Nenhuma observação registrada ainda.</p>
-        <p className="text-xs mt-1">Preencha a coluna "Observação" na aba Enviados para ver o relatório.</p>
-      </div>
+      <DataState
+        variant="empty"
+        title="Nenhuma observação para agrupar"
+        description="Este relatório agrupa observações por palavras-chave. Quando houver observações salvas nos envios, os motivos aparecerão aqui."
+        className="my-4"
+      />
     );
   }
 
@@ -210,13 +685,16 @@ function RelatorioTab({ clientes }: { clientes: ClienteAgendado[] }) {
           {totalObs} de {totalClientes} clientes
         </span>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Agrupamento automático por palavras encontradas nas observações; confira o texto original para validar o contexto.
+      </p>
 
       <div className="space-y-2.5">
-        {chartData.map((item, index) => {
+        {chartData.map((item) => {
           const pct = maxVal > 0 ? (item.quantidade / maxVal) * 100 : 0;
           const pctTotal = totalObs > 0 ? ((item.quantidade / totalObs) * 100).toFixed(0) : "0";
           return (
-            <div key={index} className="group">
+            <div key={item.motivo} className="group">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm text-foreground font-medium truncate max-w-[70%]" title={item.motivo}>
                   {item.motivo}
@@ -230,13 +708,10 @@ function RelatorioTab({ clientes }: { clientes: ClienteAgendado[] }) {
                   </span>
                 </div>
               </div>
-              <div className="w-full h-7 bg-muted/50 rounded-md overflow-hidden">
+              <div aria-hidden="true" className="h-7 w-full overflow-hidden rounded-md bg-muted/50">
                 <div
-                  className="h-full rounded-md transition-all duration-500 ease-out"
-                  style={{
-                    width: `${Math.max(pct, 3)}%`,
-                    backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
-                  }}
+                  className="h-full rounded-md bg-primary transition-all duration-500 ease-out"
+                  style={{ width: `${Math.max(pct, 3)}%` }}
                 />
               </div>
             </div>
@@ -250,65 +725,91 @@ function RelatorioTab({ clientes }: { clientes: ClienteAgendado[] }) {
 export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewProps) {
   const [clientes, setClientes] = useState<ClienteAgendado[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [respostaFilter, setRespostaFilter] = useState<"todos" | "sim" | "nao">("todos");
+  const [viewState, setViewState] = useRouteState<AutomationDetailViewState>(
+    `automationDetail:${automacao.id}`,
+    defaultAutomationDetailViewState,
+    parseAutomationDetailViewState,
+  );
+  const { searchQuery, respostaFilter, activeTab, pendingPage, sentPage, pageSize } = viewState;
+  const setSearchQuery = (searchQuery: string) => setViewState((current) => ({ ...current, searchQuery, pendingPage: 1, sentPage: 1 }));
+  const setRespostaFilter = (respostaFilter: AutomationResponseFilter) => setViewState((current) => ({ ...current, respostaFilter, sentPage: 1 }));
+  const setActiveTab = (activeTab: AutomationDetailTab) => setViewState((current) => ({ ...current, activeTab }));
+  const setPendingPage = (pendingPage: number) => setViewState((current) => ({ ...current, pendingPage }));
+  const setSentPage = (sentPage: number) => setViewState((current) => ({ ...current, sentPage }));
+  const setPageSize = (pageSize: number) => setViewState((current) => ({ ...current, pageSize, pendingPage: 1, sentPage: 1 }));
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState("");
   const [isBulkSending, setIsBulkSending] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ sent: 0, errors: 0, total: 0 });
+  const actionInProgressRef = useRef(false);
+  const loadRequestIdRef = useRef(0);
+  const loadControllerRef = useRef<AbortController | null>(null);
+  const actionsUnavailable = isLoading || loadError !== null;
 
   const fetchData = useCallback(async () => {
+    const requestId = ++loadRequestIdRef.current;
+    loadControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadControllerRef.current = controller;
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, AUTOMATION_DETAIL_QUERY_TIMEOUT_MS);
     setIsLoading(true);
+    setLoadError(null);
 
-    // Get existing disparos for this automation
-    const { data: disparosExistentes } = await supabase
-      .from("automacao_disparos")
-      .select("*")
-      .eq("automacao_id", automacao.id);
-
-    const disparosMap = new Map<string, any>();
-    (disparosExistentes || []).forEach((d) => {
-      const key = automacao.fonte === "detalhado_inativos"
-        ? normalizePatientKey(d.nome_cliente, d.telefone)
-        : d.lead_id;
-      disparosMap.set(key, d);
-    });
-
-    let rawClients: { id: string; nome: string; telefone: string; data_registro: string; vendedor?: string; medico?: string }[] = [];
-
-    if (automacao.fonte === "detalhado") {
-      let query = supabase
-        .from("detalhado")
+    try {
+      const { data: disparosExistentes, error: disparosError } = await supabase
+        .from("automacao_disparos")
         .select("*")
-        .not("telefone", "is", null)
-        .or("receita.eq.Sim,receita.eq.sim,receita.eq.SIM")
-        .or("visitou_loja.eq.Não,visitou_loja.eq.não,visitou_loja.eq.NAO,visitou_loja.is.null");
+        .eq("automacao_id", automacao.id)
+        .abortSignal(controller.signal);
+      if (disparosError) throw disparosError;
 
-      if (automacao.filtro_como_conheceu && automacao.filtro_como_conheceu.length > 0) {
-        query = query.in("como_conheceu", automacao.filtro_como_conheceu);
-      }
-
-      const { data } = await query;
-      rawClients = (data || []).map(d => ({
-        id: d.id,
-        nome: d.nome || "Sem nome",
-        telefone: d.telefone || "",
-        data_registro: d.data || "",
-        vendedor: undefined,
-        medico: undefined,
-      }));
-    } else if (automacao.fonte === "detalhado_inativos") {
-      // Use server-side function for fast deduplication and filtering
-      const { data, error } = await supabase.rpc("get_inactive_patients", {
-        dias_limite: automacao.dias_apos_venda,
-        dias_janela: 30,
+      const disparosMap = new Map<string, AutomacaoDisparo>();
+      (disparosExistentes || []).forEach((d) => {
+        const key = automacao.fonte === "detalhado_inativos"
+          ? normalizePatientKey(d.nome_cliente, d.telefone)
+          : d.lead_id;
+        disparosMap.set(key, d);
       });
 
-      if (!error && data) {
-        rawClients = (data as any[]).map(d => ({
+      let rawClients: { id: string; nome: string; telefone: string; data_registro: string; vendedor?: string; medico?: string }[] = [];
+
+      if (automacao.fonte === "detalhado") {
+        let query = supabase
+          .from("detalhado")
+          .select("*")
+          .not("telefone", "is", null)
+          .or("receita.eq.Sim,receita.eq.sim,receita.eq.SIM")
+          .or("visitou_loja.eq.Não,visitou_loja.eq.não,visitou_loja.eq.NAO,visitou_loja.is.null");
+
+        if (automacao.filtro_como_conheceu && automacao.filtro_como_conheceu.length > 0) {
+          query = query.in("como_conheceu", automacao.filtro_como_conheceu);
+        }
+
+        const { data, error } = await query.abortSignal(controller.signal);
+        if (error) throw error;
+        rawClients = (data || []).map(d => ({
+          id: d.id,
+          nome: d.nome || "Sem nome",
+          telefone: d.telefone || "",
+          data_registro: d.data || "",
+          vendedor: undefined,
+          medico: undefined,
+        }));
+      } else if (automacao.fonte === "detalhado_inativos") {
+        const { data, error } = await supabase.rpc("get_inactive_patients", {
+          dias_limite: automacao.dias_apos_venda,
+          dias_janela: 30,
+        }).abortSignal(controller.signal);
+        if (error) throw error;
+        rawClients = (data || []).map(d => ({
           id: d.id,
           nome: d.nome || "Sem nome",
           telefone: d.telefone || "",
@@ -316,79 +817,89 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           vendedor: undefined,
           medico: undefined,
         }));
+      } else if (automacao.fonte === "perdidos") {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .eq("status", "Perdido")
+          .not("numero", "is", null)
+          .abortSignal(controller.signal);
+        if (error) throw error;
+        rawClients = (data || []).map(l => ({
+          id: l.id,
+          nome: l.nome || "Sem nome",
+          telefone: l.numero || "",
+          data_registro: l.updated_at ? new Date(l.updated_at).toLocaleDateString("pt-BR") : "",
+          vendedor: l.vendedor || undefined,
+          medico: l.medico || undefined,
+        }));
+      } else {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .eq("venda", "Sim")
+          .not("numero", "is", null)
+          .abortSignal(controller.signal);
+        if (error) throw error;
+        rawClients = (data || []).map(l => ({
+          id: l.id,
+          nome: l.nome || "Sem nome",
+          telefone: l.numero || "",
+          data_registro: l.data_registro || "",
+          vendedor: l.vendedor || undefined,
+          medico: l.medico || undefined,
+        }));
       }
-    } else if (automacao.fonte === "perdidos") {
-      const { data } = await supabase
-        .from("leads")
-        .select("*")
-        .eq("status", "Perdido")
-        .not("numero", "is", null);
 
-      rawClients = (data || []).map(l => ({
-        id: l.id,
-        nome: l.nome || "Sem nome",
-        telefone: l.numero || "",
-        data_registro: l.updated_at ? new Date(l.updated_at).toLocaleDateString("pt-BR") : "",
-        vendedor: l.vendedor || undefined,
-        medico: l.medico || undefined,
-      }));
-    } else {
-      const { data } = await supabase
-        .from("leads")
-        .select("*")
-        .eq("venda", "Sim")
-        .not("numero", "is", null);
+      if (requestId !== loadRequestIdRef.current) return;
 
-      rawClients = (data || []).map(l => ({
-        id: l.id,
-        nome: l.nome || "Sem nome",
-        telefone: l.numero || "",
-        data_registro: l.data_registro || "",
-        vendedor: l.vendedor || undefined,
-        medico: l.medico || undefined,
-      }));
-    }
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const result: ClienteAgendado[] = [];
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+      for (const client of rawClients) {
+        const dataVenda = parseDate(client.data_registro);
+        if (!dataVenda) continue;
 
-    const result: ClienteAgendado[] = [];
+        const targetDate = new Date(dataVenda);
+        targetDate.setDate(targetDate.getDate() + automacao.dias_apos_venda);
+        const diasFaltam = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const disparoKey = automacao.fonte === "detalhado_inativos"
+          ? normalizePatientKey(client.nome, client.telefone)
+          : client.id;
+        const disparo = disparosMap.get(disparoKey);
 
-    for (const client of rawClients) {
-      const dataVenda = parseDate(client.data_registro);
-      if (!dataVenda) continue;
-
-      const targetDate = new Date(dataVenda);
-      targetDate.setDate(targetDate.getDate() + automacao.dias_apos_venda);
-
-      const diffTime = targetDate.getTime() - today.getTime();
-      const diasFaltam = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      const disparoKey = automacao.fonte === "detalhado_inativos"
-        ? normalizePatientKey(client.nome, client.telefone)
-        : client.id;
-      const disparo = disparosMap.get(disparoKey);
-
-      if (disparo) {
-        result.push({
-          id: client.id,
-          nome: client.nome,
-          telefone: client.telefone,
-          data_compra: client.data_registro,
-          data_envio_programada: formatDateBR(targetDate),
-          dias_faltam: diasFaltam,
-          status: disparo.status as any,
-          vendedor: client.vendedor,
-          disparo_id: disparo.id,
-          data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
-          _data_envio_iso: disparo.data_envio || undefined,
-          erro: disparo.erro || undefined,
-          resposta_cliente: (disparo as any).resposta_cliente || false,
-          observacao: (disparo as any).observacao || undefined,
-        });
-      } else if (automacao.fonte === "detalhado_inativos") {
-        // Only show clients within 30 days of threshold or already past it
-        if (diasFaltam <= 30) {
+        if (disparo) {
+          result.push({
+            id: client.id,
+            nome: client.nome,
+            telefone: client.telefone,
+            data_compra: client.data_registro,
+            data_envio_programada: formatDateBR(targetDate),
+            dias_faltam: diasFaltam,
+            status: normalizeDispatchStatus(disparo.status),
+            vendedor: client.vendedor,
+            disparo_id: disparo.id,
+            data_envio_real: disparo.data_envio ? new Date(disparo.data_envio).toLocaleString("pt-BR") : undefined,
+            _data_envio_iso: disparo.data_envio || undefined,
+            erro: disparo.erro || undefined,
+            resposta_cliente: disparo.resposta_cliente || false,
+            observacao: disparo.observacao || undefined,
+          });
+        } else if (automacao.fonte === "detalhado_inativos") {
+          if (diasFaltam <= 30) {
+            result.push({
+              id: client.id,
+              nome: client.nome,
+              telefone: client.telefone,
+              data_compra: client.data_registro,
+              data_envio_programada: formatDateBR(targetDate),
+              dias_faltam: diasFaltam,
+              status: "pendente",
+              vendedor: client.vendedor,
+            });
+          }
+        } else if (diasFaltam >= 0) {
           result.push({
             id: client.id,
             nome: client.nome,
@@ -400,35 +911,32 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
             vendedor: client.vendedor,
           });
         }
-      } else if (diasFaltam >= 0) {
-        result.push({
-          id: client.id,
-          nome: client.nome,
-          telefone: client.telefone,
-          data_compra: client.data_registro,
-          data_envio_programada: formatDateBR(targetDate),
-          dias_faltam: diasFaltam,
-          status: "pendente",
-          vendedor: client.vendedor,
-        });
+      }
+
+      result.sort((a, b) => {
+        const isPendingA = a.status === "pendente" || a.status === "agendado";
+        const isPendingB = b.status === "pendente" || b.status === "agendado";
+        if (isPendingA && !isPendingB) return -1;
+        if (!isPendingA && isPendingB) return 1;
+        if (isPendingA && isPendingB) return a.dias_faltam - b.dias_faltam;
+        const dateA = a._data_envio_iso ? new Date(a._data_envio_iso).getTime() : 0;
+        const dateB = b._data_envio_iso ? new Date(b._data_envio_iso).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      if (requestId === loadRequestIdRef.current) setClientes(result);
+    } catch (error) {
+      if (requestId !== loadRequestIdRef.current) return;
+      const failureMessage = timedOut ? AUTOMATION_DETAIL_QUERY_TIMEOUT_MESSAGE : "Não foi possível atualizar os dados desta automação.";
+      setLoadError(failureMessage);
+      toast({ title: "Erro ao carregar automação", description: failureMessage, variant: "destructive" });
+    } finally {
+      window.clearTimeout(timeout);
+      if (requestId === loadRequestIdRef.current) {
+        loadControllerRef.current = null;
+        setIsLoading(false);
       }
     }
-
-    // Sort: pending first (by days remaining asc), then sent/error (most recent first)
-    result.sort((a, b) => {
-      const isPendingA = a.status === "pendente" || a.status === "agendado";
-      const isPendingB = b.status === "pendente" || b.status === "agendado";
-      if (isPendingA && !isPendingB) return -1;
-      if (!isPendingA && isPendingB) return 1;
-      if (isPendingA && isPendingB) return a.dias_faltam - b.dias_faltam;
-      // For sent/error: most recent first
-      const dateA = a._data_envio_iso ? new Date(a._data_envio_iso).getTime() : 0;
-      const dateB = b._data_envio_iso ? new Date(b._data_envio_iso).getTime() : 0;
-      return dateB - dateA;
-    });
-
-    setClientes(result);
-    setIsLoading(false);
   }, [automacao]);
 
   const handleImportHistorico = useCallback(async () => {
@@ -486,7 +994,12 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
   }, [fetchData]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
+    return () => {
+      loadRequestIdRef.current += 1;
+      loadControllerRef.current?.abort();
+      loadControllerRef.current = null;
+    };
   }, [fetchData]);
 
   // Realtime subscription for resposta_cliente updates
@@ -502,14 +1015,14 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           filter: `automacao_id=eq.${automacao.id}`,
         },
         (payload) => {
-          const updated = payload.new as any;
+          const updated = payload.new as AutomacaoDisparo;
           setClientes((prev) =>
             prev.map((c) =>
               c.disparo_id === updated.id
                 ? {
                     ...c,
                     resposta_cliente: updated.resposta_cliente,
-                    status: updated.status,
+                    status: normalizeDispatchStatus(updated.status),
                     erro: updated.erro || undefined,
                     observacao: updated.observacao || undefined,
                     data_envio_real: updated.data_envio
@@ -534,7 +1047,9 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       toast({ title: "Telefone inválido", variant: "destructive" });
       return;
     }
+    if (actionsUnavailable || actionInProgressRef.current) return;
 
+    actionInProgressRef.current = true;
     setSendingId(cliente.id);
 
     try {
@@ -582,7 +1097,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
 
       const sendResult = (data as { results?: Array<{ status?: string; erro?: string }> } | null)?.results?.[0];
       const textSent = !error && sendResult?.status === "enviado";
-      const textError = error ? String(error.message || error) : (sendResult?.erro || null);
+      const textError = describeWhatsAppSendFailure(error, sendResult?.erro);
 
       let audioOk = true;
       const audioUrl = getEmployeeAudioUrl(automacao.audios_vendedor, cliente.vendedor)
@@ -647,70 +1162,107 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
       }
 
       toast({
-        title: status === "enviado" ? "Mensagem enviada!" : "Erro no envio",
+        title: status === "enviado" ? "Mensagem enviada!" : "Não foi possível confirmar o envio",
         description: erroMensagem || undefined,
         variant: status === "erro" ? "destructive" : "default",
       });
 
-      fetchData();
+      await fetchData();
     } catch (err) {
+      console.error("Could not confirm automation message send:", err);
+      void fetchData();
       toast({
-        title: "Erro ao enviar",
-        description: err instanceof Error ? err.message : "Erro inesperado",
+        title: "Não foi possível confirmar o envio",
+        description: "O histórico será atualizado. Confira o resultado antes de tentar novamente.",
         variant: "destructive",
       });
     } finally {
       setSendingId(null);
+      actionInProgressRef.current = false;
     }
   };
 
   const handleCancelar = async (cliente: ClienteAgendado) => {
+    if (actionsUnavailable || actionInProgressRef.current) return;
+    actionInProgressRef.current = true;
     setCancellingId(cliente.id);
+    try {
+      const { error } = await supabase.from("automacao_disparos").insert({
+        automacao_id: automacao.id,
+        lead_id: cliente.id,
+        nome_cliente: cliente.nome,
+        telefone: cliente.telefone,
+        mensagem_enviada: null,
+        status: "cancelado",
+        data_envio: null,
+        data_programada: new Date().toISOString().split("T")[0],
+        erro: "Cancelado manualmente",
+      });
+      if (error) throw new Error(error.message);
 
-    await supabase.from("automacao_disparos").insert({
-      automacao_id: automacao.id,
-      lead_id: cliente.id,
-      nome_cliente: cliente.nome,
-      telefone: cliente.telefone,
-      mensagem_enviada: null,
-      status: "cancelado",
-      data_envio: null,
-      data_programada: new Date().toISOString().split("T")[0],
-      erro: "Cancelado manualmente",
-    });
-
-    toast({ title: "Disparo cancelado" });
-    fetchData();
-    setCancellingId(null);
+      toast({ title: "Disparo cancelado" });
+      await fetchData();
+    } catch (error) {
+      console.error("Could not confirm automation cancellation:", error);
+      void fetchData();
+      toast({
+        title: "Não foi possível confirmar o cancelamento",
+        description: "A lista será atualizada. Confira o estado do disparo antes de tentar novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setCancellingId(null);
+      actionInProgressRef.current = false;
+    }
   };
 
   const pendentesEmAtraso = useMemo(() => {
     return clientes.filter(c => (c.status === "pendente" || c.status === "agendado") && c.dias_faltam <= 0);
   }, [clientes]);
 
-  const handleUpdateObservacao = async (disparoId: string, value: string) => {
-    const { error } = await supabase
-      .from("automacao_disparos")
-      .update({ observacao: value || null } as any)
-      .eq("id", disparoId);
-    if (error) {
-      toast({ title: "Erro ao salvar observação", variant: "destructive" });
-    } else {
+  const handleUpdateObservacao = async (disparoId: string, value: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from("automacao_disparos")
+        .update({ observacao: value || null })
+        .eq("id", disparoId);
+      if (error) {
+        toast({
+          title: "Não foi possível confirmar a observação",
+          description: "O rascunho foi mantido. Confira o valor salvo antes de repetir.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
       setClientes((prev) =>
         prev.map((c) =>
           c.disparo_id === disparoId ? { ...c, observacao: value || undefined } : c
         )
       );
+      return true;
+    } catch (error) {
+      console.error("Could not confirm automation observation update:", error);
+      toast({
+        title: "Não foi possível confirmar a observação",
+        description: "O rascunho foi mantido. Confira o valor salvo antes de repetir.",
+        variant: "destructive",
+      });
+      return false;
     }
   };
 
   const handleEnviarTodosEmAtraso = async () => {
+    if (actionsUnavailable) return;
     const emAtraso = pendentesEmAtraso;
     if (emAtraso.length === 0) {
       toast({ title: "Nenhum cliente em atraso para enviar" });
       return;
     }
+    if (actionInProgressRef.current) return;
 
+    actionInProgressRef.current = true;
+    try {
     setIsBulkSending(true);
     setBulkProgress({ sent: 0, errors: 0, total: emAtraso.length });
 
@@ -743,7 +1295,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         };
 
         if (automacao.fonte === "detalhado" || automacao.fonte === "detalhado_inativos") {
-          await supabase.from("leads").upsert(
+          const { error: ensureLeadError } = await supabase.from("leads").upsert(
             {
               id: cliente.id,
               nome: cliente.nome,
@@ -754,6 +1306,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
             },
             { onConflict: "id" }
           );
+          if (ensureLeadError) throw ensureLeadError;
         }
 
         const { data, error } = await supabase.functions.invoke("whatsapp-disparo", {
@@ -766,7 +1319,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
 
         const sendResult = (data as { results?: Array<{ status?: string; erro?: string }> } | null)?.results?.[0];
         const textSent = !error && sendResult?.status === "enviado";
-        const textError = error ? String(error.message || error) : (sendResult?.erro || null);
+        const textError = describeWhatsAppSendFailure(error, sendResult?.erro);
 
         let audioOk = true;
         const audioUrl = getEmployeeAudioUrl(automacao.audios_vendedor, cliente.vendedor)
@@ -791,7 +1344,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           ? (textError || "Falha ao enviar mensagem")
           : (!audioOk ? "Mensagem enviada, mas o áudio falhou" : null);
 
-        await supabase.from("automacao_disparos").insert({
+        const { error: historyError } = await supabase.from("automacao_disparos").insert({
           automacao_id: automacao.id,
           lead_id: cliente.id,
           nome_cliente: cliente.nome,
@@ -802,6 +1355,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
           data_programada: new Date().toISOString().split("T")[0],
           erro: erroMensagem,
         });
+        if (historyError) throw historyError;
 
         if (status === "enviado") sent++;
         else errors++;
@@ -816,65 +1370,107 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
     }
 
     if (sent > 0) {
-      await supabase
+      const { error: totalError } = await supabase
         .from("automacoes")
         .update({ total_envios: automacao.total_envios + sent })
         .eq("id", automacao.id);
+      if (totalError) throw totalError;
     }
 
-    setIsBulkSending(false);
     toast({
       title: `Envio em massa concluído`,
       description: `${sent} enviado(s), ${errors} erro(s) de ${emAtraso.length} total.`,
     });
-    fetchData();
+    await fetchData();
+    } catch (error) {
+      console.error("Could not confirm bulk automation send:", error);
+      void fetchData();
+      toast({
+        title: "Não foi possível confirmar o envio em massa",
+        description: "O histórico será atualizado. Confira os resultados antes de iniciar outro envio.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkSending(false);
+      actionInProgressRef.current = false;
+    }
   };
 
+  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase("pt-BR");
+  const hasSearch = normalizedSearchQuery.length > 0;
+  const hasSearchInput = searchQuery.length > 0;
   const filterBySearch = (list: ClienteAgendado[]) => {
-    if (!searchQuery.trim()) return list;
-    const q = searchQuery.toLowerCase();
-    return list.filter(c => c.nome.toLowerCase().includes(q) || c.telefone.includes(q));
+    if (!hasSearch) return list;
+    return list.filter(c => c.nome.toLocaleLowerCase("pt-BR").includes(normalizedSearchQuery) || c.telefone.includes(normalizedSearchQuery));
   };
 
-  const pendentes = filterBySearch(clientes.filter(c => c.status === "pendente"));
-  const processadosAll = filterBySearch(clientes.filter(c => c.status !== "pendente"));
+  const pendentesSemBusca = clientes.filter(c => c.status === "pendente");
+  const processadosSemBusca = clientes.filter(c => c.status !== "pendente");
+  const pendentes = filterBySearch(pendentesSemBusca);
+  const processadosAll = filterBySearch(processadosSemBusca);
   const processados = respostaFilter === "todos" 
     ? processadosAll 
     : respostaFilter === "sim" 
       ? processadosAll.filter(c => c.resposta_cliente === true) 
       : processadosAll.filter(c => !c.resposta_cliente);
-
-  const statusIcon = (s: string) => {
-    switch (s) {
-      case "enviado": return <CheckCircle className="w-3.5 h-3.5 text-green-600" />;
-      case "erro": return <AlertCircle className="w-3.5 h-3.5 text-red-600" />;
-      case "cancelado": return <XCircle className="w-3.5 h-3.5 text-muted-foreground" />;
-      default: return <Clock className="w-3.5 h-3.5 text-yellow-600" />;
-    }
-  };
-
-  const statusColor = (s: string) => {
-    switch (s) {
-      case "enviado": return "bg-green-500/10 text-green-600 border-green-200";
-      case "erro": return "bg-red-500/10 text-red-600 border-red-200";
-      case "cancelado": return "bg-muted text-muted-foreground border-border";
-      default: return "bg-yellow-500/10 text-yellow-600 border-yellow-200";
-    }
-  };
+  const pendingPageCount = Math.max(1, Math.ceil(pendentes.length / pageSize));
+  const sentPageCount = Math.max(1, Math.ceil(processados.length / pageSize));
+  const currentPendingPage = Math.min(pendingPage, pendingPageCount);
+  const currentSentPage = Math.min(sentPage, sentPageCount);
+  const visiblePendentes = pendentes.slice((currentPendingPage - 1) * pageSize, currentPendingPage * pageSize);
+  const visibleProcessados = processados.slice((currentSentPage - 1) * pageSize, currentSentPage * pageSize);
+  const referenceDateLabel = automacao.fonte === "perdidos"
+    ? "Marcado como Perdido"
+    : automacao.fonte === "detalhado_inativos"
+      ? "Último Atendimento"
+      : "Data da Compra";
+  const pendingDispatchTable = useTable({
+    features: pendingDispatchTableFeatures,
+    columns: pendingDispatchColumns,
+    data: visiblePendentes,
+    getRowId: (client) => client.id,
+    meta: {
+      source: automacao.fonte,
+      referenceDateLabel,
+      durationLabel: automacao.fonte === "detalhado_inativos" ? "Tempo" : "Dias Restantes",
+      actionsUnavailable,
+      isBulkSending,
+      sendingId,
+      cancellingId,
+      onSend: handleEnviarAgora,
+      onCancel: handleCancelar,
+    },
+  });
+  const processedDispatchTable = useTable({
+    features: processedDispatchTableFeatures,
+    columns: processedDispatchColumns,
+    data: visibleProcessados,
+    getRowId: (client) => `${client.id}-${client.disparo_id || "sem-disparo"}`,
+    meta: {
+      referenceDateLabel,
+      actionsUnavailable,
+      isBulkSending,
+      sendingId,
+      cancellingId,
+      onSend: handleEnviarAgora,
+      onCancel: handleCancelar,
+      onUpdateObservation: handleUpdateObservacao,
+    },
+  });
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
         <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
           <ArrowLeft className="w-4 h-4" /> Voltar
         </Button>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h3 className="font-semibold text-lg">{automacao.nome}</h3>
           <p className="text-sm text-muted-foreground">
             {automacao.fonte === "detalhado"
-              ? "Detalhado"
+              ? "Atendimentos"
               : automacao.fonte === "detalhado_inativos"
-                ? "Detalhado · Último atendimento"
+                ? "Atendimentos · Último atendimento"
                 : automacao.fonte === "perdidos"
                   ? "Perdidos"
                   : "Leads"} · {automacao.dias_apos_venda} dias após {automacao.fonte === "perdidos"
@@ -884,29 +1480,43 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                 : "venda"}
           </p>
         </div>
-        {automacao.fonte === "detalhado_inativos" && (
+        <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto sm:shrink-0 sm:flex-nowrap">
+          {automacao.fonte === "detalhado_inativos" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleImportHistorico}
+              disabled={isImporting}
+            >
+              {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {isImporting ? importProgress || "Importando..." : "Importar histórico"}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
             className="gap-1.5"
-            onClick={handleImportHistorico}
-            disabled={isImporting}
+            onClick={() => setShowPreview(!showPreview)}
           >
-            {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            {isImporting ? importProgress || "Importando..." : "Importar histórico"}
+            <Eye className="w-4 h-4" />
+            {showPreview ? "Ocultar prévia" : "Ver prévia"}
+            {showPreview ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </Button>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() => setShowPreview(!showPreview)}
-        >
-          <Eye className="w-4 h-4" />
-          {showPreview ? "Ocultar prévia" : "Ver prévia"}
-          {showPreview ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        </Button>
+        </div>
       </div>
+
+      {loadError && (
+        <DataState
+          variant="error"
+          title={clientes.length ? "Dados desatualizados" : "Dados da automação indisponíveis"}
+          description={clientes.length ? `A consulta mais recente falhou. ${loadError} Os dados carregados anteriormente continuam visíveis.` : loadError}
+          action={{ label: "Tentar novamente", onClick: () => void fetchData() }}
+        />
+      )}
+      {isLoading && clientes.length > 0 && (
+        <DataState variant="refreshing" title="Atualizando a fila" description="Ações temporariamente indisponíveis." />
+      )}
 
       {/* Message & Audio Preview */}
       {showPreview && (
@@ -951,54 +1561,66 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
         </div>
       )}
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Pesquisar por nome ou telefone..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-      </div>
+      <FilterPanel
+        hasActiveFilters={hasSearchInput || (activeTab === "enviados" && respostaFilter !== "todos")}
+        onClear={() => { setSearchQuery(""); setRespostaFilter("todos"); }}
+      >
+        <FilterField id="automation-client-search" label="Pesquisar clientes da automação" className="max-w-2xl">
+          <SearchInput
+            id="automation-client-search"
+            placeholder="Nome ou telefone"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </FilterField>
+      </FilterPanel>
 
-      <Tabs defaultValue="pendentes" className="w-full">
-        <TabsList>
-          <TabsTrigger value="pendentes" className="gap-1.5">
+      <Tabs value={activeTab} onValueChange={(value) => {
+        if (value === "pendentes" || value === "enviados" || value === "relatorio") setActiveTab(value);
+      }} className="w-full">
+        <TabsList aria-label="Visões da automação" className="max-w-full justify-start">
+          <TabsTrigger value="pendentes" className="gap-1 px-2">
             <Clock className="w-4 h-4" /> Pendentes
           </TabsTrigger>
-          <TabsTrigger value="enviados" className="gap-1.5">
+          <TabsTrigger value="enviados" className="gap-1 px-2">
             <Send className="w-4 h-4" /> Enviados
           </TabsTrigger>
-          <TabsTrigger value="relatorio" className="gap-1.5">
+          <TabsTrigger value="relatorio" className="gap-1 px-2">
             <BarChart3 className="w-4 h-4" /> Relatório
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pendentes">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando clientes...
-            </div>
+          {isLoading && clientes.length === 0 ? (
+            <DataState variant="loading" title="Carregando disparos pendentes" description="Consultando a fila desta automação." className="my-4" />
           ) : pendentes.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              <Clock className="w-10 h-10 mx-auto mb-3 opacity-40" />
-              <p>Nenhum disparo pendente.</p>
-            </div>
+            <DataState
+              variant="empty"
+              title={pendentesSemBusca.length > 0 && hasSearch ? "Nenhum cliente encontrado" : "Nenhum disparo pendente"}
+              description={pendentesSemBusca.length > 0 && hasSearch
+                ? "Nenhum cliente pendente corresponde ao nome ou telefone pesquisado."
+                : "Nenhum cliente aguarda envio nesta automação."}
+              action={pendentesSemBusca.length > 0 && hasSearch ? { label: "Limpar busca", onClick: () => setSearchQuery("") } : undefined}
+              className="my-4"
+            />
           ) : (
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h4 className="text-sm font-semibold text-muted-foreground">
                   Pendentes ({pendentes.length})
                 </h4>
                 {pendentesEmAtraso.length > 0 && (
                   <AlertDialog>
-                    <AlertDialogTrigger asChild>
+                    <AlertDialogTrigger render={
                       <Button
                         variant="default"
                         size="sm"
                         className="gap-1.5"
-                        disabled={isBulkSending}
+                        disabled={actionsUnavailable || isBulkSending || sendingId !== null || cancellingId !== null}
+                        aria-busy={isBulkSending}
+                        aria-label={isBulkSending
+                          ? `Envio em massa em andamento: ${bulkProgress.sent + bulkProgress.errors} de ${bulkProgress.total} clientes`
+                          : `Enviar todos os ${pendentesEmAtraso.length} clientes em atraso`}
                       >
                         {isBulkSending ? (
                           <>
@@ -1012,7 +1634,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                           </>
                         )}
                       </Button>
-                    </AlertDialogTrigger>
+                    } />
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Enviar para todos em atraso</AlertDialogTitle>
@@ -1022,7 +1644,10 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleEnviarTodosEmAtraso}>
+                        <AlertDialogAction
+                          onClick={handleEnviarTodosEmAtraso}
+                          disabled={actionsUnavailable || isBulkSending || sendingId !== null || cancellingId !== null}
+                        >
                           Confirmar envio em massa
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -1030,126 +1655,65 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                   </AlertDialog>
                 )}
               </div>
-              <div className="overflow-hidden rounded-lg border border-border bg-card">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50">
-                      <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Cliente</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendedor</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : automacao.fonte === "detalhado_inativos" ? "Último Atendimento" : "Data da Compra"}</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Data do Envio</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "detalhado_inativos" ? "Tempo" : "Dias Restantes"}</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendentes.map((c) => (
-                      <tr key={c.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3">
-                          <div>
-                            <span className="font-medium">{c.nome}</span>
-                            <span className="block text-xs text-muted-foreground">{c.telefone}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">{c.vendedor || "—"}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">{c.data_compra}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">{c.data_envio_programada}</td>
-                        <td className="px-4 py-3 text-center">
-                          <Badge variant="outline" className={`gap-1 ${
-                            automacao.fonte === "detalhado_inativos"
-                              ? c.dias_faltam <= 0
-                                ? "bg-red-500/10 text-red-600 border-red-200"
-                                : "bg-blue-500/10 text-blue-600 border-blue-200"
-                              : "bg-yellow-500/10 text-yellow-600 border-yellow-200"
-                          }`}>
-                            <Clock className="w-3 h-3" />
-                            {automacao.fonte === "detalhado_inativos"
-                              ? c.dias_faltam <= 0
-                                ? `${Math.abs(c.dias_faltam)}d em atraso`
-                                : `${c.dias_faltam}d restantes`
-                              : c.dias_faltam === 0
-                                ? "Hoje"
-                                : `${c.dias_faltam}d`}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-1 text-xs h-7"
-                              disabled={sendingId === c.id}
-                              onClick={() => handleEnviarAgora(c)}
-                            >
-                              {sendingId === c.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Send className="w-3 h-3" />
-                              )}
-                              Enviar agora
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="gap-1 text-xs h-7 text-muted-foreground hover:text-destructive"
-                                  disabled={cancellingId === c.id}
-                                >
-                                  {cancellingId === c.id ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <XCircle className="w-3 h-3" />
-                                  )}
-                                  Cancelar
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Cancelar disparo</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja cancelar o disparo para {c.nome}? A mensagem não será enviada.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Voltar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    onClick={() => handleCancelar(c)}
-                                  >
-                                    Cancelar disparo
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ul className="grid grid-cols-1 gap-3 md:hidden" aria-label="Clientes com envio pendente" aria-busy={isLoading}>
+                {visiblePendentes.map((client) => (
+                  <li key={client.id} className="min-w-0">
+                    <PendingDispatchCard
+                      automacao={automacao}
+                      client={client}
+                      disabled={actionsUnavailable || isBulkSending || sendingId !== null || cancellingId !== null}
+                      isSending={sendingId === client.id}
+                      isCancelling={cancellingId === client.id}
+                      onSend={() => handleEnviarAgora(client)}
+                      onCancel={() => handleCancelar(client)}
+                    />
+                  </li>
+                ))}
+              </ul>
+              <EntityDataTable table={pendingDispatchTable} label="Clientes com envio pendente" busy={isLoading} className="hidden rounded-lg border border-border bg-card md:block" tableClassName="min-w-[850px]" />
+              <DataTablePagination
+                total={pendentes.length}
+                page={currentPendingPage}
+                pageSize={pageSize}
+                onPageChange={setPendingPage}
+                onPageSizeChange={setPageSize}
+                label="pendentes"
+                className="mt-3"
+              />
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="enviados">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando...
-            </div>
+          {isLoading && clientes.length === 0 ? (
+            <DataState variant="loading" title="Carregando envios" description="Consultando o histórico desta automação." className="my-4" />
           ) : processados.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              <Send className="w-10 h-10 mx-auto mb-3 opacity-40" />
-              <p>Nenhum disparo enviado ainda.</p>
-            </div>
+            <DataState
+              variant="empty"
+              title={processadosAll.length > 0
+                ? "Nenhum envio corresponde a este filtro"
+                : processadosSemBusca.length > 0 && hasSearch
+                  ? "Nenhum envio encontrado"
+                  : "Nenhum disparo enviado ainda"}
+              description={processadosAll.length > 0
+                ? "Altere a resposta selecionada para consultar outros envios."
+                : processadosSemBusca.length > 0 && hasSearch
+                  ? "Nenhum envio corresponde ao nome ou telefone pesquisado."
+                  : "Os envios concluídos aparecerão nesta lista."}
+              action={processadosAll.length > 0 && respostaFilter !== "todos"
+                ? { label: "Mostrar todos", onClick: () => setRespostaFilter("todos") }
+                : processadosSemBusca.length > 0 && hasSearch
+                  ? { label: "Limpar busca", onClick: () => setSearchQuery("") }
+                  : undefined}
+              className="my-4"
+            />
           ) : (
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h4 className="text-sm font-semibold text-muted-foreground">
                   Enviados ({processados.length}{respostaFilter !== "todos" ? ` de ${processadosAll.length}` : ""})
                 </h4>
-                <div className="flex items-center gap-1">
+                <div role="group" aria-label="Filtrar envios pela resposta do cliente" className="flex flex-wrap items-center gap-1">
                   <span className="text-xs text-muted-foreground mr-1">Resposta:</span>
                   {([
                     { key: "todos", label: "Todos" },
@@ -1161,6 +1725,7 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                       variant={respostaFilter === key ? "default" : "outline"}
                       size="sm"
                       className="h-7 text-xs px-3"
+                      aria-pressed={respostaFilter === key}
                       onClick={() => setRespostaFilter(key)}
                     >
                       {label}
@@ -1168,91 +1733,30 @@ export function AutomacaoDetailView({ automacao, onBack }: AutomacaoDetailViewPr
                   ))}
                 </div>
               </div>
-              <div className="overflow-x-auto rounded-lg border border-border bg-card">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50">
-                      <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Cliente</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Vendedor</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">{automacao.fonte === "perdidos" ? "Marcado como Perdido" : automacao.fonte === "detalhado_inativos" ? "Último Atendimento" : "Data da Compra"}</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Enviado em</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Resposta</th>
-                      <th className="px-4 py-3 text-left font-semibold text-muted-foreground min-w-[200px]">
-                        <span className="inline-flex items-center gap-2">
-                          Observação
-                          <Badge variant="secondary" className="px-1.5 py-0 text-[10px] leading-4">IA</Badge>
-                        </span>
-                      </th>
-                      <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {processados.map((c) => (
-                      <tr key={`${c.id}-${c.disparo_id}`} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3">
-                          <div>
-                            <span className="font-medium">{c.nome}</span>
-                            <span className="block text-xs text-muted-foreground">{c.telefone}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">{c.vendedor || "—"}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">{c.data_compra}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">
-                          {c.data_envio_real || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <Badge variant="outline" className={`gap-1 ${statusColor(c.status)}`}>
-                              {statusIcon(c.status)} {c.status}
-                            </Badge>
-                            {c.erro && (
-                              <span className="text-[10px] text-muted-foreground max-w-[200px] truncate" title={c.erro}>
-                                {c.erro}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <Badge variant="outline" className={`gap-1 ${
-                            c.resposta_cliente
-                              ? "bg-green-500/10 text-green-600 border-green-200"
-                              : "bg-muted text-muted-foreground border-border"
-                          }`}>
-                            {c.resposta_cliente ? (
-                              <><CheckCircle className="w-3 h-3" /> Sim</>
-                            ) : (
-                              <><Clock className="w-3 h-3" /> Não</>
-                            )}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          <ObservacaoCell
-                            value={c.observacao || ""}
-                            onSave={(val) => c.disparo_id && handleUpdateObservacao(c.disparo_id, val)}
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 text-xs h-7"
-                            disabled={sendingId === c.id}
-                            onClick={() => handleEnviarAgora(c, true)}
-                          >
-                            {sendingId === c.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <RefreshCw className="w-3 h-3" />
-                            )}
-                            Reenviar
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ul className="grid grid-cols-1 gap-3 md:hidden" aria-label="Histórico de envios da automação" aria-busy={isLoading}>
+                {visibleProcessados.map((client) => (
+                  <li key={`${client.id}-${client.disparo_id}`} className="min-w-0">
+                    <SentDispatchCard
+                      automacao={automacao}
+                      client={client}
+                      disabled={actionsUnavailable || isBulkSending || sendingId !== null || cancellingId !== null}
+                      isSending={sendingId === client.id}
+                      onResend={() => handleEnviarAgora(client, true)}
+                      onUpdateObservation={(value) => client.disparo_id ? handleUpdateObservacao(client.disparo_id, value) : Promise.resolve(false)}
+                    />
+                  </li>
+                ))}
+              </ul>
+              <EntityDataTable table={processedDispatchTable} label="Histórico de envios da automação" busy={isLoading} className="hidden rounded-lg border border-border bg-card md:block" tableClassName="min-w-[1180px]" getHeaderClassName={(columnId) => columnId === "observacao" ? "min-w-[200px]" : undefined} />
+              <DataTablePagination
+                total={processados.length}
+                page={currentSentPage}
+                pageSize={pageSize}
+                onPageChange={setSentPage}
+                onPageSizeChange={setPageSize}
+                label="envios"
+                className="mt-3"
+              />
             </div>
           )}
         </TabsContent>

@@ -3,6 +3,8 @@
 Data: 19/10/2026. Branch: `codex/melhorias-usabilidade`.
 Estado: planejamento com a etapa 1 em implementação local. A migração aditiva está na branch e ainda não foi aplicada ao Supabase de produção.
 
+**Decisão posterior — 20/10/2026:** Marketing e a integração Meta foram retirados do escopo. As telas, navegação e código exclusivo foram removidos; o histórico já gravado no Supabase permanece preservado como legado. Esta decisão substitui as propostas anteriores de criar Marketing, sincronizar Meta e expor métricas de anúncios pela Winners. A desativação remota das Edge Functions antigas precisa ser verificada separadamente.
+
 A refatoração da interface está detalhada em [PLANO-REFATORACAO-LAYOUT.md](PLANO-REFATORACAO-LAYOUT.md), com os padrões obrigatórios em [DESIGN.md](../DESIGN.md). Esses documentos complementam este plano; as regras de negócio, cálculos e contratos de integração continuam definidos aqui.
 
 ## 1. Objetivo e decisões recebidas
@@ -13,13 +15,13 @@ Decisões do usuário:
 
 - Substituir campos livres de categorias por menus selecionáveis e unificar filtros equivalentes.
 - Cadastrar funcionários antes de selecioná-los nos registros.
-- Substituir o módulo manual Anúncios DNZ por dados automáticos da Meta.
+- Decisão anterior, agora supersedida: substituir anúncios manuais por dados da Meta. Em 20/10/2026, Marketing/Meta foi retirado do escopo.
 - Remover também Anúncios SV e Taxa de Retorno SV.
 - Disponibilizar API para a Winners, especialmente para clientes e WhatsApp.
 - Manter a OpenAI analisando, classificando e resumindo novas conversas, com resultado em Observação + badge IA. Não habilitar respostas autônomas a clientes.
 - Manter o recorte de novas conversas da migração anterior, sem importar histórico do Chatlabs.
 
-Interpretação operacional: retirar as três abas antigas e criar Marketing para Meta/DNZ. A remoção de telas não exige apagar os registros históricos; eles serão preservados e identificados como legado, sem somá-los à nova fonte automática.
+Interpretação operacional atualizada: retirar as telas antigas e Marketing. A remoção da interface não apaga os registros históricos, que permanecem como legado.
 
 ## 2. Evidências no código atual
 
@@ -36,9 +38,9 @@ Interpretação operacional: retirar as três abas antigas e criar Marketing par
 | Anúncios depende de lançamentos/imagens; mensagens são tratadas como leads | Separar investimento, conversas, leads identificados e vendas atribuídas |
 | Áudios de automações têm chaves com nomes de vendedores | Renomear funcionário não pode alterar o áudio escolhido |
 
-Arquivos principais: `src/pages/Index.tsx`, `LeadsTable.tsx`, `NewLeadDialog.tsx`, `DetalhadoAmigoTable.tsx`, `MultiSelectFilter.tsx`, `ScheduleTable.tsx`, `PerdasSection.tsx`, `MetasCalculator.tsx`, `AcompanhamentoDiarioSection.tsx`, `AutomacoesTable.tsx`, `AutomacaoDetailView.tsx`, `src/hooks/useIndicadoresData.ts`, `useAnuncios.ts` e `supabase/functions`.
+Arquivos principais do inventário original: `src/pages/Index.tsx`, `LeadsTable.tsx`, `NewLeadDialog.tsx`, `DetalhadoAmigoTable.tsx`, `MultiSelectFilter.tsx`, `ScheduleTable.tsx`, `PerdasSection.tsx`, `MetasCalculator.tsx`, `AcompanhamentoDiarioSection.tsx`, `AutomacoesTable.tsx`, `AutomacaoDetailView.tsx`, `src/hooks/useIndicadoresData.ts` e `supabase/functions`.
 
-Esta revisão usa o checkout atual. O inventário de valores reais, acessos Meta e consumidores das funções em produção será realizado na etapa de execução correspondente.
+Esta revisão usa o checkout atual. O inventário de valores reais e consumidores das funções em produção será realizado na etapa de execução correspondente.
 
 ## 3. Regra comum de filtros e preenchimento
 
@@ -84,7 +86,7 @@ Nunca deduplicar cliente apenas pelo nome. Priorizar IDs de origem e contatos co
 
 ## 5. Lógica por funcionalidade e navegação
 
-Navegação proposta: Hoje; Comercial (Leads e Perdas); Atendimentos; Resultados (Indicadores, Metas e Acompanhamento); Marketing; Automações. Escala médica e Cadastros ficam acessíveis em uma área secundária. A posição final pode ser ajustada após uso da primeira entrega.
+Navegação proposta: Hoje; Comercial (Leads e Perdas); Atendimentos; Resultados (Indicadores, Metas e Acompanhamento); Automações. Escala médica, Cadastros e Configurações ficam acessíveis em uma área secundária.
 
 | Funcionalidade | Lógica aplicável | Critério de conclusão |
 | --- | --- | --- |
@@ -96,7 +98,6 @@ Navegação proposta: Hoje; Comercial (Leads e Perdas); Atendimentos; Resultados
 | Indicadores | Fonte única por métrica, filtro explícito, composição clicável | Totais diários e mensais conciliam quando medem os mesmos eventos |
 | Metas | Metas por ano/mês, parâmetros compartilhados, distribuição por calendário/peso | Soma de metas diárias fecha com o mês; zeros não são tratados como ausência |
 | Acompanhamento | Realizado derivado das vendas registradas; fechamento manual legado fica identificado e conciliado | Não somar fechamento manual e vendas detalhadas referentes ao mesmo valor |
-| Marketing | Leitura Meta por conta/campanha/conjunto/anúncio e período | Atualização automática, fonte e última sincronização visíveis |
 | Automações | Público elegível por evento/data, funcionário e template; execução existente preservada | Migração não dispara mensagens nem cria fila retroativa |
 | Observação IA | Resumo, classificação e data; abrir detalhe; anotação manual separada | Falha na análise não substitui observação válida; reprocessamento não envia mensagem |
 | Cadastros | Funcionários, profissionais, canais e motivos | Edições de catálogo refletem em toda seleção |
@@ -129,31 +130,9 @@ Denominador zero produz “Sem base” (null na API), sem infinito. Taxa com bas
 
 Migrar configuração de metas para chave ano/mês e datas para ISO, apresentadas em português. Datas de negócio seguem America/Sao_Paulo; instantes ficam em UTC. Centralizar consultas/funções de métricas no backend e retornar versão da regra, filtros, data de corte e atualização das fontes, permitindo que painel e Winners exibam a mesma definição.
 
-## 7. Integração Meta para Marketing
+## 7. Escopo retirado — Marketing e anúncios
 
-Destino inicial: contas/campanhas DNZ explicitamente selecionadas. Desempenho de anúncios entra pela Marketing API/Insights; não pressupõe importação de contatos de formulários nem atribuição automática de cada conversa UAZAPI a um anúncio.
-
-Pré-requisitos a conferir: Business Portfolio, conta(s) de anúncio, app com Marketing API, token com leitura dos ativos e permissão `ads_read`; avaliar os requisitos efetivos de acesso conforme propriedade das contas. Fixar uma versão suportada da API no momento da implementação. Credenciais ficam nos secrets do Supabase.
-
-Fluxo: função de sincronização → Insights com paginação → gravação por ID externo → consultas locais do painel. Proposta inicial: atualização horária, fechamento diário e reconsulta móvel dos últimos 28 dias para correções de atribuição; ajustar janela ao regime usado na conta. Executar carga inicial do período definido na etapa de conexão. Repetir uma consulta faz upsert, sem duplicar linhas.
-
-Armazenar conta, campanha, conjunto, anúncio, dia, moeda, timezone, política de atribuição, tipo de ação, versão da consulta e data da sincronização. Separar consultas sem detalhamento e consultas com breakdown, para não somar ambos. Falhas parciais não recebem status de carga completa; preservar última base válida e informar atraso. Implementar limite de execução, retomada, tentativas com espera e registro de falhas sem tokens.
-
-Métricas: investimento, impressões, cliques de link, conversas iniciadas e leads de formulário quando efetivamente disponíveis. Selecionar os tipos de ação retornados pela conta e validar contra o Gerenciador. Não somar conversões sobrepostas nem chamar toda mensagem de lead identificado.
-
-- CTR de link = cliques de link / impressões × 100.
-- CPC de link = investimento / cliques de link.
-- CPM = investimento / impressões × 1.000.
-- Custo por conversa = investimento / conversas iniciadas conforme definição escolhida.
-- CPL Meta = investimento / leads Meta da ação definida, quando disponível.
-- CAC = investimento / novos clientes compradores atribuídos, somente quando existir vínculo confiável e base temporal definida.
-- ROAS = receita atribuída / investimento, somente com atribuição explícita; caso contrário, mostrar indisponível.
-
-Alcance e outras métricas únicas não são somadas entre dias ou anúncios. Quando exibidas no total, solicitar a agregação correta à Meta. Não misturar moedas. Comparar com o Gerenciador usando os mesmos filtros, timezone, período e atribuição.
-
-Remover os uploads de anúncios do fluxo ativo após substituição. Preservar lançamentos antigos em arquivo separado, sem preencher lacunas Meta silenciosamente. Desativar `extract-ad-metrics` e `return-rate` após verificar consumidores/agendamentos; deletar arquivos locais não comprova que uma função deixou de existir em produção. Manter `import-schedule-image` e demais usos válidos da OpenAI.
-
-Referências primárias consultadas em 13/10/2026: [coleção Meta Marketing API](https://www.postman.com/meta/facebook-marketing-api/collection/0zr4mes/facebook-marketing-api-mapi), [exemplo de Insights e atribuição da Meta](https://www.postman.com/meta/facebook-marketing-api/request/5wdl62t/attributionsetting), [SDK oficial da Meta](https://github.com/facebook/facebook-python-business-sdk). As páginas diretas developers.facebook.com tiveram restrição de acesso na consulta; requisitos e versão serão reconfirmados na conexão da conta real.
+Em 20/10/2026, Marketing e a integração Meta foram cancelados. As interfaces de Anúncios DNZ, Anúncios SV, Taxa de Retorno SV e Marketing saem da operação; o histórico do banco permanece preservado. O código local das funções exclusivas `extract-ad-metrics` e `return-rate` foi removido. Antes de considerar a remoção completa em produção, confirmar se essas Edge Functions ou agendamentos ainda existem no projeto Supabase; não apagar tabelas ou registros históricos.
 
 ## 8. API para Winners
 
@@ -171,12 +150,12 @@ Implementação proposta: Edge Function `platform-api`, rotas internas versionad
 | `/conversations/:id/messages` | Mensagens capturadas, direção, horário e ID de origem | messages:read |
 | `/conversations/:id/analysis` | Resumo/classificação IA, versão e período analisado | analysis:read |
 | `/automation-events` | Disparos, respostas e vínculo com cliente/conversa | automations:read |
-| `/metrics` e `/marketing/insights` | Agregados pelas definições compartilhadas | metrics:read / marketing:read |
+| `/metrics` | Agregados pelas definições compartilhadas | metrics:read |
 | `/changes` | Inclusões, alterações e exclusões lógicas por cursor | Restrito aos escopos da credencial |
 
 O núcleo inicial da Winners é cliente + conversa + mensagem + análise. Vendas, funcionários e agregados são liberados por necessidade do consumidor. Dados clínicos, notas livres completas e mídia não entram implicitamente no escopo inicial; definir campos exatos com a Winners antes de habilitar o acesso.
 
-Credencial por consumidor com token de alta entropia mostrado uma vez, armazenado como hash, escopos, expiração, revogação e identificação em auditoria. A Winners usa a chave em seu backend. Nunca entregar `service_role` nem secrets de Meta, UAZAPI ou OpenAI. Validar autorização no servidor inclusive ao consultar um ID específico, aplicar limites por chave e registrar acessos sem conteúdo das mensagens. Não depender de CORS como autenticação.
+Credencial por consumidor com token de alta entropia mostrado uma vez, armazenado como hash, escopos, expiração, revogação e identificação em auditoria. A Winners usa a chave em seu backend. Nunca entregar `service_role` nem secrets de UAZAPI ou OpenAI. Validar autorização no servidor inclusive ao consultar um ID específico, aplicar limites por chave e registrar acessos sem conteúdo das mensagens. Não depender de CORS como autenticação.
 
 Contrato: JSON, IDs imutáveis, paginação por cursor (100 por padrão, limite máximo definido), ISO 8601, moeda explícita, valores monetários em centavos, erros padronizados, limites de período, ordenação estável e campos de atualização. Entregar OpenAPI, exemplos com dados fictícios e instruções de consumo.
 
@@ -195,12 +174,12 @@ Histórico: expor `capture_started_at` e disponibilidade por fonte. Entregar ape
 | 2 — Filtros e formulários | Barra única, menus com busca, edição por seleção, chips e estados de salvamento | Etapa 1 | Filtrar por pessoa/categoria inclui variantes migradas; cards e tabelas conciliam |
 | 3 — Eventos e cálculos | Cliente/oportunidade/venda ligados, datas próprias, perdas corretas, metas por ano/mês | Etapas 0–2 | Um conjunto de casos conhecidos gera valores iguais na tela e no backend |
 | 4 — Navegação e exclusões | Hoje, nomes claros, Resultados; retirar Anúncios DNZ/SV e Taxa Retorno SV | Etapa 2; cards de Hoje dependem de 3 | Sem links mortos; arquivo legado recuperável; funções obsoletas desativadas após mapa de consumidores |
-| 5 — Marketing Meta | Conexão da conta DNZ, importação inicial, rotina incremental, painel | Acesso Meta; contrato métrico da 3 | Totais conciliados com Meta; repetição e falha parcial não duplicam/distorcem resultados |
+| 5 — Marketing Meta | Cancelada em 20/10/2026; não implementar nem expor dados de anúncios | Fora do escopo | Nenhuma rota ou integração ativa; históricos legados preservados |
 | 6 — Automações e IA | IDs de funcionário/cliente, datas de evento, vínculo correto de resposta, análise reprocessável | Etapas 1 e 3 | Migração não altera elegibilidade retroativamente; nenhuma mensagem real enviada por testes |
-| 7 — API Winners | Rotas, autenticação por escopo, OpenAPI, snapshot e alterações incrementais | Modelo estável da 3 e conversas da 6; Marketing opcional depende da 5 | Teste de consumo com dados fictícios; escopos/revogação/retomada funcionam; IDs coincidem com DNZ |
+| 7 — API Winners | Rotas, autenticação por escopo, OpenAPI, snapshot e alterações incrementais | Modelo estável da 3 e conversas da 6 | Teste de consumo com dados fictícios; escopos/revogação/retomada funcionam; IDs coincidem com DNZ |
 | 8 — Publicação gradual | Prévia, migrações aditivas, ativação por módulo e acompanhamento | Aceite técnico de cada entrega | Verificar Vercel e Supabase, conciliar amostra de produção e manter reversão possível |
 
-A preparação da conta Meta e o contrato de campos com Winners podem começar na etapa 0, enquanto cadastros/filtros são desenvolvidos. A disponibilidade desses acessos não bloqueia as melhorias locais. A API básica da Winners não depende da conclusão do Marketing.
+O contrato de campos com Winners pode começar na etapa 0, enquanto cadastros/filtros são desenvolvidos. A API da Winners não depende de integrações de anúncios.
 
 Separar entregas revisáveis na branch existente; não acumular toda a mudança em um deploy. Migração do banco primeiro em formato compatível, frontend depois, remoção de compatibilidade antiga só após conciliação. Não usar a branch de trabalho para apontar uma prévia mutável ao banco de produção sem avaliar o isolamento disponível.
 
@@ -208,17 +187,16 @@ Separar entregas revisáveis na branch existente; não acumular toda a mudança 
 
 Casos obrigatórios: variantes de nome e homônimos; funcionário inativo no histórico; vários filtros combinados; sem resultados; Sim/Não/não informado; teclado e celular; dois funcionários editando; dezembro/janeiro e ano bissexto; venda posterior à criação; perda reaberta; edição que não muda data da perda; cancelamento de venda; ausência de escala; meta zero; lançamento vazio versus zero; denominador zero; arredondamento; conciliação de total diário/mensal.
 
-Meta: mesma janela/fuso/atribuição do Gerenciador, paginação completa, repetição idempotente, token revogado e carga parcial. Winners: chave ausente/inválida/revogada, escopo insuficiente, acesso por ID, limite de página, cursor/retomada, mensagens repetidas ou fora de ordem, análise atrasada e exclusão/fusão de cliente. Testar com fixtures sintéticas antes de usar leitura de produção; não enviar mensagens reais para validar código.
+Winners: chave ausente/inválida/revogada, escopo insuficiente, acesso por ID, limite de página, cursor/retomada, mensagens repetidas ou fora de ordem, análise atrasada e exclusão/fusão de cliente. Testar com fixtures sintéticas antes de usar leitura de produção; não enviar mensagens reais para validar código.
 
-Executar build e checagens de tipos; testes focados nas regras alteradas, migrações e contrato API. Conciliar contagens, IDs, somas e pendências antes/depois da migração. Manter mapa de migração e cópia recuperável dos campos antigos; não depender apenas de rollback do frontend para reverter mudança de dados. Permitir desligar sincronização Meta e revogar acesso Winners independentemente do restante do app.
+Executar build e checagens de tipos; testes focados nas regras alteradas, migrações e contrato API. Conciliar contagens, IDs, somas e pendências antes/depois da migração. Manter mapa de migração e cópia recuperável dos campos antigos; não depender apenas de rollback do frontend para reverter mudança de dados. Revogar acesso Winners independentemente do restante do app.
 
 ## 11. Informações necessárias durante a execução
 
-- Meta: identificação da conta/ativos DNZ, acesso de leitura, período da primeira importação, timezone/moeda e convenção de atribuição.
 - Winners: backend consumidor, campos necessários, se precisa do texto integral das mensagens ou apenas análises, frequência esperada, contato técnico/contrato e ambiente de homologação. A credencial real será emitida somente após contrato e autorização dos campos de destino.
 - Negócio: resolver associações ambíguas de funcionários e clientes; conciliar datas de venda desconhecidas; definir tratamento de cancelamentos/devoluções e fonte dos fechamentos antigos.
 
-Primeira entrega recomendada: etapas 0, 1 e 2, acompanhadas da remoção das abas antigas na etapa 4. Depois, consolidar eventos/cálculos, concluir Marketing e estabilizar conversas para publicar a API da Winners.
+Primeira entrega recomendada: etapas 0, 1 e 2, acompanhadas da remoção das abas antigas na etapa 4. Depois, consolidar eventos/cálculos e estabilizar conversas para publicar a API da Winners.
 
 ## 12. Estado atual — 19/10/2026
 

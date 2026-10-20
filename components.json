@@ -1,7 +1,6 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "vega",
-  "base": "base",
+  "style": "base-vega",
   "rsc": false,
   "tsx": true,
   "tailwind": {
@@ -11,6 +10,9 @@
     "cssVariables": true,
     "prefix": ""
   },
+  "iconLibrary": "lucide",
+  "menuColor": "default",
+  "menuAccent": "subtle",
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",

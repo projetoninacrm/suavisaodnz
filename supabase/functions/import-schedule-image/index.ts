@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { generateOpenAIText, OpenAIError, parseOpenAIJSON, type OpenAIContent } from "../_shared/openai.ts";
+import { assertCompleteScheduleMonth, ScheduleImportValidationError } from "../_shared/schedule-import.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +10,6 @@ const corsHeaders = {
 
 const MONTH_NAMES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 const DAY_NAMES = ["DOM","SEG","TER","QUA","QUI","SEX","SAB"];
-const LEGACY_SCHEDULE_YEAR = 2026;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
 
     const monthName = MONTH_NAMES[month - 1];
     const targetSheet = typeof sheetName === "string" && sheetName.trim() ? sheetName.trim() : "Escala";
-    let rows: Array<{ sheet_name: string; date: string; day_of_week: string; morning_shift: string; afternoon_shift: string }>;
+    let rows: Array<{ sheet_name: string; date: string; day_of_week: string; morning_shift: string; afternoon_shift: string }> = [];
 
     if (action === "confirm") {
       if (!Array.isArray(submittedRows) || submittedRows.length === 0 || submittedRows.length > 31) {
@@ -40,25 +40,59 @@ Deno.serve(async (req) => {
       const days = submittedRows.map((row: Record<string, unknown>) => {
         const match = typeof row?.date === "string" ? row.date.match(/^(\d{4})-(\d{2})-(\d{2})$/) : null;
         const day = match ? Number(match[3]) : NaN;
+        const professionalId = (value: unknown) => {
+          if (value === null || value === "") return null;
+          if (typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) return value;
+          throw new OpenAIError("Selecione profissionais válidos nos turnos antes de confirmar.", 422);
+        };
+        const morningProfessionalId = professionalId(row?.morning_shift_professional_id);
+        const afternoonProfessionalId = professionalId(row?.afternoon_shift_professional_id);
         if (!match || Number(match[1]) !== year || Number(match[2]) !== month || !Number.isInteger(day) || day < 1 || day > daysInMonth
-          || typeof row.morning_shift !== "string" || typeof row.afternoon_shift !== "string"
-          || row.morning_shift.length > 200 || row.afternoon_shift.length > 200) {
-          throw new OpenAIError("A prévia contém datas ou nomes inválidos. Gere outra prévia.", 422);
+          || (row.morning_shift_professional_id && !morningProfessionalId)
+          || (row.afternoon_shift_professional_id && !afternoonProfessionalId)) {
+          throw new OpenAIError("A prévia contém datas ou profissionais inválidos. Gere outra prévia.", 422);
         }
         const date = new Date(year, month - 1, day);
         if (date.getDay() === 0) throw new OpenAIError("A prévia contém domingo. Revise a escala.", 422);
         return {
           day,
           date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-          day_of_week: DAY_NAMES[date.getDay()],
-          morning_shift: row.morning_shift.trim(),
-          afternoon_shift: row.afternoon_shift.trim(),
+          morning_shift_professional_id: morningProfessionalId,
+          afternoon_shift_professional_id: afternoonProfessionalId,
         };
       });
       if (new Set(days.map((day) => day.day)).size !== days.length) {
         throw new OpenAIError("A prévia contém dias duplicados. Gere outra prévia.", 422);
       }
-      rows = days.map(({ day: _day, ...row }) => ({ sheet_name: targetSheet, ...row }));
+      assertCompleteScheduleMonth(days, year, month);
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseUrl || !serviceKey) throw new Error("Configuração do Supabase ausente.");
+      const supabase = createClient(supabaseUrl, serviceKey);
+      const professionalIds = [...new Set(days.flatMap((day) => [day.morning_shift_professional_id, day.afternoon_shift_professional_id]).filter((id): id is string => Boolean(id)))];
+      if (professionalIds.length > 0) {
+        const { data: professionals, error: professionalsError } = await supabase
+          .from("professionals")
+          .select("id")
+          .in("id", professionalIds);
+        if (professionalsError) throw professionalsError;
+        if ((professionals || []).length !== professionalIds.length) {
+          throw new OpenAIError("Um profissional selecionado não está mais cadastrado. Atualize a prévia.", 422);
+        }
+      }
+
+      const { data: result, error: importError } = await supabase.rpc("replace_schedule_month", {
+        p_sheet_name: targetSheet,
+        p_year: year,
+        p_month: month,
+        p_rows: days.map(({ day: _day, ...row }) => row),
+      });
+      if (importError) throw importError;
+      const counts = result as { inserted?: number; deleted?: number } | null;
+      return new Response(JSON.stringify({ confirmed: true, inserted: counts?.inserted || 0, deleted: counts?.deleted || 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     } else {
       if (typeof fileBase64 !== "string" || !fileBase64 || !["image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"].includes(mimeType)) {
         return new Response(JSON.stringify({ error: "Selecione uma imagem ou PDF compatível." }), {
@@ -156,50 +190,15 @@ Responda APENAS com JSON válido, sem markdown, no formato:
     }
 
     if (rows.length === 0) throw new OpenAIError("Não foram encontrados dias úteis na escala. Revise o arquivo.", 422);
+    assertCompleteScheduleMonth(rows, year, month);
 
-    if (action === "preview") {
-      return new Response(JSON.stringify({ preview: true, rows }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
-
-    // Replace existing rows for the same month + sheet
-    const monthPrefix = `${year}-${String(month).padStart(2, "0")}-`;
-    const { data: existing, error: existingErr } = await supabase
-      .from("schedules")
-      .select("id,date")
-      .eq("sheet_name", targetSheet);
-    if (existingErr) throw existingErr;
-
-    const toDelete = (existing || [])
-      .filter((r: { date: string }) => {
-        if (!r.date) return false;
-        if (r.date.startsWith(monthPrefix)) return true;
-        // Also clean DD/mes legacy format for same month
-        const parts = r.date.split("/");
-        return year === LEGACY_SCHEDULE_YEAR && parts[1]?.toLowerCase().trim() === MONTH_NAMES[month - 1];
-      })
-      .map((r: { id: string }) => r.id);
-
-    if (toDelete.length > 0) {
-      const { error: deleteErr } = await supabase.from("schedules").delete().in("id", toDelete);
-      if (deleteErr) throw deleteErr;
-    }
-
-    const { error: insertErr } = await supabase.from("schedules").insert(rows);
-    if (insertErr) throw insertErr;
-
-    return new Response(JSON.stringify({ confirmed: true, inserted: rows.length, deleted: toDelete.length }), {
+    return new Response(JSON.stringify({ preview: true, rows }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("import-schedule-image error", err);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: err instanceof OpenAIError ? err.status : 500,
+      status: err instanceof OpenAIError || err instanceof ScheduleImportValidationError ? err.status : 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

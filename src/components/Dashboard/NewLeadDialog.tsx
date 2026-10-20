@@ -1,19 +1,20 @@
 import { useState, useMemo } from "react";
-import { format, parse, isValid } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { CalendarIcon, AlertTriangle } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { DatePickerField } from "@/components/data/DatePickerField";
+import { CategorySelect } from "@/components/data/CategorySelect";
 import { PersonSelect } from "@/components/Dashboard/PersonSelect";
-import { useDirectory } from "@/hooks/useDirectory";
+import { PersonDirectoryHint } from "@/components/data/PersonDirectoryHint";
+import type { DirectoryPerson } from "@/hooks/useDirectory";
+import { Link } from "react-router-dom";
+import { DEFAULT_LEAD_CHANNELS, type CategoryCatalogItem } from "@/hooks/useCategories";
 import type { Lead, NewLeadData } from "@/hooks/useLeads";
 
 interface NewLeadFormData {
@@ -38,11 +39,37 @@ interface NewLeadDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: NewLeadData) => void | Promise<void>;
   existingLeads?: Lead[];
+  channelCategories: CategoryCatalogItem[];
+  channelsLoading: boolean;
+  channelsError: string | null;
+  refreshChannels: () => Promise<boolean>;
+  employees: DirectoryPerson[];
+  employeesLoading: boolean;
+  employeesError: string | null;
+  refreshEmployees: () => Promise<boolean>;
+  professionals: DirectoryPerson[];
+  professionalsLoading: boolean;
+  professionalsError: string | null;
+  refreshProfessionals: () => Promise<boolean>;
 }
-
-export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = [] }: NewLeadDialogProps) {
-  const { people: employees, isLoading: employeesLoading } = useDirectory("employees");
-  const { people: professionals, isLoading: professionalsLoading } = useDirectory("professionals");
+export function NewLeadDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  existingLeads = [],
+  channelCategories,
+  channelsLoading,
+  channelsError,
+  refreshChannels,
+  employees,
+  employeesLoading,
+  employeesError,
+  refreshEmployees,
+  professionals,
+  professionalsLoading,
+  professionalsError,
+  refreshProfessionals,
+}: NewLeadDialogProps) {
   const today = new Date();
   const formattedToday = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
@@ -65,6 +92,7 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
 
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshingChannels, setIsRefreshingChannels] = useState(false);
 
   // Normalize phone number for comparison
   const normalizePhone = (phone: string | null): string => {
@@ -105,6 +133,23 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
   }, [formData.nome, formData.numero, existingLeads]);
 
   const hasDuplicates = duplicateInfo.byName.length > 0 || duplicateInfo.byPhone.length > 0;
+  const activeChannels = channelCategories.filter((category) => category.is_active);
+  const catalogUnavailable = activeChannels.length === 0 && (channelsError !== null || isRefreshingChannels);
+  const isInitialChannelsLoading = channelsLoading && !catalogUnavailable;
+  const fallbackChannels = catalogUnavailable ? DEFAULT_LEAD_CHANNELS : [];
+  const channelChoices = activeChannels.length > 0
+    ? activeChannels.map((category) => ({ value: category.id, label: category.label }))
+    : fallbackChannels.map((label) => ({ value: `fallback:${label}`, label }));
+
+  const retryChannels = async () => {
+    if (isRefreshingChannels) return;
+    setIsRefreshingChannels(true);
+    try {
+      await refreshChannels();
+    } finally {
+      setIsRefreshingChannels(false);
+    }
+  };
 
   const isCanalEmpty = !formData.canal.trim();
 
@@ -112,7 +157,7 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
     e.preventDefault();
     
     // Block submission if canal is not filled
-    if (isCanalEmpty) {
+    if (isCanalEmpty || channelChoices.length === 0) {
       return;
     }
 
@@ -182,58 +227,59 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
       }
       onOpenChange(newOpen);
     }}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent closeButtonDisabled={isSubmitting} aria-busy={isSubmitting} className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Lead</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4" aria-busy={isSubmitting}>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Data</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.data_registro && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.data_registro || "Selecionar data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-50" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.data_registro ? parse(formData.data_registro, "dd/MM/yyyy", new Date()) : undefined}
-                    onSelect={(date) => date && updateField("data_registro", format(date, "dd/MM/yyyy"))}
-                    initialFocus
-                    locale={ptBR}
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DatePickerField
+              id="lead-date"
+              label="Data"
+              value={formData.data_registro}
+              onValueChange={(value) => updateField("data_registro", value)}
+              clearable={false}
+            />
             <div className="space-y-2">
               <Label htmlFor="canal" className="flex items-center gap-1">
                 Canal <span className="text-destructive">*</span>
               </Label>
-              <Select value={formData.canal} onValueChange={(v) => updateField("canal", v)}>
-                <SelectTrigger className={cn(isCanalEmpty && "border-destructive")}>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Internet">Internet</SelectItem>
-                  <SelectItem value="Sua Visão">Sua Visão</SelectItem>
-                  <SelectItem value="Loja">Loja</SelectItem>
-                  <SelectItem value="Du Benefícios">Du Benefícios</SelectItem>
-                  <SelectItem value="Indique e Ganhe">Indique e Ganhe</SelectItem>
-                </SelectContent>
-              </Select>
-              {isCanalEmpty && (
+              <CategorySelect
+                id="canal"
+                value={formData.canal}
+                categories={activeChannels}
+                fallbackValues={fallbackChannels}
+                placeholder="Selecione um canal"
+                ariaLabel="Canal do lead"
+                onValueChange={(value) => updateField("canal", value)}
+                disabled={isInitialChannelsLoading || channelChoices.length === 0}
+                className={cn((isCanalEmpty || channelChoices.length === 0) && "border-destructive")}
+              />
+              {catalogUnavailable ? (
+                <Alert variant="destructive" className="py-2">
+                  <AlertTriangle className="size-4" />
+                  <AlertDescription className="text-xs">
+                    <span>Não foi possível carregar o catálogo. Os canais padrão continuam disponíveis. Tente novamente ou abra Cadastros → Categorias.</span>
+                    <span className="mt-2 flex flex-wrap items-center gap-2">
+                      <Button type="button" size="sm" variant="outline" aria-disabled={isRefreshingChannels} aria-busy={isRefreshingChannels} className={cn(isRefreshingChannels && "cursor-wait opacity-70")} onClick={() => void retryChannels()}>
+                        <RefreshCw className={cn("mr-1 size-3.5", isRefreshingChannels && "animate-spin")} aria-hidden="true" />
+                        {isRefreshingChannels ? "Atualizando…" : "Tentar novamente"}
+                      </Button>
+                      <Link className="font-medium underline" to="/cadastros/categorias" onClick={() => onOpenChange(false)}>Abrir Categorias</Link>
+                    </span>
+                    <span role="status" aria-live="polite" className="sr-only">{isRefreshingChannels ? "Atualizando catálogo de canais…" : ""}</span>
+                  </AlertDescription>
+                </Alert>
+              ) : isInitialChannelsLoading ? (
+                <p role="status" className="text-xs text-muted-foreground">Carregando canais…</p>
+              ) : channelChoices.length === 0 ? (
+                <Alert variant="destructive" className="py-2">
+                  <AlertTriangle className="size-4" />
+                  <AlertDescription className="text-xs">Não há canais ativos. Cadastre ou reative uma categoria em <Link className="font-medium underline" to="/cadastros/categorias" onClick={() => onOpenChange(false)}>Cadastros → Categorias</Link>.</AlertDescription>
+                </Alert>
+              ) : isCanalEmpty ? (
                 <p className="text-xs text-destructive">Campo obrigatório</p>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -280,11 +326,11 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
             </Alert>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="orcamento">Orçamento</Label>
               <Select value={formData.orcamento} onValueChange={(v) => updateField("orcamento", v)}>
-                <SelectTrigger>
+                <SelectTrigger id="orcamento">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -296,7 +342,7 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
             <div className="space-y-2">
               <Label htmlFor="venda">Venda</Label>
               <Select value={formData.venda} onValueChange={(v) => updateField("venda", v)}>
-                <SelectTrigger>
+                <SelectTrigger id="venda">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -307,52 +353,43 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DatePickerField
+              id="lead-contact-date"
+              label="Entrar em Contato"
+              value={formData.entrar_em_contato}
+              onValueChange={(value) => updateField("entrar_em_contato", value)}
+              clearable={false}
+            />
             <div className="space-y-2">
-              <Label>Entrar em Contato</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.entrar_em_contato && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.entrar_em_contato || "Selecionar data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-50" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.entrar_em_contato ? parse(formData.entrar_em_contato, "dd/MM/yyyy", new Date()) : undefined}
-                    onSelect={(date) => date && updateField("entrar_em_contato", format(date, "dd/MM/yyyy"))}
-                    initialFocus
-                    locale={ptBR}
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-2">
-              <Label>Médico</Label>
+              <Label htmlFor="medico">Médico</Label>
               <PersonSelect
+                id="medico"
                 people={professionals}
                 value={formData.medico_id}
                 onValueChange={(id, person) => updatePerson("professional", id, person?.name || null)}
                 placeholder="Selecionar profissional"
+                ariaLabel="Médico"
                 emptyLabel="Sem médico"
                 disabled={professionalsLoading}
+              />
+              <PersonDirectoryHint
+                title="Profissionais"
+                kind="profissional"
+                path="/cadastros/profissionais"
+                people={professionals}
+                isLoading={professionalsLoading}
+                error={professionalsError}
+                onRetry={refreshProfessionals}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select value={formData.status} onValueChange={(v) => updateField("status", v)}>
-                <SelectTrigger>
+                <SelectTrigger id="status">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -363,14 +400,25 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Vendedor</Label>
+              <Label htmlFor="vendedor">Vendedor</Label>
               <PersonSelect
+                id="vendedor"
                 people={employees}
                 value={formData.vendedor_id}
                 onValueChange={(id, person) => updatePerson("employee", id, person?.name || null)}
                 placeholder="Selecionar funcionário"
+                ariaLabel="Vendedor"
                 emptyLabel="Sem vendedor"
                 disabled={employeesLoading}
+              />
+              <PersonDirectoryHint
+                title="Funcionários"
+                kind="funcionário"
+                path="/cadastros/funcionarios"
+                people={employees}
+                isLoading={employeesLoading}
+                error={employeesError}
+                onRetry={refreshEmployees}
               />
             </div>
           </div>
@@ -412,7 +460,7 @@ export function NewLeadDialog({ open, onOpenChange, onSubmit, existingLeads = []
                 <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting || isInitialChannelsLoading || channelChoices.length === 0}>
                   {isSubmitting ? "Salvando…" : "Adicionar Lead"}
                 </Button>
               </>

@@ -21,8 +21,6 @@ Deno.serve(async (req) => {
     console.log(`Action: ${action}`);
 
     let endpoint = '';
-    let queryParams = '';
-
     switch (action) {
       case 'events':
         // Tipos de atendimento
@@ -93,7 +91,7 @@ Deno.serve(async (req) => {
         throw new Error(`Ação desconhecida: ${action}`);
     }
 
-    const url = `${AMIGO_API_BASE}${endpoint}${queryParams}`;
+    const url = `${AMIGO_API_BASE}${endpoint}`;
     console.log("Consultando API Amigo");
 
     const response = await fetch(url, {

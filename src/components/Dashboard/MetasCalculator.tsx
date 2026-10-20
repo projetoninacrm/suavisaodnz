@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Calculator, Settings, Target, TrendingUp, Zap, Calendar, CalendarDays, CalendarRange, DollarSign, ChevronDown, Save } from "lucide-react";
+import { Calculator, Settings, Target, TrendingUp, Zap, Calendar, CalendarDays, CalendarRange, DollarSign, Save, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,14 +7,33 @@ import { AcompanhamentoDiarioSection } from "./AcompanhamentoDiarioSection";
 import { Schedule } from "@/hooks/useSchedules";
 import { AcompanhamentoDiario } from "@/hooks/useAcompanhamentoDiario";
 import { useMetasConfig } from "@/hooks/useMetasConfig";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useRouteState } from "@/hooks/useRouteState";
+import { calculateMonthlyGoalMetrics } from "@/lib/reportCalculations";
 import { Button } from "@/components/ui/button";
+import { SelectFilter } from "@/components/data/SelectFilter";
+import { DataState } from "@/components/data/DataState";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const MONTH_NAMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+function getCurrentTargetsMonth(): string {
+  return MONTH_NAMES[new Date().getMonth()];
+}
+
+function parseTargetsMonth(value: unknown): string {
+  return typeof value === "string" && MONTH_NAMES.includes(value) ? value : getCurrentTargetsMonth();
+}
+
+const LEGACY_SCHEDULE_YEAR = 2026;
 const MONTH_LABELS: Record<string, string> = {
   jan: "Janeiro",
   fev: "Fevereiro",
@@ -33,7 +52,10 @@ const MONTH_LABELS: Record<string, string> = {
 interface MetasCalculatorProps {
   schedules: Schedule[];
   acompanhamentoRegistros: AcompanhamentoDiario[];
-  onUpdateAcompanhamento: (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number) => void;
+  onUpdateAcompanhamento: (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number | null) => Promise<boolean>;
+  isSourceLoading?: boolean;
+  sourceError?: string | null;
+  onRetrySources?: () => void;
   view?: "all" | "targets" | "tracking";
 }
 
@@ -76,13 +98,32 @@ function getMonthFromDate(dateStr: string): string | null {
   return null;
 }
 
+function getYearFromDate(dateStr: string): number | null {
+  if (!dateStr) return null;
+  if (dateStr.includes("-")) {
+    const year = Number(dateStr.split("-")[0]);
+    return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : null;
+  }
+
+  const parts = dateStr.split("/");
+  if (parts.length >= 3) {
+    const year = Number(parts[2]);
+    return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : null;
+  }
+  if (parts.length === 2 && MONTH_NAMES.includes(parts[1].toLowerCase().trim())) return LEGACY_SCHEDULE_YEAR;
+  return null;
+}
+
 export function MetasCalculator({ 
   schedules, 
   acompanhamentoRegistros, 
   onUpdateAcompanhamento,
+  isSourceLoading = false,
+  sourceError = null,
+  onRetrySources,
   view = "all",
 }: MetasCalculatorProps) {
-  const { getConfigForMonth, saveConfig, isLoading: isLoadingConfig } = useMetasConfig();
+  const { getConfigForMonth, saveConfig, isLoading: isLoadingConfig, error: configError, fetchConfigs } = useMetasConfig();
 
   // Detecta meses disponíveis nos schedules
   const availableMonths = useMemo(() => {
@@ -95,9 +136,21 @@ export function MetasCalculator({
   }, [schedules]);
 
   // Estado do filtro de mês - inicia com o mês atual
-  const currentMonthIndex = new Date().getMonth();
-  const [selectedMonth, setSelectedMonth] = useState<string>(MONTH_NAMES[currentMonthIndex]);
+  const [selectedMonth, setSelectedMonth] = useRouteState<string>("targetsMonth", getCurrentTargetsMonth, parseTargetsMonth);
+  const [pendingMonth, setPendingMonth] = useState<string | null>(null);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+
+  const handleMonthChange = (month: string) => {
+    if (month === selectedMonth) return;
+    if (hasUnsavedChanges) {
+      setPendingMonth(month);
+      return;
+    }
+    setSelectedMonth(month);
+  };
 
   // Filtra schedules pelo mês selecionado
   const filteredSchedules = useMemo(() => {
@@ -198,6 +251,20 @@ export function MetasCalculator({
     });
   }, [acompanhamentoRegistros, selectedMonth]);
 
+  const selectedMonthScope = useMemo(() => {
+    const years = new Set<number>();
+    let hasYearlessRecords = false;
+    const collect = (date: string) => {
+      if (getMonthFromDate(date) !== selectedMonth) return;
+      const year = getYearFromDate(date);
+      if (year === null) hasYearlessRecords = true;
+      else years.add(year);
+    };
+    schedules.forEach((schedule) => collect(schedule.date));
+    acompanhamentoRegistros.forEach((record) => collect(record.data));
+    return { years: [...years].sort((a, b) => a - b), hasYearlessRecords };
+  }, [acompanhamentoRegistros, schedules, selectedMonth]);
+
   // Calcula diasComMedico, periodosComMedico e peso dos dias baseados no mês filtrado
   // Dias com 2 períodos = peso 1, dias com 1 período = peso 0.5
   const { diasComMedico, periodosComMedico, diasCompletos, diasMeios, pesoTotalDias } = useMemo(() => {
@@ -281,6 +348,7 @@ export function MetasCalculator({
   const [mediaAtendimentosText, setMediaAtendimentosText] = useState("");
 
   const handleConfigChange = (field: keyof ConfigValues, value: string) => {
+    setIsConfigOpen(true);
     if (field === "mediaAtendimentos") {
       // Allow comma as decimal separator and keep raw text for editing
       const sanitized = value.replace(",", ".");
@@ -294,20 +362,35 @@ export function MetasCalculator({
     setHasUnsavedChanges(true);
   };
 
-  const handleSaveConfig = useCallback(() => {
-    saveConfig({
-      mes: selectedMonth,
-      periodos: config.periodos,
-      media_atendimentos: config.mediaAtendimentos,
-      percentual_receita: config.percentualReceita,
-      percentual_comparecimento: config.percentualComparecimento,
-      percentual_conversao: config.percentualConversao,
-      meta_faturamento_mensal: config.metaFaturamentoMensal,
-      vendas_loja: config.vendasLoja,
-      vendas_internet: config.vendasInternet,
-    });
-    setHasUnsavedChanges(false);
+  const handleSaveConfig = useCallback(async () => {
+    setIsSavingConfig(true);
+    try {
+      const saved = await saveConfig({
+        mes: selectedMonth,
+        periodos: config.periodos,
+        media_atendimentos: config.mediaAtendimentos,
+        percentual_receita: config.percentualReceita,
+        percentual_comparecimento: config.percentualComparecimento,
+        percentual_conversao: config.percentualConversao,
+        meta_faturamento_mensal: config.metaFaturamentoMensal,
+        vendas_loja: config.vendasLoja,
+        vendas_internet: config.vendasInternet,
+      });
+      if (saved) setHasUnsavedChanges(false);
+      return saved;
+    } finally {
+      setIsSavingConfig(false);
+    }
   }, [saveConfig, selectedMonth, config]);
+
+  const handleSaveAndSwitchMonth = async () => {
+    const nextMonth = pendingMonth;
+    const saved = await handleSaveConfig();
+    if (saved && nextMonth) {
+      setSelectedMonth(nextMonth);
+      setPendingMonth(null);
+    }
+  };
 
   // Quando não há escala no mês (pesoTotalDias = 0), usamos os dias úteis exibidos
   // (todos os dias do mês exceto domingos) como base de distribuição para que a
@@ -319,78 +402,10 @@ export function MetasCalculator({
   const pesoDistribuicao = pesoTotalDias > 0 ? pesoTotalDias : diasUteisFallback;
 
   // Cálculos da meta
-  const calculations = useMemo(() => {
-    const totalPacientes = config.periodos * config.mediaAtendimentos;
-    const pacientesComReceita = totalPacientes * (config.percentualReceita / 100);
-    const pacientesComparecem = pacientesComReceita * (config.percentualComparecimento / 100);
-    const metaVendasSuaVisao = pacientesComparecem * (config.percentualConversao / 100);
-    const metaVendas = metaVendasSuaVisao + (config.vendasLoja || 0) + (config.vendasInternet || 0);
-
-    const superMeta = metaVendas * 1.2;
-    
-    // Metas por período - agora usa pesoTotalDias para distribuição justa
-    // Dias com 2 períodos = peso 1, dias com 1 período = peso 0.5
-    const metaMensal = metaVendas;
-    
-    // Meta diária base: dividida pelo peso total (considera dias meio período)
-    // Ex: 22 dias completos + 4 meios = peso 24 (22 + 4*0.5)
-    // Meta diária completa = mensal / 24, meta dia meio = (mensal / 24) / 2
-    const metaDiariaBase = pesoDistribuicao > 0 ? metaVendas / pesoDistribuicao : 0;
-    const metaDiariaCompleta = metaDiariaBase; // para dias com 2 períodos
-    const metaDiariaMeio = metaDiariaBase * 0.5; // para dias com 1 período
-    
-    const metaDiaria = metaDiariaCompleta; // valor de referência (dia completo)
-    const metaSemanal = metaVendas / 4;
-    const superMetaMensal = superMeta;
-    const superMetaDiariaCompleta = pesoDistribuicao > 0 ? superMeta / pesoDistribuicao : 0;
-    const superMetaDiariaMeio = superMetaDiariaCompleta * 0.5;
-    const superMetaDiaria = superMetaDiariaCompleta;
-    const superMetaSemanal = superMeta / 4;
-
-    // Faturamento com mesma lógica de distribuição
-    const ticketMedio = metaVendas > 0 ? config.metaFaturamentoMensal / metaVendas : 0;
-    const faturamentoMensal = config.metaFaturamentoMensal;
-    const faturamentoDiarioBase = pesoDistribuicao > 0 ? faturamentoMensal / pesoDistribuicao : 0;
-    const faturamentoDiarioCompleto = faturamentoDiarioBase;
-    const faturamentoDiarioMeio = faturamentoDiarioBase * 0.5;
-    const faturamentoDiario = faturamentoDiarioCompleto; // referência
-    const faturamentoSemanal = faturamentoMensal / 4;
-    const superFaturamentoMensal = faturamentoMensal * 1.2;
-    const superFaturamentoDiarioCompleto = pesoDistribuicao > 0 ? superFaturamentoMensal / pesoDistribuicao : 0;
-    const superFaturamentoDiarioMeio = superFaturamentoDiarioCompleto * 0.5;
-    const superFaturamentoDiario = superFaturamentoDiarioCompleto;
-    const superFaturamentoSemanal = superFaturamentoMensal / 4;
-
-    return {
-      totalPacientes,
-      pacientesComReceita,
-      pacientesComparecem,
-      metaVendas,
-      metaVendasSuaVisao,
-      superMeta,
-      metaMensal,
-      metaDiaria,
-      metaDiariaCompleta,
-      metaDiariaMeio,
-      metaSemanal,
-      superMetaMensal,
-      superMetaDiaria,
-      superMetaDiariaCompleta,
-      superMetaDiariaMeio,
-      superMetaSemanal,
-      ticketMedio,
-      faturamentoMensal,
-      faturamentoDiario,
-      faturamentoDiarioCompleto,
-      faturamentoDiarioMeio,
-      faturamentoSemanal,
-      superFaturamentoMensal,
-      superFaturamentoDiario,
-      superFaturamentoDiarioCompleto,
-      superFaturamentoDiarioMeio,
-      superFaturamentoSemanal,
-    };
-  }, [config, pesoDistribuicao]);
+  const calculations = useMemo(
+    () => calculateMonthlyGoalMetrics(config, pesoDistribuicao),
+    [config, pesoDistribuicao],
+  );
 
   // Distribuição uniforme ao longo do mês: cada dia recebe apenas o seu peso
   // base (2 períodos = 1, 1 período = 0.5). Sem ajuste por quinzena.
@@ -434,84 +449,143 @@ export function MetasCalculator({
     return map;
   }, [filteredSchedules, pesoTotalDias, displaySchedules]);
 
+  if (sourceError || configError) {
+    return (
+      <DataState
+        variant="error"
+        title="Resultados de metas indisponíveis"
+        description={`${sourceError || ""} ${configError || ""}`.trim()}
+        action={{ label: "Tentar novamente", onClick: () => { onRetrySources?.(); void fetchConfigs(); } }}
+      />
+    );
+  }
+
+  if (isSourceLoading || isLoadingConfig) {
+    return <DataState variant="loading" title="Carregando resultados" description="Consultando escala, realizado e configurações de metas." />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Filtro de Mês */}
       <Card className="border-border">
         <CardContent className="pt-4 pb-4">
-          <div className="flex items-center gap-4">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-primary" />
-              Mês:
-            </Label>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="min-w-[180px] justify-between">
-                  {MONTH_LABELS[selectedMonth] || selectedMonth}
-                  <ChevronDown className="h-4 w-4 ml-2 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[200px] p-2" align="start">
-                <div className="space-y-1">
-                  {MONTH_NAMES.map((month) => {
-                    const hasScheduleData = availableMonths.includes(month);
-                    return (
-                      <div
-                        key={month}
-                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors ${
-                          selectedMonth === month
-                            ? "bg-primary text-primary-foreground"
-                            : "hover:bg-muted"
-                        }`}
-                        onClick={() => setSelectedMonth(month)}
-                      >
-                        <span className="text-sm font-medium">{MONTH_LABELS[month]}</span>
-                        {!hasScheduleData && (
-                          <span className={`text-xs ${selectedMonth === month ? "opacity-80" : "text-muted-foreground"}`}>
-                            sem escala
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <span className="text-sm text-muted-foreground">
-              ({diasCompletos} dias completos + {diasMeios} meio período = peso {pesoTotalDias.toFixed(1)} / {periodosComMedico} períodos)
-            </span>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <SelectFilter
+              id="metas-month"
+              label="Mês:"
+              value={selectedMonth}
+              onValueChange={handleMonthChange}
+              options={MONTH_NAMES.map((month) => ({
+                value: month,
+                label: `${MONTH_LABELS[month]}${!availableMonths.includes(month) ? " · sem escala" : ""}`,
+              }))}
+              labelAdornment={<Calendar aria-hidden="true" className="size-4 text-primary" />}
+              placeholder="Selecione o mês"
+              disabled={isSavingConfig}
+              orientation="horizontal"
+              triggerClassName="min-w-[180px]"
+            />
+            <div role="note" className="basis-full min-w-0 text-sm text-muted-foreground sm:basis-0 sm:flex-1">
+              {pesoTotalDias > 0 ? (
+                <p>
+                  Base de distribuição da escala: {diasCompletos} dias completos + {diasMeios} dias de meio período = peso {pesoTotalDias.toFixed(1)} ({periodosComMedico} períodos preenchidos). Dia completo vale 1; meio período, 0,5.
+                </p>
+              ) : (
+                <p>
+                  Sem turnos preenchidos na escala. A previsão de atendimentos usa {config.periodos} períodos cadastrados; a meta de faturamento é distribuída pelos {diasUteisFallback} dias exibidos do mês, exceto domingos.
+                </p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
 
+      {(selectedMonthScope.years.length > 1 || selectedMonthScope.hasYearlessRecords) && (
+        <div role="note" className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-muted-foreground">
+          <CalendarRange aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning-foreground" />
+          <p>
+            Os dados de {MONTH_LABELS[selectedMonth]} são agrupados por mês nesta tela.
+            {selectedMonthScope.years.length > 1 && <> Há registros de {selectedMonthScope.years.join(" e ")} no mesmo cálculo.</>}
+            {selectedMonthScope.hasYearlessRecords && " Há também registros sem ano explícito."}
+            {" "}As fórmulas permanecem inalteradas enquanto a separação por ano é validada.
+          </p>
+        </div>
+      )}
+
+      <AlertDialog
+        open={Boolean(pendingMonth)}
+        onOpenChange={(open) => { if (!open) setPendingMonth(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Há alterações não salvas</AlertDialogTitle>
+            <AlertDialogDescription>
+              As configurações de {MONTH_LABELS[selectedMonth]} foram alteradas. Salve antes de trocar para {pendingMonth ? MONTH_LABELS[pendingMonth] : "outro mês"}, descarte o rascunho ou continue editando.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSavingConfig}>Continuar editando</AlertDialogCancel>
+            <Button type="button" variant="outline" disabled={isSavingConfig} onClick={() => void handleSaveAndSwitchMonth()}>
+              {isSavingConfig ? "Salvando…" : "Salvar e trocar mês"}
+            </Button>
+            <AlertDialogAction
+              disabled={isSavingConfig}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingMonth) setSelectedMonth(pendingMonth);
+                setPendingMonth(null);
+              }}
+            >
+              Descartar e trocar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {view !== "tracking" && (
         <>
       {/* Bloco 1: Configurações Gerais */}
-      <Card className={`border-border ${hasUnsavedChanges ? "ring-2 ring-amber-500/50" : ""}`}>
+      <Card className={`border-border ${hasUnsavedChanges ? "ring-2 ring-warning/50" : ""}`}>
+        <Collapsible open={isConfigOpen} onOpenChange={setIsConfigOpen}>
         <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Settings className="h-5 w-5 text-primary" />
-              Configurações Gerais - {MONTH_LABELS[selectedMonth]}
-            </CardTitle>
-            <Button 
-              onClick={handleSaveConfig}
-              variant={hasUnsavedChanges ? "default" : "outline"}
-              size="sm"
-              className="gap-2"
-            >
-              <Save className="h-4 w-4" />
-              {hasUnsavedChanges ? "Salvar Alterações" : "Salvo"}
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Settings className="h-5 w-5 text-primary" />
+                Parâmetros da meta · {MONTH_LABELS[selectedMonth]}
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {config.periodos} períodos com médico · {hasUnsavedChanges ? "Alterações não salvas" : "Configuração salva"}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() => void handleSaveConfig()}
+                variant={hasUnsavedChanges ? "default" : "outline"}
+                size="sm"
+                disabled={!hasUnsavedChanges || isSavingConfig}
+                className="gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {isSavingConfig ? "Salvando…" : hasUnsavedChanges ? "Salvar alterações" : "Salvo"}
+              </Button>
+              <CollapsibleTrigger render={
+                <Button type="button" variant="outline" size="sm" className="gap-2">
+                  {isConfigOpen ? "Ocultar parâmetros" : "Editar parâmetros"}
+                  {isConfigOpen ? <ChevronUp aria-hidden="true" className="size-4" /> : <ChevronDown aria-hidden="true" className="size-4" />}
+                </Button>
+              } />
+            </div>
           </div>
           {hasUnsavedChanges && (
-            <p className="text-xs text-amber-600 mt-2">
-              Você tem alterações não salvas. Clique em "Salvar Alterações" para guardar.
+            <p className="mt-2 text-xs text-warning-foreground">
+              Você tem alterações não salvas. Clique em “Salvar alterações” para guardar.
             </p>
           )}
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <CollapsibleContent>
+        <CardContent className="border-t pt-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="periodos" className="text-sm font-medium">
                 Períodos com médico
@@ -534,7 +608,7 @@ export function MetasCalculator({
 
             <div className="space-y-2">
               <Label htmlFor="mediaAtendimentos" className="text-sm font-medium">
-                Média atendimentos
+                Média de atendimentos
               </Label>
               <div className="relative">
                 <Input
@@ -554,7 +628,7 @@ export function MetasCalculator({
 
             <div className="space-y-2">
               <Label htmlFor="percentualReceita" className="text-sm font-medium">
-                % Pacientes c/ receita
+                % de atendimentos com receita
               </Label>
               <div className="relative">
                 <Input
@@ -575,7 +649,7 @@ export function MetasCalculator({
 
             <div className="space-y-2">
               <Label htmlFor="percentualComparecimento" className="text-sm font-medium">
-                % Comparecimento loja
+                % de comparecimento à loja
               </Label>
               <div className="relative">
                 <Input
@@ -596,7 +670,7 @@ export function MetasCalculator({
 
             <div className="space-y-2">
               <Label htmlFor="percentualConversao" className="text-sm font-medium">
-                % Conversão em venda
+                % de conversão em venda
               </Label>
               <div className="relative">
                 <Input
@@ -618,7 +692,7 @@ export function MetasCalculator({
             <div className="space-y-2">
               <Label htmlFor="metaFaturamentoMensal" className="text-sm font-medium flex items-center gap-1">
                 <DollarSign className="h-3 w-3" />
-                Meta Faturamento Mensal
+                Meta mensal de faturamento
               </Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
@@ -635,8 +709,25 @@ export function MetasCalculator({
               </div>
               <p className="text-xs text-muted-foreground">Padrão: R$ 60.000</p>
             </div>
+
+            {([["vendasLoja", "Vendas esperadas · Loja"], ["vendasInternet", "Vendas esperadas · Internet"]] as const).map(([field, label]) => (
+              <div key={field} className="space-y-2">
+                <Label htmlFor={`expected-sales-${field}`} className="text-sm font-medium">{label}</Label>
+                <Input
+                  id={`expected-sales-${field}`}
+                  type="number"
+                  min={0}
+                  value={config[field] || ""}
+                  placeholder="0"
+                  onChange={(event) => handleConfigChange(field, event.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Somado à meta total de vendas</p>
+              </div>
+            ))}
           </div>
         </CardContent>
+        </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {/* Bloco 2: Cálculo da Meta - Canal Sua Visão */}
@@ -648,14 +739,59 @@ export function MetasCalculator({
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <dt className="text-sm font-medium text-muted-foreground">Meta de vendas</dt>
+              <dd className="mt-2 text-2xl font-bold tabular-nums text-primary">
+                {calculations.metaVendas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </dd>
+              <p className="mt-1 text-xs text-muted-foreground">Sua Visão + Loja + Internet</p>
+            </div>
+            <div className="rounded-lg border border-success/20 bg-success/5 p-4">
+              <dt className="text-sm font-medium text-muted-foreground">Faturamento mensal</dt>
+              <dd className="mt-2 text-2xl font-bold tabular-nums text-success-foreground">
+                R$ {calculations.faturamentoMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </dd>
+              <p className="mt-1 text-xs text-muted-foreground">Valor configurado para o mês</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <dt className="text-sm font-medium text-muted-foreground">Ticket médio planejado</dt>
+              <dd className="mt-2 text-2xl font-bold tabular-nums">
+                R$ {calculations.ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </dd>
+              <p className="mt-1 text-xs text-muted-foreground">Faturamento ÷ meta de vendas</p>
+            </div>
+            <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
+              <dt className="text-sm font-medium text-muted-foreground">Supermeta</dt>
+              <dd className="mt-2 text-2xl font-bold tabular-nums text-warning-foreground">
+                {calculations.superMeta.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </dd>
+              <p className="mt-1 text-xs text-muted-foreground">Meta de vendas + 20%</p>
+            </div>
+          </dl>
+
+          <Collapsible open={isBreakdownOpen} onOpenChange={setIsBreakdownOpen} className="mt-6 rounded-lg border border-border">
+            <div className="p-2">
+              <CollapsibleTrigger render={
+                <Button variant="ghost" className="h-auto w-full min-w-0 whitespace-normal justify-between px-3 py-2 text-left hover:bg-muted/50">
+                  <span className="min-w-0 break-words">
+                    <span className="block text-sm font-medium">Composição da meta e distribuição por período</span>
+                    <span className="mt-1 block break-words text-xs font-normal text-muted-foreground">Etapas intermediárias, metas diárias e semanais, faturamento e fórmulas</span>
+                  </span>
+                  {isBreakdownOpen ? <ChevronUp aria-hidden="true" className="size-4 shrink-0" /> : <ChevronDown aria-hidden="true" className="size-4 shrink-0" />}
+                </Button>
+              } />
+            </div>
+            <CollapsibleContent>
+            <div className="space-y-6 border-t p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Passo 1 */}
             <div className="bg-background rounded-lg p-4 border border-border">
               <div className="flex items-center gap-2 mb-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold dark:text-foreground">
                   1
                 </span>
-                <span className="text-sm font-medium text-muted-foreground">Total atendidos</span>
+                <span className="text-sm font-medium text-muted-foreground">Atendimentos previstos</span>
               </div>
               <p className="text-2xl font-bold text-foreground">
                 {calculations.totalPacientes.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
@@ -668,10 +804,10 @@ export function MetasCalculator({
             {/* Passo 2 */}
             <div className="bg-background rounded-lg p-4 border border-border">
               <div className="flex items-center gap-2 mb-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold dark:text-foreground">
                   2
                 </span>
-                <span className="text-sm font-medium text-muted-foreground">Com receita</span>
+                <span className="text-sm font-medium text-muted-foreground">Atendimentos com receita</span>
               </div>
               <p className="text-2xl font-bold text-foreground">
                 {calculations.pacientesComReceita.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
@@ -684,10 +820,10 @@ export function MetasCalculator({
             {/* Passo 3 */}
             <div className="bg-background rounded-lg p-4 border border-border">
               <div className="flex items-center gap-2 mb-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold dark:text-foreground">
                   3
                 </span>
-                <span className="text-sm font-medium text-muted-foreground">Comparecem à loja</span>
+                <span className="text-sm font-medium text-muted-foreground">Comparecimentos à loja</span>
               </div>
               <p className="text-2xl font-bold text-foreground">
                 {calculations.pacientesComparecem.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
@@ -712,7 +848,7 @@ export function MetasCalculator({
             </div>
 
             {/* Super Meta */}
-            <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg p-4 text-white">
+            <div className="rounded-lg border border-warning/20 bg-warning/10 p-4 text-warning-foreground">
               <div className="flex items-center gap-2 mb-2">
                 <Zap className="h-5 w-5" />
                 <span className="text-sm font-medium opacity-90">Super Meta</span>
@@ -727,29 +863,14 @@ export function MetasCalculator({
           </div>
 
           {/* Outros canais: Loja e Internet */}
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-card border border-border rounded-lg p-4">
+          <div className="mt-6 rounded-lg border border-border bg-card p-4">
+            <div>
               <p className="text-sm font-medium text-muted-foreground mb-1">Vendas esperadas – Sua Visão</p>
               <p className="text-2xl font-bold text-foreground">
                 {calculations.metaVendasSuaVisao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
               <p className="text-xs text-muted-foreground mt-1">{calculations.pacientesComparecem.toFixed(2)} × {config.percentualConversao}%</p>
             </div>
-            {([["vendasLoja", "Loja"], ["vendasInternet", "Internet"]] as const).map(([field, label]) => (
-              <div key={field} className="bg-card border border-border rounded-lg p-4">
-                <label className="text-sm font-medium text-muted-foreground mb-1 block">Vendas esperadas – {label}</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={config[field] || ""}
-                  placeholder="0"
-                  onChange={(e) => handleConfigChange(field, e.target.value)}
-                  onBlur={handleSaveConfig}
-                  className="text-2xl font-bold h-11"
-                />
-                <p className="text-xs text-muted-foreground mt-1">Somado à Meta de Vendas total</p>
-              </div>
-            ))}
           </div>
 
           {/* Metas por Período */}
@@ -760,12 +881,12 @@ export function MetasCalculator({
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
               {/* Meta Diária Completa */}
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <CalendarDays className="h-4 w-4 text-blue-500" />
+                  <CalendarDays className="h-4 w-4 text-primary" />
                   <span className="text-xs font-medium text-muted-foreground">Meta Dia Completo</span>
                 </div>
-                <p className="text-2xl font-bold text-blue-500">
+                <p className="text-2xl font-bold text-primary">
                   {calculations.metaDiariaCompleta.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -774,12 +895,12 @@ export function MetasCalculator({
               </div>
 
               {/* Meta Dia Meio Período */}
-              <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-4">
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <CalendarDays className="h-4 w-4 text-sky-500" />
+                  <CalendarDays className="h-4 w-4 text-primary" />
                   <span className="text-xs font-medium text-muted-foreground">Meta Meio Período</span>
                 </div>
-                <p className="text-2xl font-bold text-sky-500">
+                <p className="text-2xl font-bold text-primary">
                   {calculations.metaDiariaMeio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -788,12 +909,12 @@ export function MetasCalculator({
               </div>
 
               {/* Meta Semanal */}
-              <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4">
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <CalendarRange className="h-4 w-4 text-indigo-500" />
+                  <CalendarRange className="h-4 w-4 text-primary" />
                   <span className="text-xs font-medium text-muted-foreground">Meta Semanal</span>
                 </div>
-                <p className="text-2xl font-bold text-indigo-500">
+                <p className="text-2xl font-bold text-primary">
                   {calculations.metaSemanal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -816,12 +937,12 @@ export function MetasCalculator({
               </div>
 
               {/* Super Meta Dia Completo */}
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+              <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-4 w-4 text-amber-500" />
+                  <Zap className="h-4 w-4 text-warning-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Super Dia Completo</span>
                 </div>
-                <p className="text-2xl font-bold text-amber-500">
+                <p className="text-2xl font-bold text-warning-foreground">
                   {calculations.superMetaDiariaCompleta.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -830,12 +951,12 @@ export function MetasCalculator({
               </div>
 
               {/* Super Meta Meio Período */}
-              <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+              <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-4 w-4 text-orange-500" />
+                  <Zap className="h-4 w-4 text-warning-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Super Meio Período</span>
                 </div>
-                <p className="text-2xl font-bold text-orange-500">
+                <p className="text-2xl font-bold text-warning-foreground">
                   {calculations.superMetaDiariaMeio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -844,12 +965,12 @@ export function MetasCalculator({
               </div>
 
               {/* Super Meta Semanal */}
-              <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+              <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-4 w-4 text-orange-500" />
+                  <Zap className="h-4 w-4 text-warning-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Super Semanal</span>
                 </div>
-                <p className="text-2xl font-bold text-orange-500">
+                <p className="text-2xl font-bold text-warning-foreground">
                   {calculations.superMetaSemanal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -858,12 +979,12 @@ export function MetasCalculator({
               </div>
 
               {/* Super Meta Mensal */}
-              <div className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-4">
+              <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-4 w-4 text-amber-600" />
+                  <Zap className="h-4 w-4 text-warning-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Super Mensal</span>
                 </div>
-                <p className="text-2xl font-bold text-amber-600">
+                <p className="text-2xl font-bold text-warning-foreground">
                   {calculations.superMetaMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -876,12 +997,12 @@ export function MetasCalculator({
           {/* Metas de Faturamento */}
           <div className="mt-6">
             <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-green-500" />
+              <DollarSign className="h-4 w-4 text-success-foreground" />
               Metas de Faturamento
             </h4>
             
             {/* Card do Ticket Médio em destaque */}
-            <div className="mb-4 p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-2 border-green-500/40 rounded-lg">
+            <div className="mb-4 rounded-lg border border-success/20 bg-success/10 p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Ticket Médio que devemos buscar</p>
@@ -890,7 +1011,7 @@ export function MetasCalculator({
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-4xl font-bold text-green-600">
+                  <p className="text-4xl font-bold text-success-foreground">
                     R$ {Math.round(calculations.ticketMedio).toLocaleString("pt-BR")}
                   </p>
                 </div>
@@ -899,12 +1020,12 @@ export function MetasCalculator({
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
               {/* Faturamento Dia Completo */}
-              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+              <div className="bg-success/10 border border-success/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <CalendarDays className="h-4 w-4 text-green-500" />
+                  <CalendarDays className="h-4 w-4 text-success-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Fat. Dia Completo</span>
                 </div>
-                <p className="text-2xl font-bold text-green-500">
+                <p className="text-2xl font-bold text-success-foreground">
                   R$ {Math.round(calculations.faturamentoDiarioCompleto).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -913,12 +1034,12 @@ export function MetasCalculator({
               </div>
 
               {/* Faturamento Meio Período */}
-              <div className="bg-teal-500/10 border border-teal-500/20 rounded-lg p-4">
+              <div className="bg-success/10 border border-success/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <CalendarDays className="h-4 w-4 text-teal-500" />
+                  <CalendarDays className="h-4 w-4 text-success-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Fat. Meio Período</span>
                 </div>
-                <p className="text-2xl font-bold text-teal-500">
+                <p className="text-2xl font-bold text-success-foreground">
                   R$ {Math.round(calculations.faturamentoDiarioMeio).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -927,12 +1048,12 @@ export function MetasCalculator({
               </div>
 
               {/* Faturamento Semanal */}
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
+              <div className="bg-success/10 border border-success/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <CalendarRange className="h-4 w-4 text-emerald-500" />
+                  <CalendarRange className="h-4 w-4 text-success-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Fat. Semanal</span>
                 </div>
-                <p className="text-2xl font-bold text-emerald-500">
+                <p className="text-2xl font-bold text-success-foreground">
                   R$ {Math.round(calculations.faturamentoSemanal).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -941,12 +1062,12 @@ export function MetasCalculator({
               </div>
 
               {/* Faturamento Mensal */}
-              <div className="bg-teal-500/10 border border-teal-500/20 rounded-lg p-4">
+              <div className="bg-success/10 border border-success/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-teal-500" />
+                  <DollarSign className="h-4 w-4 text-success-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Fat. Mensal</span>
                 </div>
-                <p className="text-2xl font-bold text-teal-500">
+                <p className="text-2xl font-bold text-success-foreground">
                   R$ {Math.round(calculations.faturamentoMensal).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -955,12 +1076,12 @@ export function MetasCalculator({
               </div>
 
               {/* Super Fat. Dia Completo */}
-              <div className="bg-lime-500/10 border border-lime-500/20 rounded-lg p-4">
+              <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-4 w-4 text-lime-600" />
+                  <Zap className="h-4 w-4 text-warning-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Super Dia Completo</span>
                 </div>
-                <p className="text-2xl font-bold text-lime-600">
+                <p className="text-2xl font-bold text-warning-foreground">
                   R$ {Math.round(calculations.superFaturamentoDiarioCompleto).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -969,12 +1090,12 @@ export function MetasCalculator({
               </div>
 
               {/* Super Fat. Meio Período */}
-              <div className="bg-green-600/10 border border-green-600/20 rounded-lg p-4">
+              <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-4 w-4 text-green-600" />
+                  <Zap className="h-4 w-4 text-success-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Super Meio Período</span>
                 </div>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-success-foreground">
                   R$ {Math.round(calculations.superFaturamentoDiarioMeio).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -983,12 +1104,12 @@ export function MetasCalculator({
               </div>
 
               {/* Super Faturamento Semanal */}
-              <div className="bg-green-600/10 border border-green-600/20 rounded-lg p-4">
+              <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-4 w-4 text-green-600" />
+                  <Zap className="h-4 w-4 text-success-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Super Semanal</span>
                 </div>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-success-foreground">
                   R$ {Math.round(calculations.superFaturamentoSemanal).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -997,12 +1118,12 @@ export function MetasCalculator({
               </div>
 
               {/* Super Faturamento Mensal */}
-              <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-lg p-4">
+              <div className="bg-success/10 border border-success/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-4 w-4 text-green-700" />
+                  <Zap className="h-4 w-4 text-success-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Super Mensal</span>
                 </div>
-                <p className="text-2xl font-bold text-green-700">
+                <p className="text-2xl font-bold text-success-foreground">
                   R$ {Math.round(calculations.superFaturamentoMensal).toLocaleString("pt-BR")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -1019,12 +1140,15 @@ export function MetasCalculator({
               <span className="text-sm font-semibold">Fórmula aplicada:</span>
             </div>
             <p className="text-sm text-muted-foreground font-mono">
-              Períodos ({config.periodos}) × Média ({config.mediaAtendimentos}) = {calculations.totalPacientes} pacientes
-              → × {config.percentualReceita}% = {calculations.pacientesComReceita.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} c/ receita
-              → × {config.percentualComparecimento}% = {calculations.pacientesComparecem.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} comparecem
+              Períodos ({config.periodos}) × Média de atendimentos ({config.mediaAtendimentos}) = {calculations.totalPacientes} atendimentos previstos
+              → × {config.percentualReceita}% = {calculations.pacientesComReceita.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} atendimentos com receita
+              → × {config.percentualComparecimento}% = {calculations.pacientesComparecem.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} comparecimentos à loja
               → × {config.percentualConversao}% = <span className="text-primary font-bold">{calculations.metaVendas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} vendas</span>
             </p>
           </div>
+            </div>
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
         </>

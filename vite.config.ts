@@ -22,7 +22,8 @@ export default defineConfig(({ mode }) => ({
           const modulePath = id.replace(/\\/g, "/");
           if (!modulePath.includes("/node_modules/")) return;
           if (/\/node_modules\/(react|react-dom|scheduler)\//.test(modulePath)) return "vendor-react";
-          if (/\/node_modules\/@(radix-ui|base-ui|supabase|tanstack)\//.test(modulePath)) return "vendor-runtime";
+          if (/\/node_modules\/@supabase\//.test(modulePath)) return "vendor-supabase";
+          if (/\/node_modules\/@tanstack\//.test(modulePath)) return "vendor-runtime";
           if (/\/node_modules\/(recharts|d3-[^/]+)\//.test(modulePath)) return "vendor-charts";
         },
       },

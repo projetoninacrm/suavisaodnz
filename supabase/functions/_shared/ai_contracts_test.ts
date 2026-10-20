@@ -7,14 +7,13 @@ try {
     handlers.push(handler);
     return {};
   }) as unknown as typeof Deno.serve;
-  await import("../extract-ad-metrics/index.ts");
   await import("../import-schedule-image/index.ts");
   await import("../summarize-conversa/index.ts");
   await import("../chatlabs-analise/index.ts");
 } finally {
   Deno.serve = originalServe;
 }
-const [metrics, schedule, summary, analysis] = handlers;
+const [schedule, summary, analysis] = handlers;
 
 function assert(value: unknown, message: string): asserts value {
   if (!value) throw new Error(message);
@@ -40,7 +39,6 @@ async function mocked(
   const names = [
     "OPENAI_API_KEY",
     "OPENAI_MODEL",
-    "OPENAI_METRICS_MODEL",
     "OPENAI_SCHEDULE_MODEL",
     "OPENAI_SUMMARY_MODEL",
     "OPENAI_ANALYSIS_MODEL",
@@ -59,21 +57,6 @@ async function mocked(
     );
   }
 }
-
-Deno.test("metrics preserves the dashboard contract and rejects unusable numeric extraction", async () => {
-  await mocked(async () => {
-    const response = await metrics(request({ imageBase64: "c3ludGhldGlj" }));
-    const data = await response.json();
-    assert(
-      response.status === 200 && data.success && data.rawMetrics.cliques === 25,
-      "Metrics contract changed",
-    );
-  }, async () => output('{"investimento":10.5,"mensagens":3,"cliques":25}'));
-  await mocked(async () => {
-    const response = await metrics(request({ imageBase64: "c3ludGhldGlj" }));
-    assert(response.status === 422, "Negative metrics must not be accepted");
-  }, async () => output('{"investimento":-10,"mensagens":3,"cliques":25}'));
-});
 
 Deno.test("invalid or duplicate schedule extraction cannot reach database writes", async () => {
   let requests = 0;

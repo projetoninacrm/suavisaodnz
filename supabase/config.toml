@@ -33,13 +33,7 @@ verify_jwt = true
 [functions.whatsapp-conversas]
 verify_jwt = true
 
-[functions.extract-ad-metrics]
-verify_jwt = true
-
 [functions.import-schedule-image]
-verify_jwt = true
-
-[functions.return-rate]
 verify_jwt = true
 
 [functions.summarize-conversa]

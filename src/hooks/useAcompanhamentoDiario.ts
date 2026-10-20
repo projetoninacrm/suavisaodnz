@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+const ACCOMPANHAMENTO_QUERY_TIMEOUT_MS = 30_000;
+const ACCOMPANHAMENTO_QUERY_TIMEOUT_MESSAGE = "A consulta do acompanhamento demorou mais de 30 segundos. Tente novamente.";
 
 export interface AcompanhamentoDiario {
   id: string;
@@ -15,17 +18,32 @@ export interface AcompanhamentoDiario {
 export function useAcompanhamentoDiario() {
   const [registros, setRegistros] = useState<AcompanhamentoDiario[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const requestIdRef = useRef(0);
+  const activeControllerRef = useRef<AbortController | null>(null);
 
   const fetchRegistros = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    activeControllerRef.current?.abort();
+    const controller = new AbortController();
+    activeControllerRef.current = controller;
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, ACCOMPANHAMENTO_QUERY_TIMEOUT_MS);
     setIsLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase
         .from("acompanhamento_diario")
         .select("*")
-        .order("data", { ascending: true });
+        .order("data", { ascending: true })
+        .abortSignal(controller.signal);
 
       if (error) throw error;
+      if (requestId !== requestIdRef.current) return;
       
       // Cast the data to the correct type, preserving null values
       const typedData = (data || []).map(item => ({
@@ -36,25 +54,32 @@ export function useAcompanhamentoDiario() {
       
       setRegistros(typedData);
     } catch (error) {
+      if (requestId !== requestIdRef.current) return;
       console.error("Error fetching acompanhamento diario:", error);
+      setError(timedOut ? ACCOMPANHAMENTO_QUERY_TIMEOUT_MESSAGE : "Não foi possível carregar o acompanhamento diário. Tente novamente.");
       toast({
         title: "Erro ao carregar dados",
-        description: "Não foi possível carregar o acompanhamento diário.",
+        description: timedOut ? ACCOMPANHAMENTO_QUERY_TIMEOUT_MESSAGE : "Não foi possível carregar o acompanhamento diário.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      window.clearTimeout(timeout);
+      if (requestId === requestIdRef.current) {
+        activeControllerRef.current = null;
+        setIsLoading(false);
+      }
     }
   }, [toast]);
 
-  const upsertRegistro = useCallback(async (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number | null) => {
+  const upsertRegistro = useCallback(async (data: string, field: "vendas_realizadas" | "faturamento_realizado", value: number | null): Promise<boolean> => {
     try {
       // Check if record exists
-      const { data: existing } = await supabase
+      const { data: existing, error: lookupError } = await supabase
         .from("acompanhamento_diario")
         .select("*")
         .eq("data", data)
         .maybeSingle();
+      if (lookupError) throw lookupError;
 
       if (existing) {
         // Update existing
@@ -71,10 +96,11 @@ export function useAcompanhamentoDiario() {
         
         if (value === null && otherValue === null) {
           // Delete the record if both are null
-          await supabase
+          const { error: deleteError } = await supabase
             .from("acompanhamento_diario")
             .delete()
             .eq("data", data);
+          if (deleteError) throw deleteError;
           
           setRegistros(prev => prev.filter(r => r.data !== data));
         } else {
@@ -107,12 +133,15 @@ export function useAcompanhamentoDiario() {
         } as AcompanhamentoDiario;
 
         setRegistros(prev => [...prev, typedInserted].sort((a, b) => a.data.localeCompare(b.data)));
+      } else {
+        return true;
       }
 
       toast({
         title: "Salvo",
         description: "Valor atualizado com sucesso.",
       });
+      return true;
     } catch (error) {
       console.error("Error upserting acompanhamento:", error);
       toast({
@@ -120,16 +149,23 @@ export function useAcompanhamentoDiario() {
         description: "Não foi possível salvar o valor.",
         variant: "destructive",
       });
+      return false;
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchRegistros();
+    void fetchRegistros();
+    return () => {
+      requestIdRef.current += 1;
+      activeControllerRef.current?.abort();
+      activeControllerRef.current = null;
+    };
   }, [fetchRegistros]);
 
   return {
     registros,
     isLoading,
+    error,
     fetchRegistros,
     upsertRegistro,
   };

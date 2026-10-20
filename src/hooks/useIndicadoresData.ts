@@ -69,6 +69,7 @@ export interface DayMetrics {
 
 const MONTH_NAMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const PAGE_SIZE = 1000;
+const SOURCE_QUERY_TIMEOUT_MS = 30_000;
 
 // Helper para formatar data ISO para DD/MM/YYYY
 function formatDateToDDMMYYYY(dateStr: string): string {
@@ -84,79 +85,127 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
   const [detalhados, setDetalhados] = useState<Detalhado[]>([]);
   const [attendances, setAttendances] = useState<AmigoAttendance[]>([]);
   const [acompanhamentos, setAcompanhamentos] = useState<AcompanhamentoDiario[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [loadingSources, setLoadingSources] = useState({ detalhado: true, acompanhamento: true, amigo: true });
+  const [sourceErrors, setSourceErrors] = useState({ detalhado: null as string | null, acompanhamento: null as string | null, amigo: null as string | null });
+  const isLoading = Object.values(loadingSources).some(Boolean);
+  const error = Object.values(sourceErrors).filter(Boolean).join(" ") || null;
+  const refresh = useCallback(() => setRefreshKey((current) => current + 1), []);
 
   // Buscar dados da tabela detalhado (com paginação para não truncar em 1000)
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, SOURCE_QUERY_TIMEOUT_MS);
 
     const fetchDetalhado = async () => {
       const allDetalhados: Detalhado[] = [];
       let from = 0;
 
-      while (true) {
-        const to = from + PAGE_SIZE - 1;
-        const { data, error } = await supabase
-          .from("detalhado")
-          .select("*")
-          .order("created_at", { ascending: true })
-          .range(from, to);
+      setLoadingSources((current) => ({ ...current, detalhado: true }));
+      setSourceErrors((current) => ({ ...current, detalhado: null }));
+      try {
+        while (true) {
+          const to = from + PAGE_SIZE - 1;
+          const { data, error } = await supabase
+            .from("detalhado")
+            .select("*")
+            .order("created_at", { ascending: true })
+            .range(from, to)
+            .abortSignal(controller.signal);
 
-        if (error) {
-          console.error("Erro ao buscar detalhado:", error);
-          return;
+          if (error) throw error;
+
+          const chunk = (data || []) as Detalhado[];
+          allDetalhados.push(...chunk);
+
+          if (chunk.length < PAGE_SIZE) break;
+          from += PAGE_SIZE;
         }
 
-        const chunk = (data || []) as Detalhado[];
-        allDetalhados.push(...chunk);
-
-        if (chunk.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
+        if (!isMounted) return;
+        console.log(`[useIndicadoresData] Detalhados carregados: ${allDetalhados.length}`);
+        setDetalhados(allDetalhados);
+      } catch (cause) {
+        console.error("Erro ao buscar detalhado:", cause);
+        if (isMounted) setSourceErrors((current) => ({ ...current, detalhado: timedOut ? "A consulta dos complementos demorou mais de 30 segundos. Tente novamente." : "Não foi possível carregar os complementos de atendimento." }));
+      } finally {
+        window.clearTimeout(timeout);
+        if (isMounted) setLoadingSources((current) => ({ ...current, detalhado: false }));
       }
-
-      if (!isMounted) return;
-
-      console.log(`[useIndicadoresData] Detalhados carregados: ${allDetalhados.length}`);
-      setDetalhados(allDetalhados);
     };
 
     fetchDetalhado();
 
     return () => {
       isMounted = false;
+      window.clearTimeout(timeout);
+      controller.abort();
     };
-  }, []);
+  }, [refreshKey]);
 
   // Buscar dados de acompanhamento diário (faturamento)
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, SOURCE_QUERY_TIMEOUT_MS);
     const fetchAcompanhamento = async () => {
-      const { data, error } = await supabase
-        .from("acompanhamento_diario")
-        .select("*")
-        .order("data", { ascending: true });
+      setLoadingSources((current) => ({ ...current, acompanhamento: true }));
+      setSourceErrors((current) => ({ ...current, acompanhamento: null }));
+      try {
+        const { data, error } = await supabase
+          .from("acompanhamento_diario")
+          .select("*")
+          .order("data", { ascending: true })
+          .abortSignal(controller.signal);
 
-      if (error) {
-        console.error("[useIndicadoresData] Erro ao buscar acompanhamento:", error);
-        return;
+        if (error) throw error;
+
+        if (!isMounted) return;
+        console.log(`[useIndicadoresData] Acompanhamentos carregados: ${data?.length || 0}`);
+        setAcompanhamentos(data || []);
+      } catch (cause) {
+        console.error("[useIndicadoresData] Erro ao buscar acompanhamento:", cause);
+        if (isMounted) setSourceErrors((current) => ({ ...current, acompanhamento: timedOut ? "A consulta do acompanhamento demorou mais de 30 segundos. Tente novamente." : "Não foi possível carregar o acompanhamento diário." }));
+      } finally {
+        window.clearTimeout(timeout);
+        if (isMounted) setLoadingSources((current) => ({ ...current, acompanhamento: false }));
       }
-
-      console.log(`[useIndicadoresData] Acompanhamentos carregados: ${data?.length || 0}`);
-      setAcompanhamentos(data || []);
     };
 
-    fetchAcompanhamento();
-  }, []);
+    void fetchAcompanhamento();
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [refreshKey]);
 
   // Buscar atendimentos da API do Amigo para os meses selecionados
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, SOURCE_QUERY_TIMEOUT_MS);
     const fetchAttendances = async () => {
-      if (selectedMonths.length === 0) {
-        setAttendances([]);
-        return;
-      }
-
-      setIsLoading(true);
+      setLoadingSources((current) => ({ ...current, amigo: true }));
+      setSourceErrors((current) => ({ ...current, amigo: null }));
       try {
+        if (selectedMonths.length === 0) {
+          setAttendances([]);
+          return;
+        }
         // Calcular range de datas baseado nos meses selecionados
         const sortedMonths = [...selectedMonths].sort((a, b) => a - b);
         const firstMonth = sortedMonths[0];
@@ -177,16 +226,14 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
               status: "DONE",
             },
           },
+          signal: controller.signal,
         });
 
-        if (error) {
-          console.error("[useIndicadoresData] Erro ao buscar atendimentos:", error);
-          return;
-        }
+        if (error) throw error;
 
-        const processAttendances = (attendanceList: any[]) => {
+        const processAttendances = (attendanceList: AmigoAttendance[]) => {
           // Filtrar apenas atendimentos da unidade SUA VISAO e dos meses selecionados
-          return attendanceList.filter((att: any) => {
+          return attendanceList.filter((att) => {
             const placeName = (att.place?.name || "").toLowerCase();
             const isValidPlace = placeName.includes("sua visao") && placeName.includes("padre pedro pinto");
             
@@ -201,6 +248,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
           });
         };
 
+        if (!isMounted) return;
         if (data?.success && data.data?.data && Array.isArray(data.data.data)) {
           const validAttendances = processAttendances(data.data.data);
           console.log(`[useIndicadoresData] Atendimentos SUA VISAO filtrados: ${validAttendances.length}`);
@@ -210,18 +258,24 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
           setAttendances(validAttendances);
         } else {
           console.log("[useIndicadoresData] Resposta da API:", data);
-          setAttendances([]);
+          throw new Error("Invalid Amigo response");
         }
-      } catch (error) {
-        console.error("[useIndicadoresData] Erro ao chamar API:", error);
-        setAttendances([]);
+      } catch (cause) {
+        console.error("[useIndicadoresData] Erro ao chamar API:", cause);
+        if (isMounted) setSourceErrors((current) => ({ ...current, amigo: timedOut ? "A consulta ao Amigo demorou mais de 30 segundos. Tente novamente." : "Não foi possível carregar os atendimentos da unidade Sua Visão no Amigo." }));
       } finally {
-        setIsLoading(false);
+        window.clearTimeout(timeout);
+        if (isMounted) setLoadingSources((current) => ({ ...current, amigo: false }));
       }
     };
 
-    fetchAttendances();
-  }, [selectedMonths, year]);
+    void fetchAttendances();
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [selectedMonths, year, refreshKey]);
 
   // Normalizar nome para comparação (lowercase, sem espaços extras)
   const normalizeName = useCallback((name: string | null): string => {
@@ -324,7 +378,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
     // POTENCIAL (%) = Receitas / Atendimentos
     const potencial = atendimentos > 0 ? (receitas / atendimentos) * 100 : 0;
 
-    // VISITOU DNZ = leads canal "Sua Visão" com orçamento "Sim" no dia
+    // LEADS COM ORÇAMENTO = leads do canal "Sua Visão" com orçamento "Sim" no dia
     const visitou_dnz = getLeadsSuaVisaoOrcamentoForDay(day, month);
 
     // VENDAS = registros com venda = "sim"
@@ -332,7 +386,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
       r.venda?.toLowerCase().trim() === "sim"
     ).length;
 
-    // CONVERSÃO (%) = Vendas / Visitou DNZ
+    // CONVERSÃO (%) = Vendas / Leads com orçamento
     const conversao = visitou_dnz > 0 ? (vendas / visitou_dnz) * 100 : 0;
 
     // FATURAMENTO - da aba METAS (acompanhamento_diario)
@@ -347,7 +401,7 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
     // TICKET MÉDIO = Faturamento / Vendas
     const ticket = vendas > 0 ? faturamento / vendas : 0;
 
-    // TAXA DE PRESENÇA (%) = Visitou DNZ / Receitas
+    // TAXA DE PRESENÇA (%) = Leads com orçamento / Receitas
     const taxa_presenca = receitas > 0 ? (visitou_dnz / receitas) * 100 : 0;
 
     return {
@@ -365,6 +419,8 @@ export function useIndicadoresData(leads: Lead[], selectedMonths: number[], year
 
   return {
     isLoading,
+    error,
+    refresh,
     attendances,
     detalhados,
     acompanhamentos,

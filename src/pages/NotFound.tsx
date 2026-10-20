@@ -1,23 +1,39 @@
+import { ArrowLeft, LayoutDashboard } from "lucide-react";
 import { useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/app/ButtonLink";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 
 const NotFound = () => {
   const location = useLocation();
 
-  useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-  }, [location.pathname]);
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">404</h1>
-        <p className="mb-4 text-xl text-muted-foreground">Oops! Page not found</p>
-        <a href="/" className="text-primary underline hover:text-primary/90">
-          Return to Home
-        </a>
-      </div>
-    </div>
+    <main className="flex min-h-svh items-center justify-center bg-background px-4 py-10">
+      <Card className="w-full max-w-lg border-border shadow-sm">
+        <CardHeader className="space-y-4">
+          <Badge variant="outline" className="w-fit">Erro 404</Badge>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold leading-none tracking-tight">Página não encontrada</h1>
+            <CardDescription>
+              Esse endereço não corresponde a uma tela do Gerencia DNZ. Confira o link ou volte ao Comercial.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <p className="break-all rounded-md bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">
+            {location.pathname}
+          </p>
+          <ButtonLink to="/comercial/leads" className="w-full gap-2 sm:w-auto">
+            <LayoutDashboard className="size-4" aria-hidden="true" />
+            Ir para Comercial
+          </ButtonLink>
+          <p className="text-xs text-muted-foreground">
+            <ArrowLeft className="mr-1 inline size-3.5" aria-hidden="true" />
+            Você também pode retornar à tela anterior pelo navegador.
+          </p>
+        </CardContent>
+      </Card>
+    </main>
   );
 };
 

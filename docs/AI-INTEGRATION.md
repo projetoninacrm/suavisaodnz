@@ -4,7 +4,6 @@ As funções usam diretamente a API Responses da OpenAI. `OPENAI_API_KEY` perman
 
 | Função | Uso | Modelo padrão |
 | --- | --- | --- |
-| extract-ad-metrics | Extração de métricas de prints | gpt-4.1-mini |
 | import-schedule-image | Leitura de imagem/PDF da escala | gpt-4.1 |
 | summarize-conversa | Resumo das novas mensagens de automações | gpt-4.1-mini |
 | whatsapp-webhook → summarize-conversa | Resume a posição do cliente em novas conversas vinculadas a automações e grava em automacao_disparos.observacao | gpt-4.1-mini |
@@ -28,7 +27,7 @@ Os nomes `chatlabs-analise` e `chatlabs-conversas` ficam como aliases de compati
 3. Somente depois, atualizar o webhook existente da UAZAPI para `https://zwowpjdftalmlrocieog.supabase.co/functions/v1/whatsapp-webhook`, mantendo o evento messages e a exclusão de grupos.
 4. Publicar o frontend na Vercel e conferir a Observação com badge IA na aba Enviados das automações. A análise completa por período permanece disponível como endpoint autenticado, sem uma aba operacional separada.
 
-Overrides opcionais: `OPENAI_MODEL`, `OPENAI_METRICS_MODEL`, `OPENAI_SCHEDULE_MODEL`, `OPENAI_SUMMARY_MODEL`, `OPENAI_ANALYSIS_MODEL`.
+Overrides opcionais: `OPENAI_MODEL`, `OPENAI_SCHEDULE_MODEL`, `OPENAI_SUMMARY_MODEL`, `OPENAI_ANALYSIS_MODEL`.
 
 ## Validação local de 13/10/2026
 

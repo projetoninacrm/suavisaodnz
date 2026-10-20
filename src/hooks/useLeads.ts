@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthenticatedUserId } from "@/hooks/useAuthenticatedUserId";
 
 export interface Lead {
   id: string;
@@ -45,47 +47,136 @@ export type LeadChanges = Partial<Pick<Lead,
   "vendedor" | "vendedor_id" | "valor"
 >>;
 
-export function useLeads() {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+const leadsQueryKey = (userId: string) => ["leads", userId] as const;
+const LEADS_QUERY_TIMEOUT_MS = 30_000;
+const LEADS_QUERY_TIMEOUT_MESSAGE = "A consulta de leads demorou mais de 30 segundos. Tente novamente.";
+
+async function loadAllLeads(querySignal: AbortSignal): Promise<Lead[]> {
+  // Keep each request below the backend's 1,000-row response ceiling.
+  // Continue requesting pages until the backend returns an empty batch.
+  const pageSize = 500;
+  let from = 0;
+  const all: Lead[] = [];
+  const controller = new AbortController();
+  let timedOut = false;
+  const abortFromQuery = () => controller.abort();
+  if (querySignal.aborted) abortFromQuery();
+  else querySignal.addEventListener("abort", abortFromQuery, { once: true });
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, LEADS_QUERY_TIMEOUT_MS);
+
+  try {
+    while (true) {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, from + pageSize - 1)
+        .abortSignal(controller.signal);
+
+      if (error) throw error;
+      const batch = data || [];
+      if (batch.length === 0) break;
+      all.push(...batch);
+      from += pageSize;
+    }
+  } catch (error) {
+    if (timedOut && !querySignal.aborted) {
+      throw new Error(LEADS_QUERY_TIMEOUT_MESSAGE);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    querySignal.removeEventListener("abort", abortFromQuery);
+  }
+
+  return all;
+}
+
+export function useCreateLead() {
   const { toast } = useToast();
 
-  const fetchLeads = async () => {
-    setIsLoading(true);
+  const createLead = useCallback(async (leadData: NewLeadData) => {
     try {
-      // Keep each request below the backend's 1,000-row response ceiling.
-      // Continue requesting pages until the backend returns an empty batch.
-      const pageSize = 500;
-      let from = 0;
-      const all: Lead[] = [];
+      const { data, error } = await supabase
+        .from("leads")
+        .insert(leadData)
+        .select()
+        .single();
 
-      while (true) {
-        const { data, error } = await supabase
-          .from("leads")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false })
-          .range(from, from + pageSize - 1);
-
-        if (error) throw error;
-        const batch = data || [];
-        if (batch.length === 0) break;
-        all.push(...batch);
-        from += pageSize;
-      }
-
-      setLeads(all);
+      if (error) throw error;
+      toast({ title: "Adicionado", description: "Novo lead criado com sucesso!" });
+      return data;
     } catch (error) {
-      console.error("Error fetching leads:", error);
+      console.error("Error adding lead:", error);
       toast({
-        title: "Erro ao carregar dados",
-        description: "Não foi possível carregar os leads.",
+        title: "Erro ao adicionar",
+        description: "Não foi possível adicionar o lead.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      throw error;
     }
-  };
+  }, [toast]);
+
+  return { createLead };
+}
+
+export function useLeads() {
+  const userId = useAuthenticatedUserId();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { createLead } = useCreateLead();
+  const previousUserId = useRef<string | null | undefined>(undefined);
+  const notifiedErrorAt = useRef<number | null>(null);
+
+  useEffect(() => {
+    const previousId = previousUserId.current;
+    if (previousId && previousId !== userId) {
+      // Lead records contain customer data; discard the old account's cache on sign-out or account switch.
+      queryClient.removeQueries({ queryKey: leadsQueryKey(previousId), exact: true });
+    }
+    previousUserId.current = userId;
+  }, [queryClient, userId]);
+
+  const leadsQuery = useQuery({
+    queryKey: userId ? leadsQueryKey(userId) : ["leads", "no-authenticated-user"],
+    queryFn: ({ signal }) => loadAllLeads(signal),
+    enabled: userId !== undefined && userId !== null,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const refetchLeads = leadsQuery.refetch;
+  const leads = leadsQuery.data ?? [];
+  const isLoading = userId === undefined || (userId !== null && leadsQuery.isFetching);
+  const isTimeoutError = leadsQuery.error instanceof Error && leadsQuery.error.message === LEADS_QUERY_TIMEOUT_MESSAGE;
+  const error = leadsQuery.isError
+    ? (isTimeoutError ? LEADS_QUERY_TIMEOUT_MESSAGE : "Não foi possível carregar os leads. Tente novamente.")
+    : null;
+
+  useEffect(() => {
+    if (!leadsQuery.error || !leadsQuery.isError || notifiedErrorAt.current === leadsQuery.errorUpdatedAt) return;
+    notifiedErrorAt.current = leadsQuery.errorUpdatedAt;
+    console.error("Error fetching leads:", leadsQuery.error);
+    toast({
+      title: "Erro ao carregar dados",
+      description: isTimeoutError ? LEADS_QUERY_TIMEOUT_MESSAGE : "Não foi possível carregar os leads.",
+      variant: "destructive",
+    });
+  }, [isTimeoutError, leadsQuery.error, leadsQuery.errorUpdatedAt, leadsQuery.isError, toast]);
+
+  const fetchLeads = useCallback(async () => {
+    if (userId) await refetchLeads();
+  }, [refetchLeads, userId]);
+
+  const updateCachedLead = useCallback((id: string, update: (lead: Lead) => Lead) => {
+    if (!userId) return;
+    queryClient.setQueryData<Lead[]>(leadsQueryKey(userId), (previous) =>
+      previous?.map((lead) => lead.id === id ? update(lead) : lead)
+    );
+  }, [queryClient, userId]);
 
   const updateLead = async (id: string, field: keyof Lead, value: string) => {
     try {
@@ -96,9 +187,7 @@ export function useLeads() {
 
       if (error) throw error;
 
-      setLeads((prev) =>
-        prev.map((l) => (l.id === id ? { ...l, [field]: value } : l))
-      );
+      updateCachedLead(id, (lead) => ({ ...lead, [field]: value }));
 
       toast({ title: "Atualizado", description: "Dados salvos." });
     } catch (error) {
@@ -121,7 +210,7 @@ export function useLeads() {
         .single();
 
       if (error) throw error;
-      setLeads((previous) => previous.map((lead) => lead.id === id ? data : lead));
+      updateCachedLead(id, () => data);
       toast({ title: "Lead atualizado", description: "As alterações foram salvas." });
       return data;
     } catch (error) {
@@ -143,11 +232,9 @@ export function useLeads() {
         : await supabase.from("leads").update({ medico_id: personId, medico: name }).eq("id", id);
       const { error } = result;
       if (error) throw error;
-      setLeads((prev) => prev.map((lead) => lead.id === id
-        ? person === "employee"
-          ? { ...lead, vendedor_id: personId, vendedor: name }
-          : { ...lead, medico_id: personId, medico: name }
-        : lead));
+      updateCachedLead(id, (lead) => person === "employee"
+        ? { ...lead, vendedor_id: personId, vendedor: name }
+        : { ...lead, medico_id: personId, medico: name });
       toast({ title: "Responsável atualizado", description: name || "Atribuição removida." });
     } catch (error) {
       console.error("Error updating lead assignment:", error);
@@ -155,34 +242,25 @@ export function useLeads() {
     }
   };
 
-  const addLead = async (leadData: NewLeadData) => {
-    try {
-      const { data, error } = await supabase
-        .from("leads")
-        .insert(leadData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setLeads((prev) => [data, ...prev]);
-      toast({ title: "Adicionado", description: "Novo lead criado com sucesso!" });
-      return data;
-    } catch (error) {
-      console.error("Error adding lead:", error);
-      toast({
-        title: "Erro ao adicionar",
-        description: "Não foi possível adicionar o lead.",
-        variant: "destructive",
-      });
-      throw error;
+  const addLead = useCallback(async (leadData: NewLeadData) => {
+    const data = await createLead(leadData);
+    if (userId) {
+      queryClient.setQueryData<Lead[]>(leadsQueryKey(userId), (previous) =>
+        previous ? [data, ...previous] : [data]
+      );
     }
-  };
+    return data;
+  }, [createLead, queryClient, userId]);
 
   const deleteLead = async (id: string) => {
     try {
       const { error } = await supabase.from("leads").delete().eq("id", id);
       if (error) throw error;
-      setLeads((prev) => prev.filter((l) => l.id !== id));
+      if (userId) {
+        queryClient.setQueryData<Lead[]>(leadsQueryKey(userId), (previous) =>
+          previous?.filter((lead) => lead.id !== id)
+        );
+      }
       toast({ title: "Excluído", description: "Lead removido." });
     } catch (error) {
       console.error("Error deleting lead:", error);
@@ -194,9 +272,5 @@ export function useLeads() {
     }
   };
 
-  useEffect(() => {
-    fetchLeads();
-  }, []);
-
-  return { leads, isLoading, fetchLeads, updateLead, updateLeadFields, updateLeadPerson, addLead, deleteLead };
+  return { leads, isLoading, error, fetchLeads, updateLead, updateLeadFields, updateLeadPerson, addLead, deleteLead };
 }

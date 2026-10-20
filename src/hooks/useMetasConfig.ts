@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+const METAS_CONFIG_QUERY_TIMEOUT_MS = 30_000;
+const METAS_CONFIG_QUERY_TIMEOUT_MESSAGE = "A consulta das metas demorou mais de 30 segundos. Tente novamente.";
 
 export interface MetasConfig {
   id?: string;
@@ -27,17 +30,32 @@ const DEFAULT_CONFIG: Omit<MetasConfig, "mes"> = {
 export function useMetasConfig() {
   const [configs, setConfigs] = useState<Record<string, MetasConfig>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const requestIdRef = useRef(0);
+  const activeControllerRef = useRef<AbortController | null>(null);
 
   // Carrega todas as configurações
   const fetchConfigs = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    activeControllerRef.current?.abort();
+    const controller = new AbortController();
+    activeControllerRef.current = controller;
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, METAS_CONFIG_QUERY_TIMEOUT_MS);
     setIsLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase
         .from("metas_config")
-        .select("*");
+        .select("*")
+        .abortSignal(controller.signal);
 
       if (error) throw error;
+      if (requestId !== requestIdRef.current) return;
 
       const configMap: Record<string, MetasConfig> = {};
       (data || []).forEach((item) => {
@@ -50,21 +68,27 @@ export function useMetasConfig() {
           percentual_comparecimento: Number(item.percentual_comparecimento) || 50,
           percentual_conversao: Number(item.percentual_conversao) || 66,
           meta_faturamento_mensal: Number(item.meta_faturamento_mensal) || 60000,
-          vendas_loja: Number((item as any).vendas_loja) || 0,
-          vendas_internet: Number((item as any).vendas_internet) || 0,
+          vendas_loja: Number(item.vendas_loja) || 0,
+          vendas_internet: Number(item.vendas_internet) || 0,
         };
       });
 
       setConfigs(configMap);
     } catch (error) {
+      if (requestId !== requestIdRef.current) return;
       console.error("Error fetching metas config:", error);
+      setError(timedOut ? METAS_CONFIG_QUERY_TIMEOUT_MESSAGE : "Não foi possível carregar as configurações de metas. Tente novamente.");
       toast({
         title: "Erro ao carregar configurações",
-        description: "Não foi possível carregar as configurações de metas.",
+        description: timedOut ? METAS_CONFIG_QUERY_TIMEOUT_MESSAGE : "Não foi possível carregar as configurações de metas.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      window.clearTimeout(timeout);
+      if (requestId === requestIdRef.current) {
+        activeControllerRef.current = null;
+        setIsLoading(false);
+      }
     }
   }, [toast]);
 
@@ -77,7 +101,7 @@ export function useMetasConfig() {
   }, [configs]);
 
   // Salva configuração de um mês
-  const saveConfig = useCallback(async (config: MetasConfig) => {
+  const saveConfig = useCallback(async (config: MetasConfig): Promise<boolean> => {
     try {
       const existingConfig = configs[config.mes];
 
@@ -133,6 +157,7 @@ export function useMetasConfig() {
         title: "Configuração salva",
         description: `Metas de ${config.mes} salvas com sucesso.`,
       });
+      return true;
     } catch (error) {
       console.error("Error saving metas config:", error);
       toast({
@@ -140,16 +165,23 @@ export function useMetasConfig() {
         description: "Não foi possível salvar as configurações.",
         variant: "destructive",
       });
+      return false;
     }
   }, [configs, toast]);
 
   useEffect(() => {
-    fetchConfigs();
+    void fetchConfigs();
+    return () => {
+      requestIdRef.current += 1;
+      activeControllerRef.current?.abort();
+      activeControllerRef.current = null;
+    };
   }, [fetchConfigs]);
 
   return {
     configs,
     isLoading,
+    error,
     getConfigForMonth,
     saveConfig,
     fetchConfigs,

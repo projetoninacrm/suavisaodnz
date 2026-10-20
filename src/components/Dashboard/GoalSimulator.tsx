@@ -3,6 +3,8 @@ import { Calculator } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { calculateGoalSimulatorResults } from "@/lib/reportCalculations";
 
 export interface GoalSimulatorValues {
   vendas: number;
@@ -41,11 +43,22 @@ const formatCurrency = (value: number) => value.toLocaleString("pt-BR", { style:
 export function GoalSimulator({ initialValues }: { initialValues?: GoalSimulatorValues }) {
   const [savedOnLoad] = useState(() => readSavedValues());
   const [simulator, setSimulator] = useState<GoalSimulatorValues>(() => savedOnLoad || EMPTY_VALUES);
+  const initialSales = initialValues?.vendas ?? 0;
+  const initialAverageTicket = initialValues?.ticketMedio ?? 0;
+  const initialPotential = initialValues?.potencial ?? 0;
+  const initialAttendanceRate = initialValues?.taxaPresenca ?? 0;
+  const initialConversionRate = initialValues?.conversao ?? 0;
 
   useEffect(() => {
-    if (savedOnLoad || !initialValues || (!initialValues.vendas && !initialValues.potencial)) return;
-    setSimulator(initialValues);
-  }, [initialValues?.vendas, initialValues?.ticketMedio, initialValues?.potencial, initialValues?.taxaPresenca, initialValues?.conversao, savedOnLoad]);
+    if (savedOnLoad || (!initialSales && !initialPotential)) return;
+    setSimulator({
+      vendas: initialSales,
+      ticketMedio: initialAverageTicket,
+      potencial: initialPotential,
+      taxaPresenca: initialAttendanceRate,
+      conversao: initialConversionRate,
+    });
+  }, [initialSales, initialAverageTicket, initialPotential, initialAttendanceRate, initialConversionRate, savedOnLoad]);
 
   useEffect(() => {
     if (simulator.vendas > 0 || simulator.potencial > 0) {
@@ -53,14 +66,7 @@ export function GoalSimulator({ initialValues }: { initialValues?: GoalSimulator
     }
   }, [simulator]);
 
-  const results = useMemo(() => {
-    const { vendas, ticketMedio, potencial, taxaPresenca, conversao } = simulator;
-    const faturamento = vendas * ticketMedio;
-    const visitouDnz = conversao > 0 ? vendas / (conversao / 100) : 0;
-    const receitas = taxaPresenca > 0 ? visitouDnz / (taxaPresenca / 100) : 0;
-    const atendimentos = potencial > 0 ? receitas / (potencial / 100) : 0;
-    return { faturamento, visitouDnz: Math.round(visitouDnz), receitas: Math.round(receitas), atendimentos: Math.round(atendimentos) };
-  }, [simulator]);
+  const results = useMemo(() => calculateGoalSimulatorResults(simulator), [simulator]);
 
   const update = (field: keyof GoalSimulatorValues, value: string) => {
     setSimulator((current) => ({ ...current, [field]: Number(value) || 0 }));
@@ -79,23 +85,28 @@ export function GoalSimulator({ initialValues }: { initialValues?: GoalSimulator
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)]">
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1 text-xs text-muted-foreground">Vendas desejadas
-                <Input aria-label="Vendas desejadas" type="number" min="0" value={simulator.vendas || ""} onChange={(event) => update("vendas", event.target.value)} />
-              </label>
-              <label className="space-y-1 text-xs text-muted-foreground">Ticket médio (R$)
-                <Input aria-label="Ticket médio" type="number" min="0" value={simulator.ticketMedio || ""} onChange={(event) => update("ticketMedio", event.target.value)} />
-              </label>
+              <div className="space-y-1">
+                <Label htmlFor="goal-simulator-sales" className="text-xs text-muted-foreground">Vendas desejadas</Label>
+                <Input id="goal-simulator-sales" type="number" min="0" value={simulator.vendas || ""} onChange={(event) => update("vendas", event.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="goal-simulator-ticket" className="text-xs text-muted-foreground">Ticket médio (R$)</Label>
+                <Input id="goal-simulator-ticket" type="number" min="0" value={simulator.ticketMedio || ""} onChange={(event) => update("ticketMedio", event.target.value)} />
+              </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              <label className="space-y-1 text-xs text-muted-foreground">Potencial (%)
-                <Input aria-label="Potencial em percentual" type="number" min="0" step="0.01" value={simulator.potencial || ""} onChange={(event) => update("potencial", event.target.value)} />
-              </label>
-              <label className="space-y-1 text-xs text-muted-foreground">Taxa de presença (%)
-                <Input aria-label="Taxa de presença em percentual" type="number" min="0" step="0.01" value={simulator.taxaPresenca || ""} onChange={(event) => update("taxaPresenca", event.target.value)} />
-              </label>
-              <label className="space-y-1 text-xs text-muted-foreground">Conversão (%)
-                <Input aria-label="Conversão em percentual" type="number" min="0" step="0.01" value={simulator.conversao || ""} onChange={(event) => update("conversao", event.target.value)} />
-              </label>
+              <div className="space-y-1">
+                <Label htmlFor="goal-simulator-potential" className="text-xs text-muted-foreground">Potencial (%)</Label>
+                <Input id="goal-simulator-potential" type="number" min="0" step="0.01" value={simulator.potencial || ""} onChange={(event) => update("potencial", event.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="goal-simulator-attendance" className="text-xs text-muted-foreground">Taxa de presença (%)</Label>
+                <Input id="goal-simulator-attendance" type="number" min="0" step="0.01" value={simulator.taxaPresenca || ""} onChange={(event) => update("taxaPresenca", event.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="goal-simulator-conversion" className="text-xs text-muted-foreground">Conversão (%)</Label>
+                <Input id="goal-simulator-conversion" type="number" min="0" step="0.01" value={simulator.conversao || ""} onChange={(event) => update("conversao", event.target.value)} />
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">Cenário salvo neste navegador. Os valores simulados não alteram o realizado nem as metas cadastradas.</p>
           </div>
@@ -104,7 +115,7 @@ export function GoalSimulator({ initialValues }: { initialValues?: GoalSimulator
             <div className="flex items-center justify-between gap-4 rounded-md bg-muted/50 p-3"><dt className="text-muted-foreground">Atendimentos necessários</dt><dd className="font-semibold tabular-nums">{results.atendimentos}</dd></div>
             <div className="flex items-center justify-between gap-4 rounded-md bg-muted/50 p-3"><dt className="text-muted-foreground">Receitas necessárias</dt><dd className="font-semibold tabular-nums">{results.receitas}</dd></div>
             <div className="flex items-center justify-between gap-4 rounded-md bg-muted/50 p-3"><dt className="text-muted-foreground">Visitas à loja</dt><dd className="font-semibold tabular-nums">{results.visitouDnz}</dd></div>
-            <div className="flex items-center justify-between gap-4 rounded-md bg-primary/10 p-3"><dt className="text-muted-foreground">Faturamento projetado</dt><dd className="font-semibold tabular-nums text-primary">{formatCurrency(results.faturamento)}</dd></div>
+            <div className="flex items-center justify-between gap-4 rounded-md bg-primary/10 p-3"><dt className="text-muted-foreground">Faturamento projetado</dt><dd className="font-semibold tabular-nums text-primary dark:text-foreground">{formatCurrency(results.faturamento)}</dd></div>
           </dl>
         </div>
         <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">Fórmulas: atendimentos = receitas ÷ potencial; receitas = visitas ÷ presença; visitas = vendas ÷ conversão; faturamento = vendas × ticket.</p>

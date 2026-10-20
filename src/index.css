@@ -4,6 +4,47 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .typeset {
+    --typeset-size: 1em;
+    --typeset-leading: 1.7;
+    --typeset-flow: 1em;
+    font-size: var(--typeset-size);
+    line-height: var(--typeset-leading);
+  }
+
+  .typeset :where(h1, h2, h3, h4, h5, h6) {
+    margin-block-start: calc(var(--typeset-flow) * 1.5);
+    font-weight: 600;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  .typeset :where(h1) { font-size: 1.75em; }
+  .typeset :where(h2) { font-size: 1.5em; }
+  .typeset :where(h3) { font-size: 1.25em; }
+  .typeset :where(h4, h5, h6) { font-size: 1.05em; }
+  .typeset :where(p, ul, ol, blockquote, pre, table) { margin-block-start: var(--typeset-flow); }
+  .typeset :where(ul, ol) { padding-inline-start: 1.5em; }
+  .typeset :where(ul) { list-style: disc; }
+  .typeset :where(ol) { list-style: decimal; }
+  .typeset :where(li + li) { margin-block-start: 0.25em; }
+  .typeset :where(blockquote) {
+    border-inline-start: 2px solid oklch(var(--border) / var(--border-alpha, 100%));
+    padding-inline-start: 1em;
+    color: oklch(var(--muted-foreground));
+  }
+  .typeset :where(code, pre) { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+  .typeset :where(code) { border-radius: 0.25rem; background: oklch(var(--muted)); padding: 0.1em 0.3em; }
+  .typeset :where(pre) { overflow-x: auto; border-radius: var(--radius); background: oklch(var(--muted)); padding: 0.75em; }
+  .typeset :where(pre code) { background: transparent; padding: 0; }
+  .typeset :where(table) { width: 100%; border-collapse: collapse; }
+  .typeset :where(th, td) { border: 1px solid oklch(var(--border) / var(--border-alpha, 100%)); padding: 0.4em 0.6em; text-align: start; }
+  .typeset :where(a) { color: oklch(var(--primary)); text-decoration: underline; text-underline-offset: 0.2em; }
+  .typeset-chat { --typeset-leading: 1.6; --typeset-flow: 0.7em; }
+  .typeset-document { --typeset-size: 0.9375em; --typeset-leading: 1.75; --typeset-flow: 1.25em; }
+}
+
 @layer base {
   :root {
     /* Tokens exported from shadcn preset b1sRltPJg (Blue / Neutral / Cyan). */
@@ -18,16 +59,16 @@
     --secondary: 0.967 0.001 286.375;
     --secondary-foreground: 0.21 0.006 285.885;
     --muted: 0.97 0 0;
-    --muted-foreground: 0.556 0 0;
+    --muted-foreground: 0.52 0 0;
     --accent: 0.97 0 0;
     --accent-foreground: 0.205 0 0;
-    --destructive: 0.577 0.245 27.325;
+    --destructive: 0.53 0.245 27.325;
     --destructive-foreground: 0.97 0.014 254.604;
     --border: 0.922 0 0;
     --border-alpha: 100%;
     --input: 0.922 0 0;
     --input-alpha: 100%;
-    --ring: 0.708 0 0;
+    --ring: 0.64 0 0;
     --chart-1: 0.865 0.127 207.078;
     --chart-2: 0.715 0.143 215.221;
     --chart-3: 0.609 0.126 221.723;
@@ -41,7 +82,7 @@
     --sidebar-accent: 0.97 0 0;
     --sidebar-accent-foreground: 0.205 0 0;
     --sidebar-border: var(--border);
-    --sidebar-ring: 0.708 0 0;
+    --sidebar-ring: 0.64 0 0;
 
     /* Compatibility aliases for modules still on the previous layout. */
     --sidebar-background: var(--sidebar);
@@ -49,14 +90,16 @@
     --table-row-hover: var(--muted);
     --table-border: var(--border);
     --success: 0.52 0.14 165;
+    --success-foreground: 0.36 0.12 165;
     --warning: 0.68 0.16 65;
+    --warning-foreground: 0.39 0.1 65;
 
-    /* Schedule colors stay HSL until the Escala screen is migrated. */
+    /* Named weekday tokens keep the Escala day labels consistent across views. */
     --day-seg: 217 91% 50%;
-    --day-ter: 165 82% 40%;
+    --day-ter: 165 82% 27%;
     --day-qua: 280 68% 55%;
-    --day-qui: 35 92% 55%;
-    --day-sex: 340 75% 55%;
+    --day-qui: 35 92% 33%;
+    --day-sex: 340 75% 48%;
     --day-sab: 220 10% 45%;
   }
 
@@ -67,8 +110,8 @@
     --card-foreground: 0.985 0 0;
     --popover: 0.205 0 0;
     --popover-foreground: 0.985 0 0;
-    --primary: 0.424 0.199 265.638;
-    --primary-foreground: 0.97 0.014 254.604;
+    --primary: 0.66 0.214 259.815;
+    --primary-foreground: 0.145 0 0;
     --secondary: 0.274 0.006 286.033;
     --secondary-foreground: 0.985 0 0;
     --muted: 0.269 0 0;
@@ -76,12 +119,12 @@
     --accent: 0.269 0 0;
     --accent-foreground: 0.985 0 0;
     --destructive: 0.704 0.191 22.216;
-    --destructive-foreground: 0.985 0 0;
+    --destructive-foreground: 0.145 0 0;
     --border: 1 0 0;
     --border-alpha: 10%;
     --input: 1 0 0;
     --input-alpha: 15%;
-    --ring: 0.556 0 0;
+    --ring: 0.62 0 0;
     --chart-1: 0.865 0.127 207.078;
     --chart-2: 0.715 0.143 215.221;
     --chart-3: 0.609 0.126 221.723;
@@ -94,13 +137,15 @@
     --sidebar-accent: 0.269 0 0;
     --sidebar-accent-foreground: 0.985 0 0;
     --sidebar-border: var(--border);
-    --sidebar-ring: 0.556 0 0;
+    --sidebar-ring: 0.62 0 0;
     --sidebar-background: var(--sidebar);
     --table-header: var(--muted);
     --table-row-hover: var(--muted);
     --table-border: var(--border);
     --success: 0.72 0.14 165;
+    --success-foreground: 0.72 0.14 165;
     --warning: 0.78 0.16 75;
+    --warning-foreground: 0.82 0.14 75;
   }
 
   * {
@@ -127,25 +172,6 @@
 
   .table-cell-hover {
     @apply transition-colors duration-150 hover:bg-muted/50;
-  }
-
-  .day-badge {
-    @apply inline-flex items-center justify-center px-2 py-1 text-xs font-semibold rounded-full;
-  }
-
-  .day-seg { @apply bg-[hsl(var(--day-seg))] text-white; }
-  .day-ter { @apply bg-[hsl(var(--day-ter))] text-white; }
-  .day-qua { @apply bg-[hsl(var(--day-qua))] text-white; }
-  .day-qui { @apply bg-[hsl(var(--day-qui))] text-white; }
-  .day-sex { @apply bg-[hsl(var(--day-sex))] text-white; }
-  .day-sab { @apply bg-[hsl(var(--day-sab))] text-white; }
-
-  .card-shadow {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
-  }
-
-  .card-shadow-lg {
-    box-shadow: 0 4px 6px 0 rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
   }
 
   .scrollbar-visible {

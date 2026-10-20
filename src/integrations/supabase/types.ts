@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      category_catalog: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          domain: "lead_channel" | "service_origin"
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          domain: "lead_channel" | "service_origin"
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          domain?: "lead_channel" | "service_origin"
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       acompanhamento_diario: {
         Row: {
           created_at: string

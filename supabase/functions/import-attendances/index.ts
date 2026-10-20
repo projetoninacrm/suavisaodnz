@@ -8,6 +8,21 @@ const corsHeaders = {
 
 const AMIGO_API_BASE = 'https://amigobot-api.amigoapp.com.br';
 
+interface AmigoAttendance {
+  agenda_event?: { name?: string | null } | null;
+  user?: { name?: string | null } | null;
+  patient?: {
+    id?: string | number | null;
+    name?: string | null;
+    contact_cellphone?: string | null;
+  } | null;
+  start_date: string;
+}
+
+interface AmigoPatientDetailsResponse {
+  data?: { email?: string | null } | null;
+}
+
 // Tipos de atendimento selecionados (com checkmark nas imagens)
 const ALLOWED_EVENT_TYPES = [
   'Alice Guedes',
@@ -46,7 +61,7 @@ function formatPhone(phone: string | null): string {
   return phone;
 }
 
-async function fetchPatientDetails(patientId: string, apiToken: string): Promise<any> {
+async function fetchPatientDetails(patientId: string | number, apiToken: string): Promise<AmigoPatientDetailsResponse | null> {
   try {
     const url = `${AMIGO_API_BASE}/patients/${patientId}`;
     const response = await fetch(url, {
@@ -60,7 +75,7 @@ async function fetchPatientDetails(patientId: string, apiToken: string): Promise
       console.error(`Patient fetch failed: ${response.status}`);
       return null;
     }
-    const data = await response.json();
+    const data = await response.json() as AmigoPatientDetailsResponse;
     console.log("Dados do paciente recebidos");
     return data;
   } catch (error) {
@@ -126,12 +141,12 @@ serve(async (req) => {
       throw new Error(`API error: ${response.status} - ${errorText}`);
     }
 
-    const apiData = await response.json();
+    const apiData = await response.json() as { data?: AmigoAttendance[] | null };
     const attendances = apiData.data || [];
     console.log(`Total attendances fetched: ${attendances.length}`);
 
     // Filter by allowed event types (check both agenda_event.name and user.name)
-    const filteredAttendances = attendances.filter((att: any) => {
+    const filteredAttendances = attendances.filter((att) => {
       const eventName = att.agenda_event?.name || '';
       const userName = att.user?.name || '';
       return ALLOWED_EVENT_TYPES.some(allowed => 
@@ -166,7 +181,7 @@ serve(async (req) => {
     
     for (const att of filteredAttendances) {
       const nome = att.patient?.name || '';
-      const telefone = formatPhone(att.patient?.contact_cellphone);
+      const telefone = formatPhone(att.patient?.contact_cellphone ?? null);
       const data = formatDate(att.start_date);
       
       // Check if record already exists

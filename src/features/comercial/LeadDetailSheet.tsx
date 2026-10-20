@@ -2,10 +2,16 @@ import { useEffect, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { BaseButton as Button } from "@/components/base/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePickerField } from "@/components/data/DatePickerField";
+import { CategorySelect } from "@/components/data/CategorySelect";
+import { PersonSelect } from "@/components/Dashboard/PersonSelect";
+import { PersonDirectoryHint } from "@/components/data/PersonDirectoryHint";
+import { DEFAULT_LEAD_CHANNELS, type CategoryCatalogItem } from "@/hooks/useCategories";
 import type { DirectoryPerson } from "@/hooks/useDirectory";
 import type { Lead } from "@/hooks/useLeads";
 
@@ -42,25 +48,47 @@ const toLocalDate = (value: string) => {
   return year && month && day ? `${day}/${month}/${year}` : "";
 };
 
+const STATUS_OPTIONS = ["Ativo", "Perdido", "Pós Venda"];
+
 interface LeadDetailSheetProps {
   lead: Lead | null;
+  channelCategories: CategoryCatalogItem[];
   employees: DirectoryPerson[];
   professionals: DirectoryPerson[];
+  employeesLoading: boolean;
+  employeesError: string | null;
+  refreshEmployees: () => Promise<boolean>;
+  professionalsLoading: boolean;
+  professionalsError: string | null;
+  refreshProfessionals: () => Promise<boolean>;
   saving: boolean;
   onClose: () => void;
   onSave: (changes: LeadDraft) => Promise<void>;
 }
 
-export function LeadDetailSheet({ lead, employees, professionals, saving, onClose, onSave }: LeadDetailSheetProps) {
+export function LeadDetailSheet({
+  lead,
+  employees,
+  professionals,
+  employeesLoading,
+  employeesError,
+  refreshEmployees,
+  professionalsLoading,
+  professionalsError,
+  refreshProfessionals,
+  channelCategories,
+  saving,
+  onClose,
+  onSave,
+}: LeadDetailSheetProps) {
   const [draft, setDraft] = useState<LeadDraft>(() => lead ? draftFromLead(lead) : {} as LeadDraft);
   useEffect(() => {
     if (lead) setDraft(draftFromLead(lead));
-  }, [lead?.id, lead?.updated_at]);
+  }, [lead]);
 
   const update = <K extends keyof LeadDraft>(field: K, value: LeadDraft[K]) => {
     setDraft((current) => ({ ...current, [field]: value }));
   };
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await onSave(draft);
@@ -99,56 +127,87 @@ export function LeadDetailSheet({ lead, employees, professionals, saving, onClos
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lead-channel">Canal</Label>
-                      <select id="lead-channel" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" value={draft.canal || ""} onChange={(event) => update("canal", event.target.value)}>
-                        <option value="">Sem canal</option>
-                        {["Internet", "Sua Visão", "Loja", "Du Benefícios", "Indique e Ganhe"].map((option) => <option key={option}>{option}</option>)}
-                      </select>
+                      <CategorySelect
+                        id="lead-channel"
+                        value={draft.canal || ""}
+                        categories={channelCategories}
+                        fallbackValues={channelCategories.length === 0 ? DEFAULT_LEAD_CHANNELS : []}
+                        placeholder="Selecione um canal"
+                        ariaLabel="Canal do lead"
+                        clearable
+                        emptyLabel="Sem canal"
+                        onValueChange={(value) => update("canal", value)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lead-status">Status</Label>
-                      <select id="lead-status" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" value={draft.status || "Ativo"} onChange={(event) => update("status", event.target.value)}>
-                        {["Ativo", "Perdido", "Pós Venda"].map((option) => <option key={option}>{option}</option>)}
-                      </select>
+                      <Select value={draft.status || "Ativo"} onValueChange={(value) => update("status", value)}>
+                        <SelectTrigger id="lead-status"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {draft.status && !STATUS_OPTIONS.includes(draft.status) && <SelectItem value={draft.status}>{draft.status} (valor existente)</SelectItem>}
+                          {STATUS_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lead-next-contact">Próximo contato</Label>
-                      <Input id="lead-next-contact" type="date" value={toIsoDate(draft.entrar_em_contato)} onChange={(event) => update("entrar_em_contato", toLocalDate(event.target.value))} />
-                    </div>
+                    <DatePickerField
+                      id="lead-next-contact"
+                      label="Próximo contato"
+                      value={toLocalDate(toIsoDate(draft.entrar_em_contato))}
+                      onValueChange={(value) => update("entrar_em_contato", value)}
+                    />
                     <div className="space-y-2">
                       <Label htmlFor="lead-budget">Orçamento</Label>
-                      <select id="lead-budget" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" value={draft.orcamento || "Não"} onChange={(event) => update("orcamento", event.target.value)}>
-                        <option>Não</option><option>Sim</option>
-                      </select>
+                      <Select value={draft.orcamento || "Não"} onValueChange={(value) => update("orcamento", value)}>
+                        <SelectTrigger id="lead-budget"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {draft.orcamento && !["Sim", "Não"].includes(draft.orcamento) && <SelectItem value={draft.orcamento}>{draft.orcamento} (valor existente)</SelectItem>}
+                          <SelectItem value="Não">Não</SelectItem><SelectItem value="Sim">Sim</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lead-sale">Venda</Label>
-                      <select id="lead-sale" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" value={draft.venda || "Não"} onChange={(event) => update("venda", event.target.value)}>
-                        <option>Não</option><option>Sim</option>
-                      </select>
+                      <Select value={draft.venda || "Não"} onValueChange={(value) => update("venda", value)}>
+                        <SelectTrigger id="lead-sale"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {draft.venda && !["Sim", "Não"].includes(draft.venda) && <SelectItem value={draft.venda}>{draft.venda} (valor existente)</SelectItem>}
+                          <SelectItem value="Não">Não</SelectItem><SelectItem value="Sim">Sim</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lead-value">Valor</Label>
                       <Input id="lead-value" inputMode="decimal" placeholder="R$ 0,00" value={draft.valor || ""} onChange={(event) => update("valor", event.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Funcionário responsável</Label>
-                      <select value={draft.vendedor_id || ""} onChange={(event) => {
-                        const person = employees.find((item) => item.id === event.target.value);
-                        setDraft((current) => ({ ...current, vendedor_id: person?.id || null, vendedor: person?.name || "" }));
-                      }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                        <option value="">Sem responsável</option>
-                        {employees.map((person) => <option key={person.id} value={person.id}>{person.name}{!person.is_active ? " (inativo)" : ""}</option>)}
-                      </select>
+                      <Label htmlFor="lead-employee">Funcionário responsável</Label>
+                      <PersonSelect
+                        id="lead-employee"
+                        people={employees}
+                        value={draft.vendedor_id || null}
+                        currentLabel={!draft.vendedor_id ? draft.vendedor : null}
+                        placeholder="Selecionar funcionário"
+                        ariaLabel="Funcionário responsável"
+                        emptyLabel="Sem responsável"
+                        disabled={employeesLoading}
+                        onValueChange={(id, person) => setDraft((current) => ({ ...current, vendedor_id: id, vendedor: person?.name || "" }))}
+                      />
+                      <PersonDirectoryHint title="Funcionários" kind="funcionário" path="/cadastros/funcionarios" people={employees} isLoading={employeesLoading} error={employeesError} onRetry={refreshEmployees} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Profissional</Label>
-                      <select value={draft.medico_id || ""} onChange={(event) => {
-                        const person = professionals.find((item) => item.id === event.target.value);
-                        setDraft((current) => ({ ...current, medico_id: person?.id || null, medico: person?.name || "" }));
-                      }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                        <option value="">Sem profissional</option>
-                        {professionals.map((person) => <option key={person.id} value={person.id}>{person.name}{!person.is_active ? " (inativo)" : ""}</option>)}
-                      </select>
+                      <Label htmlFor="lead-professional">Profissional</Label>
+                      <PersonSelect
+                        id="lead-professional"
+                        people={professionals}
+                        value={draft.medico_id || null}
+                        currentLabel={!draft.medico_id ? draft.medico : null}
+                        placeholder="Selecionar profissional"
+                        ariaLabel="Profissional vinculado"
+                        emptyLabel="Sem profissional"
+                        disabled={professionalsLoading}
+                        onValueChange={(id, person) => setDraft((current) => ({ ...current, medico_id: id, medico: person?.name || "" }))}
+                      />
+                      <PersonDirectoryHint title="Profissionais" kind="profissional" path="/cadastros/profissionais" people={professionals} isLoading={professionalsLoading} error={professionalsError} onRetry={refreshProfessionals} />
                     </div>
                     <div className="space-y-2 sm:col-span-2">
                       <Label htmlFor="lead-notes">Observação</Label>

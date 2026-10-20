@@ -1,4 +1,39 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { Database } from "../../../src/integrations/supabase/types.ts";
+
+type SupabaseClientInstance = SupabaseClient<Database>;
+
+interface Automation {
+  id: string;
+  fonte: string;
+  filtro_como_conheceu: string[] | null;
+  dias_apos_venda: number;
+  mensagem: string;
+  instancia: string;
+  audios_vendedor: Record<string, string> | null;
+  audio_url: string | null;
+  total_envios: number;
+  nome: string;
+}
+
+interface AutomationClient {
+  id: string;
+  nome: string | null;
+  telefone: string | null;
+  data_registro: string | null;
+  vendedor: string | null;
+  medico: string | null;
+}
+
+interface PendingDispatch {
+  id: string;
+  automacao_id: string;
+  lead_id: string;
+  telefone: string | null;
+  nome_cliente: string | null;
+  mensagem_enviada: string | null;
+  automacoes: Automation | null;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,13 +101,14 @@ Deno.serve(async (req) => {
 
 // ─── PHASE 1: Queue ──────────────────────────────────────────────────────────
 
-async function queueEligibleDispatches(supabase: any): Promise<number> {
+async function queueEligibleDispatches(supabase: SupabaseClientInstance): Promise<number> {
   const { data: automacoes } = await supabase
     .from("automacoes")
     .select("*")
     .eq("status", "Ativa");
 
-  if (!automacoes || automacoes.length === 0) return 0;
+  const automationRows = (automacoes || []) as Automation[];
+  if (automationRows.length === 0) return 0;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -80,8 +116,8 @@ async function queueEligibleDispatches(supabase: any): Promise<number> {
 
   let totalQueued = 0;
 
-  for (const automacao of automacoes) {
-    let clients: any[] = [];
+  for (const automacao of automationRows) {
+    let clients: AutomationClient[] = [];
     const existingDispatchKeys = new Set<string>();
 
     if (automacao.fonte === "detalhado") {
@@ -97,7 +133,8 @@ async function queueEligibleDispatches(supabase: any): Promise<number> {
       }
 
       const { data } = await query;
-      clients = (data || []).map((d: any) => ({
+      const detailedRows = (data || []) as Array<{ id: string; nome: string | null; telefone: string | null; data: string | null }>;
+      clients = detailedRows.map((d) => ({
         id: d.id,
         nome: d.nome,
         telefone: d.telefone,
@@ -119,7 +156,8 @@ async function queueEligibleDispatches(supabase: any): Promise<number> {
         .select("nome_cliente, telefone")
         .eq("automacao_id", automacao.id);
 
-      (existingDispatches || []).forEach((dispatch: any) => {
+      const dispatchRows = (existingDispatches || []) as Array<{ nome_cliente: string | null; telefone: string | null }>;
+      dispatchRows.forEach((dispatch) => {
         existingDispatchKeys.add(normalizePatientKey(dispatch.nome_cliente, dispatch.telefone));
       });
     } else if (automacao.fonte === "perdidos") {
@@ -129,7 +167,8 @@ async function queueEligibleDispatches(supabase: any): Promise<number> {
         .eq("status", "Perdido")
         .not("numero", "is", null);
 
-      clients = (data || []).map((l: any) => ({
+      const lostLeads = (data || []) as Array<{ id: string; nome: string | null; numero: string | null; updated_at: string | null; vendedor: string | null; medico: string | null }>;
+      clients = lostLeads.map((l) => ({
         id: l.id,
         nome: l.nome,
         telefone: l.numero,
@@ -144,7 +183,8 @@ async function queueEligibleDispatches(supabase: any): Promise<number> {
         .eq("venda", "Sim")
         .not("numero", "is", null);
 
-      clients = (data || []).map((l: any) => ({
+      const soldLeads = (data || []) as Array<{ id: string; nome: string | null; numero: string | null; data_registro: string | null; vendedor: string | null; medico: string | null }>;
+      clients = soldLeads.map((l) => ({
         id: l.id,
         nome: l.nome,
         telefone: l.numero,
@@ -233,7 +273,7 @@ async function queueEligibleDispatches(supabase: any): Promise<number> {
 // ─── PHASE 2: Send next agendado ─────────────────────────────────────────────
 
 async function sendNextAgendado(
-  supabase: any,
+  supabase: SupabaseClientInstance,
   UAZAPI_URL: string | undefined,
   UAZAPI_TOKEN: string | undefined,
 ): Promise<{ enviado: boolean; erro?: string }> {
@@ -245,7 +285,8 @@ async function sendNextAgendado(
     .order("created_at", { ascending: true })
     .limit(10);
 
-  if (!pendentes || pendentes.length === 0) {
+  const pendingDispatches = (pendentes || []) as unknown as PendingDispatch[];
+  if (pendingDispatches.length === 0) {
     return { enviado: false };
   }
 
@@ -258,7 +299,8 @@ async function sendNextAgendado(
     .select("id")
     .neq("instancia", "uazapi_dnz");
 
-  const suavisaoIds = (suavisaoAutomacoes || []).map((a: any) => a.id);
+  const suavisaoRows = (suavisaoAutomacoes || []) as Array<{ id: string }>;
+  const suavisaoIds = suavisaoRows.map((a) => a.id);
   let suavisaoLimitReached = false;
 
   if (suavisaoIds.length > 0) {
@@ -273,10 +315,10 @@ async function sendNextAgendado(
   }
 
   // Find first eligible dispatch
-  let disparo: any = null;
-  let automacao: any = null;
+  let disparo: PendingDispatch | null = null;
+  let automacao: Automation | null = null;
 
-  for (const candidate of pendentes) {
+  for (const candidate of pendingDispatches) {
     const candidateAutomacao = candidate.automacoes;
     if (!candidateAutomacao) {
       await supabase

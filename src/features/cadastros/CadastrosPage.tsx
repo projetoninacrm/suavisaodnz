@@ -1,11 +1,13 @@
 import { NavLink, Navigate, useParams } from "react-router-dom";
 import { PageHeader } from "@/components/app/PageHeader";
 import { DirectoryManagement } from "@/components/Dashboard/DirectoryManagement";
+import { CategoryManagement } from "@/components/Dashboard/CategoryManagement";
 import { cn } from "@/lib/utils";
 
 const directories = [
   { label: "Funcionários", path: "/cadastros/funcionarios", kind: "employees" as const },
   { label: "Profissionais", path: "/cadastros/profissionais", kind: "professionals" as const },
+  { label: "Categorias", path: "/cadastros/categorias", kind: "categories" as const },
 ];
 
 export default function CadastrosPage() {
@@ -18,7 +20,7 @@ export default function CadastrosPage() {
     <section className="space-y-5">
       <PageHeader
         title="Cadastros"
-        description="Mantenha a equipe e os profissionais em listas compartilhadas para selecioná-los nos leads e na escala."
+        description="Mantenha pessoas e categorias compartilhadas para padronizar os cadastros e filtros do sistema."
       />
       <nav aria-label="Tipos de cadastro" className="flex flex-wrap gap-2 border-b border-border pb-3">
         {directories.map(({ label, path }) => (
@@ -34,7 +36,7 @@ export default function CadastrosPage() {
           </NavLink>
         ))}
       </nav>
-      <DirectoryManagement kind={activeDirectory.kind} />
+      {activeDirectory.kind === "categories" ? <CategoryManagement /> : <DirectoryManagement kind={activeDirectory.kind} />}
     </section>
   );
 }
