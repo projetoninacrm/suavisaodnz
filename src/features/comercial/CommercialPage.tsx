@@ -235,7 +235,7 @@ export default function CommercialPage() {
         <section aria-label="Resumo dos leads" aria-busy={initialLeadLoad} className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {STATUS_VIEWS.map((view) => (
             <Button key={view} type="button" variant="ghost" aria-pressed={statusView === view} onClick={() => updateQuery({ view: statusViewToQuery(view) })} className="h-auto w-full min-w-0 whitespace-normal rounded-lg p-0 text-left hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-              <Card className={cn("h-full transition-colors hover:border-primary/40", statusView === view && "border-primary/50 bg-primary/[0.03]")}>
+              <Card className={cn("h-full w-full transition-colors hover:border-primary/40", statusView === view && "border-primary/50 bg-primary/[0.03]")}>
                 <CardContent className="flex items-center justify-between gap-3 p-4 sm:p-5">
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground sm:text-sm">{view}</p>

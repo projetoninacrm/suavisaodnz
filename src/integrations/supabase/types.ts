@@ -703,6 +703,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      update_employee_directory_person: {
+        Args: { p_employee_id: string; p_name: string; p_role: string }
+        Returns: undefined
+      }
       get_inactive_patients: {
         Args: { dias_janela?: number; dias_limite?: number }
         Returns: {

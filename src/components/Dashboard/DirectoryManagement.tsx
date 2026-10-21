@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Loader2, Plus, UserRound, Stethoscope, UserCheck, UserX } from "lucide-react";
+import { Loader2, Pencil, Plus, Save, UserRound, Stethoscope, UserCheck, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,14 +20,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 function DirectoryCard({ title, icon: Icon, kind, roleOptions }: {
   title: string;
@@ -35,13 +35,15 @@ function DirectoryCard({ title, icon: Icon, kind, roleOptions }: {
   kind: "employees" | "professionals";
   roleOptions?: string[];
 }) {
-  const { people, isLoading, error, refresh, create, setActive } = useDirectory(kind);
+  const { people, isLoading, error, refresh, create, updateDetails, setActive } = useDirectory(kind);
   const [name, setName] = useState("");
   const [role, setRole] = useState(roleOptions?.[0] || "Vendedor");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<DirectoryPerson | null>(null);
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [updatingPersonId, setUpdatingPersonId] = useState<string | null>(null);
   const [pendingStatusChange, setPendingStatusChange] = useState<DirectoryPerson | null>(null);
+  const formReturnFocusRef = useRef<HTMLButtonElement>(null);
   const statusChangeReturnFocusRef = useRef<HTMLButtonElement>(null);
   const { query, status, setQuery, setStatus, clear: clearFilters } = useCatalogFilterState(`directory-${kind}-filters`);
   const filteredPeople = useMemo(() => {
@@ -55,16 +57,37 @@ function DirectoryCard({ title, icon: Icon, kind, roleOptions }: {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (isCreating || !name.trim()) return;
-    setIsCreating(true);
+    if (isSavingDetails || !name.trim()) return;
+    setIsSavingDetails(true);
     try {
-      if (await create(name, role)) {
+      const saved = editingPerson
+        ? await updateDetails(editingPerson, name, role)
+        : await create(name, role);
+      if (saved) {
         setName("");
-        setCreateOpen(false);
+        setEditingPerson(null);
+        setFormOpen(false);
       }
     } finally {
-      setIsCreating(false);
+      setIsSavingDetails(false);
     }
+  };
+
+  const prepareCreate = (event: React.MouseEvent<HTMLButtonElement>) => {
+    formReturnFocusRef.current = event.currentTarget;
+    setFormOpen(true);
+    setEditingPerson(null);
+    setName("");
+    setRole(roleOptions?.[0] || "Vendedor");
+  };
+
+  const openEdit = (person: DirectoryPerson, event: React.MouseEvent<HTMLButtonElement>) => {
+    formReturnFocusRef.current = event.currentTarget;
+    if (kind !== "employees" || isSavingDetails) return;
+    setEditingPerson(person);
+    setName(person.name);
+    setRole(person.role || roleOptions?.[0] || "Vendedor");
+    setFormOpen(true);
   };
 
   const openStatusChange = (person: DirectoryPerson, event: React.MouseEvent<HTMLButtonElement>) => {
@@ -89,48 +112,50 @@ function DirectoryCard({ title, icon: Icon, kind, roleOptions }: {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
         <CardTitle className="flex min-w-0 items-center gap-2 text-base"><Icon aria-hidden="true" className="size-4 shrink-0" />{title}</CardTitle>
-        <Sheet open={createOpen} onOpenChange={(open) => { if (!isCreating) setCreateOpen(open); }}>
-          <SheetTrigger render={<Button type="button" size="sm" className="shrink-0 gap-1.5"><Plus aria-hidden="true" className="size-4" />Cadastrar</Button>} />
-          <SheetContent closeButtonDisabled={isCreating} aria-busy={isCreating} className="h-full w-full gap-0 overflow-y-auto p-5 sm:max-w-md">
-            <SheetHeader className="mb-6 pr-12">
-              <SheetTitle>Cadastrar {kind === "employees" ? "funcionário" : "profissional"}</SheetTitle>
-              <SheetDescription>
-                O cadastro ficará disponível nos seletores da plataforma. Inative a pessoa para preservar os vínculos históricos.
-              </SheetDescription>
-            </SheetHeader>
+        <Dialog open={formOpen} onOpenChange={(open) => { if (!isSavingDetails) setFormOpen(open); }}>
+          <Button type="button" size="sm" className="shrink-0 gap-1.5" onClick={prepareCreate}><Plus aria-hidden="true" className="size-4" />Cadastrar</Button>
+          <DialogContent finalFocus={formReturnFocusRef} closeButtonDisabled={isSavingDetails} aria-busy={isSavingDetails} className="max-w-md gap-5 rounded-xl p-6">
+            <DialogHeader className="pr-6 text-left">
+              <DialogTitle>{editingPerson ? "Editar funcionário" : "Cadastrar " + (kind === "employees" ? "funcionário" : "profissional")}</DialogTitle>
+              <DialogDescription>
+                {editingPerson
+                  ? "Atualize o nome e o cargo do funcionário."
+                  : "O cadastro ficará disponível nos seletores da plataforma."}
+              </DialogDescription>
+            </DialogHeader>
             <form
               className="grid gap-4"
               onSubmit={submit}
-              aria-busy={isCreating}
+              aria-busy={isSavingDetails}
             >
               <div className="min-w-0 space-y-1.5">
                 <Label htmlFor={`${kind}-name`}>Nome completo</Label>
-                <Input id={`${kind}-name`} value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome completo" disabled={isCreating} required />
+                <Input id={`${kind}-name`} value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome completo" disabled={isSavingDetails} required />
               </div>
               {roleOptions && (
                 <div className="space-y-1.5">
                   <Label htmlFor="employee-role">Cargo</Label>
-                  <Select value={role} onValueChange={setRole} disabled={isCreating}>
+                  <Select value={role} onValueChange={setRole} disabled={isSavingDetails}>
                     <SelectTrigger id="employee-role" aria-label="Cargo do funcionário" className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>{roleOptions.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               )}
-              <SheetFooter className="mt-2 gap-2 sm:space-x-0">
-                <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={isCreating}>
+              <DialogFooter className="mt-2 gap-2 sm:space-x-0">
+                <Button type="button" variant="outline" onClick={() => setFormOpen(false)} disabled={isSavingDetails}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={!name.trim() || isCreating}>
-                  {isCreating ? <Loader2 className="mr-1 size-4 animate-spin" aria-hidden="true" /> : <Plus className="mr-1 size-4" aria-hidden="true" />}
-                  {isCreating ? "Cadastrando…" : "Cadastrar"}
+                <Button type="submit" disabled={!name.trim() || isSavingDetails}>
+                  {isSavingDetails ? <Loader2 className="mr-1 size-4 animate-spin" aria-hidden="true" /> : editingPerson ? <Save className="mr-1 size-4" aria-hidden="true" /> : <Plus className="mr-1 size-4" aria-hidden="true" />}
+                  {isSavingDetails ? (editingPerson ? "Salvando…" : "Cadastrando…") : (editingPerson ? "Salvar alterações" : "Cadastrar")}
                 </Button>
                 <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-                  {isCreating ? `Cadastrando ${kind === "employees" ? "funcionário" : "profissional"}…` : ""}
+                  {isSavingDetails ? (editingPerson ? "Salvando alterações do funcionário…" : "Cadastrando " + (kind === "employees" ? "funcionário" : "profissional") + "…") : ""}
                 </span>
-              </SheetFooter>
+              </DialogFooter>
             </form>
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent className="space-y-4">
         <CatalogFilters
@@ -179,10 +204,17 @@ function DirectoryCard({ title, icon: Icon, kind, roleOptions }: {
                       {kind === "employees" ? person.role : "Profissional"}{!person.is_active ? " · Inativo" : ""}
                     </p>
                   </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={(event) => openStatusChange(person, event)} disabled={updatingPersonId !== null} aria-label={`${person.is_active ? "Inativar" : "Reativar"} ${person.name}`}>
-                    {updatingPersonId === person.id ? <Loader2 className="mr-1 size-4 animate-spin" aria-hidden="true" /> : person.is_active ? <UserX className="mr-1 h-4 w-4" aria-hidden="true" /> : <UserCheck className="mr-1 h-4 w-4" aria-hidden="true" />}
-                    {updatingPersonId === person.id ? "Salvando…" : person.is_active ? "Inativar" : "Reativar"}
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {kind === "employees" && (
+                      <Button type="button" variant="ghost" size="sm" className="h-8 gap-1 px-2" onClick={(event) => openEdit(person, event)} disabled={updatingPersonId !== null || isSavingDetails} aria-label={"Editar funcionário " + person.name}>
+                        <Pencil aria-hidden="true" className="size-4" />Editar
+                      </Button>
+                    )}
+                    <Button type="button" variant="ghost" size="sm" onClick={(event) => openStatusChange(person, event)} disabled={updatingPersonId !== null || isSavingDetails} aria-label={(person.is_active ? "Inativar " : "Reativar ") + person.name}>
+                      {updatingPersonId === person.id ? <Loader2 className="mr-1 size-4 animate-spin" aria-hidden="true" /> : person.is_active ? <UserX className="mr-1 h-4 w-4" aria-hidden="true" /> : <UserCheck className="mr-1 h-4 w-4" aria-hidden="true" />}
+                      {updatingPersonId === person.id ? "Salvando…" : person.is_active ? "Inativar" : "Reativar"}
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -242,7 +274,11 @@ export function DirectoryManagement({ kind = "all" }: { kind?: "all" | "employee
         {showEmployees && <DirectoryCard title="Funcionários" icon={UserRound} kind="employees" roleOptions={["Vendedor", "Gerente", "Operação"]} />}
         {showProfessionals && <DirectoryCard title="Profissionais" icon={Stethoscope} kind="professionals" roleOptions={undefined} />}
       </div>
-      <p className="text-xs text-muted-foreground">Inativar mantém os registros e vínculos históricos; a pessoa deixa de aparecer em novas seleções. Para substituir um nome ou cargo, inative o cadastro atual e crie outro; os vínculos antigos permanecem no cadastro original.</p>
+      <p className="text-xs text-muted-foreground">
+        {kind === "professionals"
+          ? "Inative alguém para remover das novas seleções; os vínculos históricos permanecem."
+          : "Edite o nome ou cargo para corrigir um funcionário sem perder vínculos. Inative alguém para remover das novas seleções; os vínculos históricos permanecem."}
+      </p>
     </section>
   );
 }

@@ -102,6 +102,49 @@ export function useDirectory(kind: DirectoryKind, options: { enabled?: boolean }
     }
   }, [kind, refresh, toast]);
 
+  const updateDetails = useCallback(async (person: DirectoryPerson, name: string, role: string) => {
+    const cleanedName = name.trim().replace(/\s+/g, " ");
+    const cleanedRole = role.trim();
+    if (!cleanedName || !cleanedRole || kind !== "employees") return false;
+    try {
+      const { error } = await supabase.rpc("update_employee_directory_person", {
+        p_employee_id: person.id,
+        p_name: cleanedName,
+        p_role: cleanedRole,
+      });
+      if (error) {
+        if (error.code !== "23505") void refresh();
+        toast({
+          title: error.code === "23505" ? "Nome já utilizado" : "Não foi possível confirmar a edição",
+          description: error.code === "23505"
+            ? "Já existe um funcionário com esse nome."
+            : "Nenhuma alteração foi confirmada. Atualize a lista antes de tentar novamente.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const [listUpdated] = await Promise.all([
+        refresh(),
+        queryClient.invalidateQueries({ queryKey: ["leads"] }),
+      ]);
+      toast({
+        title: "Funcionário atualizado",
+        description: listUpdated ? cleanedName + " e seus vínculos foram atualizados." : "A edição foi salva; atualize as listas para conferir.",
+      });
+      return true;
+    } catch (cause) {
+      console.error("Could not confirm employee update:", cause);
+      void refresh();
+      toast({
+        title: "Não foi possível confirmar a edição",
+        description: "Nenhuma alteração foi confirmada. Atualize a lista antes de tentar novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [kind, queryClient, refresh, toast]);
+
   const setActive = useCallback(async (person: DirectoryPerson, isActive: boolean) => {
     try {
       const result = kind === "employees"
@@ -136,5 +179,5 @@ export function useDirectory(kind: DirectoryKind, options: { enabled?: boolean }
     }
   }, [kind, refresh, toast]);
 
-  return { people, isLoading, error, refresh, create, setActive };
+  return { people, isLoading, error, refresh, create, updateDetails, setActive };
 }
