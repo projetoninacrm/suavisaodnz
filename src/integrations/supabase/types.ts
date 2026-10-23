@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -239,6 +239,39 @@ export type Database = {
         }
         Relationships: []
       }
+      category_catalog: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          domain: string
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          domain: string
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          domain?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       detalhado: {
         Row: {
           como_conheceu: string | null
@@ -326,6 +359,33 @@ export type Database = {
         }
         Relationships: []
       }
+      employees: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       indicadores: {
         Row: {
           created_at: string
@@ -367,6 +427,7 @@ export type Database = {
           entrar_em_contato: string | null
           id: string
           medico: string | null
+          medico_id: string | null
           nome: string | null
           numero: string | null
           obs: string | null
@@ -377,6 +438,7 @@ export type Database = {
           valor: string | null
           venda: string | null
           vendedor: string | null
+          vendedor_id: string | null
         }
         Insert: {
           canal?: string | null
@@ -385,6 +447,7 @@ export type Database = {
           entrar_em_contato?: string | null
           id?: string
           medico?: string | null
+          medico_id?: string | null
           nome?: string | null
           numero?: string | null
           obs?: string | null
@@ -395,6 +458,7 @@ export type Database = {
           valor?: string | null
           venda?: string | null
           vendedor?: string | null
+          vendedor_id?: string | null
         }
         Update: {
           canal?: string | null
@@ -403,6 +467,7 @@ export type Database = {
           entrar_em_contato?: string | null
           id?: string
           medico?: string | null
+          medico_id?: string | null
           nome?: string | null
           numero?: string | null
           obs?: string | null
@@ -413,8 +478,24 @@ export type Database = {
           valor?: string | null
           venda?: string | null
           vendedor?: string | null
+          vendedor_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_medico_id_fkey"
+            columns: ["medico_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       metas: {
         Row: {
@@ -536,36 +617,132 @@ export type Database = {
         }
         Relationships: []
       }
+      professionals: {
+        Row: {
+          created_at: string
+          external_id: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       schedules: {
         Row: {
           afternoon_shift: string | null
+          afternoon_shift_professional_id: string | null
           created_at: string
           date: string
           day_of_week: string
           id: string
           morning_shift: string | null
+          morning_shift_professional_id: string | null
           sheet_name: string
           updated_at: string
         }
         Insert: {
           afternoon_shift?: string | null
+          afternoon_shift_professional_id?: string | null
           created_at?: string
           date: string
           day_of_week: string
           id?: string
           morning_shift?: string | null
+          morning_shift_professional_id?: string | null
           sheet_name?: string
           updated_at?: string
         }
         Update: {
           afternoon_shift?: string | null
+          afternoon_shift_professional_id?: string | null
           created_at?: string
           date?: string
           day_of_week?: string
           id?: string
           morning_shift?: string | null
+          morning_shift_professional_id?: string | null
           sheet_name?: string
           updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedules_afternoon_shift_professional_id_fkey"
+            columns: ["afternoon_shift_professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedules_morning_shift_professional_id_fkey"
+            columns: ["morning_shift_professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_capture_settings: {
+        Row: {
+          singleton: boolean
+          started_at: string
+        }
+        Insert: {
+          singleton?: boolean
+          started_at?: string
+        }
+        Update: {
+          singleton?: boolean
+          started_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          body: string
+          chat_id: string
+          from_me: boolean
+          id: number
+          instance: string
+          message_at: string
+          message_id: string
+          received_at: string
+        }
+        Insert: {
+          body: string
+          chat_id: string
+          from_me: boolean
+          id?: never
+          instance?: string
+          message_at: string
+          message_id: string
+          received_at?: string
+        }
+        Update: {
+          body?: string
+          chat_id?: string
+          from_me?: boolean
+          id?: never
+          instance?: string
+          message_at?: string
+          message_id?: string
+          received_at?: string
         }
         Relationships: []
       }
@@ -602,6 +779,19 @@ export type Database = {
         Returns: {
           id: string
         }[]
+      }
+      replace_schedule_month: {
+        Args: {
+          p_month: number
+          p_rows: Json
+          p_sheet_name: string
+          p_year: number
+        }
+        Returns: Json
+      }
+      update_employee_directory_person: {
+        Args: { p_employee_id: string; p_name: string; p_role: string }
+        Returns: undefined
       }
     }
     Enums: {
