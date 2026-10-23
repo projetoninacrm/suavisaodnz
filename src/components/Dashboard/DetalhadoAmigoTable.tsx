@@ -17,6 +17,7 @@ import { ptBR } from "date-fns/locale";
 import type { AmigoAttendance } from "@/hooks/useDetalhadoAmigo";
 import type { GenericRecord } from "@/hooks/useGenericTable";
 import type { DateRange } from "react-day-picker";
+import { phoneKey, doctorFirstName } from "@/lib/leadFromDetalhado";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +41,9 @@ interface DetalhadoAmigoTableProps {
   onCreateDb: (record: Partial<GenericRecord>) => Promise<string | null>;
   onDeleteDb: (id: string) => void;
   onRefreshDb: () => void;
-  onAddToLeads: (lead: { nome: string; numero: string }) => Promise<void>;
+  onAddToLeads: (lead: { nome: string; numero: string; canal?: string; medico?: string; obs?: string }) => Promise<void>;
+  /** Telefones (chave de 8 dígitos) que já estão na aba Leads */
+  existingLeadPhones: Set<string>;
 }
 
 interface Filters {
@@ -63,6 +66,7 @@ interface CombinedRecord {
   patient_age: number | null;
   patient_phone: string | null;
   patient_know_by: string | null;
+  doctor_name: string | null;
   event_name: string; // Tipo de atendimento da API
 // Campos editáveis do banco
   como_conheceu: string;
@@ -84,6 +88,7 @@ export function DetalhadoAmigoTable({
   onDeleteDb,
   onRefreshDb,
   onAddToLeads,
+  existingLeadPhones,
 }: DetalhadoAmigoTableProps) {
   const [filters, setFilters] = useState<Filters>({
     patient_name: "",
@@ -130,6 +135,7 @@ export function DetalhadoAmigoTable({
         patient_age: att.patient_age,
         patient_phone: att.patient_phone,
         patient_know_by: att.patient_know_by,
+        doctor_name: att.doctor_name,
         event_name: att.event_name || "",
         // Prioriza o valor do banco, mas usa o da API como fallback
         como_conheceu: dbRecord?.como_conheceu || att.patient_know_by || "",
@@ -256,7 +262,37 @@ export function DetalhadoAmigoTable({
     });
   };
 
+  // Cliente marcado como "Visitou a loja = Sim" → pergunta se deve entrar na aba Leads
+  const [pendingLead, setPendingLead] = useState<CombinedRecord | null>(null);
+  const [addingLead, setAddingLead] = useState(false);
+  const pendingIsExisting = pendingLead ? existingLeadPhones.has(phoneKey(pendingLead.patient_phone)) : false;
+
+  const confirmAddVisitToLeads = async () => {
+    if (!pendingLead) return;
+    setAddingLead(true);
+    try {
+      await onAddToLeads({
+        nome: pendingLead.patient_name || "",
+        numero: pendingLead.patient_phone || "",
+        canal: "Sua Visão",
+        medico: doctorFirstName(pendingLead.doctor_name),
+        obs: pendingLead.obs || "",
+      });
+      setPendingLead(null);
+    } catch {
+      // o aviso de erro já é exibido por quem salva o lead
+    } finally {
+      setAddingLead(false);
+    }
+  };
+
   const handleDbUpdate = async (record: CombinedRecord, field: string, value: string) => {
+    const becameVisit =
+      field === "visitou_loja" &&
+      value.toLowerCase() === "sim" &&
+      (record.visitou_loja || "").toLowerCase() !== "sim";
+    if (becameVisit) setPendingLead({ ...record, visitou_loja: value });
+
     if (record.dbId) {
       // Atualizar registro existente no banco
       onUpdateDb(record.dbId, field, value);
