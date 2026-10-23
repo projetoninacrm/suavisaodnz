@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792765610985,
+      "tag": "0000_restore_automacoes_instancia",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792765615485,
+      "tag": "0001_restore_leads_obs2",
+      "breakpoints": true
+    }
+  ]
+}
