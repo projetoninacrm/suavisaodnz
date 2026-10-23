@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
+import { phoneKey } from "@/lib/leadFromDetalhado";
 import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
 import { ScheduleTable } from "@/components/Dashboard/ScheduleTable";
@@ -168,19 +169,30 @@ const Index = () => {
     leads.addLead(data);
   };
 
-  const handleDetailedLeadSubmit = async ({ nome, numero }: { nome: string; numero: string }) => {
+  const handleDetailedLeadSubmit = async ({
+    nome,
+    numero,
+    canal = "",
+    medico = "",
+    obs = "",
+  }: { nome: string; numero: string; canal?: string; medico?: string; obs?: string }) => {
     await leads.addLead({
       data_registro: format(new Date(), "dd/MM/yyyy"),
-      canal: "",
+      canal,
       nome,
       numero,
       orcamento: "Não",
       venda: "Não",
       entrar_em_contato: "",
-      medico: "",
-      obs: "",
+      medico,
+      obs,
     });
   };
+
+  const existingLeadPhones = useMemo(
+    () => new Set(leads.leads.map((l) => phoneKey(l.numero)).filter(Boolean)),
+    [leads.leads]
+  );
 
   const renderTable = () => {
     switch (activeTab) {
@@ -228,6 +240,8 @@ const Index = () => {
             onDeleteDb={detalhadoDb.deleteRecord}
             onRefreshDb={detalhadoDb.fetchRecords}
             onAddToLeads={handleDetailedLeadSubmit}
+            existingLeadPhones={existingLeadPhones}
+            schedules={schedules.schedules}
           />
         );
       case "Perdas":
