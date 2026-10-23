@@ -10,43 +10,10 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
-      category_catalog: {
-        Row: {
-          aliases: string[]
-          created_at: string
-          domain: "lead_channel" | "service_origin"
-          id: string
-          is_active: boolean
-          label: string
-          sort_order: number
-          updated_at: string
-        }
-        Insert: {
-          aliases?: string[]
-          created_at?: string
-          domain: "lead_channel" | "service_origin"
-          id?: string
-          is_active?: boolean
-          label: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Update: {
-          aliases?: string[]
-          created_at?: string
-          domain?: "lead_channel" | "service_origin"
-          id?: string
-          is_active?: boolean
-          label?: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
       acompanhamento_diario: {
         Row: {
           created_at: string
@@ -317,33 +284,6 @@ export type Database = {
         }
         Relationships: []
       }
-      employees: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          role: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          role?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          role?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       disparos_perdidos: {
         Row: {
           created_at: string
@@ -427,7 +367,6 @@ export type Database = {
           entrar_em_contato: string | null
           id: string
           medico: string | null
-          medico_id: string | null
           nome: string | null
           numero: string | null
           obs: string | null
@@ -438,7 +377,6 @@ export type Database = {
           valor: string | null
           venda: string | null
           vendedor: string | null
-          vendedor_id: string | null
         }
         Insert: {
           canal?: string | null
@@ -447,7 +385,6 @@ export type Database = {
           entrar_em_contato?: string | null
           id?: string
           medico?: string | null
-          medico_id?: string | null
           nome?: string | null
           numero?: string | null
           obs?: string | null
@@ -458,7 +395,6 @@ export type Database = {
           valor?: string | null
           venda?: string | null
           vendedor?: string | null
-          vendedor_id?: string | null
         }
         Update: {
           canal?: string | null
@@ -467,7 +403,6 @@ export type Database = {
           entrar_em_contato?: string | null
           id?: string
           medico?: string | null
-          medico_id?: string | null
           nome?: string | null
           numero?: string | null
           obs?: string | null
@@ -478,24 +413,8 @@ export type Database = {
           valor?: string | null
           venda?: string | null
           vendedor?: string | null
-          vendedor_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "leads_medico_id_fkey"
-            columns: ["medico_id"]
-            isOneToOne: false
-            referencedRelation: "professionals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_vendedor_id_fkey"
-            columns: ["vendedor_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       metas: {
         Row: {
@@ -617,96 +536,44 @@ export type Database = {
         }
         Relationships: []
       }
-      professionals: {
-        Row: {
-          created_at: string
-          external_id: string | null
-          id: string
-          is_active: boolean
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          external_id?: string | null
-          id?: string
-          is_active?: boolean
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          external_id?: string | null
-          id?: string
-          is_active?: boolean
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       schedules: {
         Row: {
           afternoon_shift: string | null
-          afternoon_shift_professional_id: string | null
           created_at: string
           date: string
           day_of_week: string
           id: string
           morning_shift: string | null
-          morning_shift_professional_id: string | null
           sheet_name: string
           updated_at: string
         }
         Insert: {
           afternoon_shift?: string | null
-          afternoon_shift_professional_id?: string | null
           created_at?: string
           date: string
           day_of_week: string
           id?: string
           morning_shift?: string | null
-          morning_shift_professional_id?: string | null
           sheet_name?: string
           updated_at?: string
         }
         Update: {
           afternoon_shift?: string | null
-          afternoon_shift_professional_id?: string | null
           created_at?: string
           date?: string
           day_of_week?: string
           id?: string
           morning_shift?: string | null
-          morning_shift_professional_id?: string | null
           sheet_name?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "schedules_afternoon_shift_professional_id_fkey"
-            columns: ["afternoon_shift_professional_id"]
-            isOneToOne: false
-            referencedRelation: "professionals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "schedules_morning_shift_professional_id_fkey"
-            columns: ["morning_shift_professional_id"]
-            isOneToOne: false
-            referencedRelation: "professionals"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      update_employee_directory_person: {
-        Args: { p_employee_id: string; p_name: string; p_role: string }
-        Returns: undefined
-      }
       get_inactive_patients: {
         Args: { dias_janela?: number; dias_limite?: number }
         Returns: {
