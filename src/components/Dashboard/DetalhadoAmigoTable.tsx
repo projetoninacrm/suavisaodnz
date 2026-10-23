@@ -1094,6 +1094,25 @@ export function DetalhadoAmigoTable({
           })[columnId]}
         />
       )}
+      <AlertDialog
+        open={pendingVisitLead !== null}
+        onOpenChange={(open) => { if (!open && !isAddingVisitLead) setPendingVisitLead(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Adicionar aos Leads?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{pendingVisitLead?.patient_name}</strong> visitou a loja. Deseja adicionar este cliente na aba Leads? Nome, telefone, médico, canal e observação já vão preenchidos; os vendedores completam o restante.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isAddingVisitLead}>Agora não</AlertDialogCancel>
+            <AlertDialogAction disabled={isAddingVisitLead} onClick={() => void confirmVisitLead()}>
+              {isAddingVisitLead ? "Adicionando..." : "Adicionar aos Leads"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
