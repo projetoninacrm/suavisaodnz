@@ -50,6 +50,13 @@
       "when": 1792765709907,
       "tag": "0006_update_employee_directory_person",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792765720492,
+      "tag": "0007_grant_directory_and_catalog_access",
+      "breakpoints": true
     }
   ]
 }

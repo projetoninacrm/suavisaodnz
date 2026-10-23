@@ -1,0 +1,10 @@
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.employees TO authenticated;
+GRANT ALL ON public.employees TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.professionals TO authenticated;
+GRANT ALL ON public.professionals TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.category_catalog TO authenticated;
+GRANT ALL ON public.category_catalog TO service_role;
+GRANT SELECT ON public.whatsapp_messages TO authenticated;
+GRANT ALL ON public.whatsapp_messages TO service_role;
+GRANT SELECT ON public.whatsapp_capture_settings TO authenticated;
+GRANT ALL ON public.whatsapp_capture_settings TO service_role;
