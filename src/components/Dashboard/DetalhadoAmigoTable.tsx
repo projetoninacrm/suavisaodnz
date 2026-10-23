@@ -17,7 +17,7 @@ import { ptBR } from "date-fns/locale";
 import type { AmigoAttendance } from "@/hooks/useDetalhadoAmigo";
 import type { GenericRecord } from "@/hooks/useGenericTable";
 import type { DateRange } from "react-day-picker";
-import { phoneKey, doctorFirstName } from "@/lib/leadFromDetalhado";
+import { phoneKey, doctorOnDuty } from "@/lib/leadFromDetalhado";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +44,8 @@ interface DetalhadoAmigoTableProps {
   onAddToLeads: (lead: { nome: string; numero: string; canal?: string; medico?: string; obs?: string }) => Promise<void>;
   /** Telefones (chave de 8 dígitos) que já estão na aba Leads */
   existingLeadPhones: Set<string>;
+  /** Agenda, usada para saber o médico do turno do atendimento */
+  schedules: { date: string; morning_shift: string | null; afternoon_shift: string | null }[];
 }
 
 interface Filters {
@@ -89,6 +91,7 @@ export function DetalhadoAmigoTable({
   onRefreshDb,
   onAddToLeads,
   existingLeadPhones,
+  schedules,
 }: DetalhadoAmigoTableProps) {
   const [filters, setFilters] = useState<Filters>({
     patient_name: "",
@@ -266,6 +269,8 @@ export function DetalhadoAmigoTable({
   const [pendingLead, setPendingLead] = useState<CombinedRecord | null>(null);
   const [addingLead, setAddingLead] = useState(false);
   const pendingIsExisting = pendingLead ? existingLeadPhones.has(phoneKey(pendingLead.patient_phone)) : false;
+  // A API Amigo traz só "Médico Oftalmologista"; o médico real vem da Agenda (turno do atendimento)
+  const pendingDoctor = pendingLead ? doctorOnDuty(schedules, pendingLead.date, pendingLead.time) : "";
 
   const confirmAddVisitToLeads = async () => {
     if (!pendingLead) return;
@@ -275,7 +280,7 @@ export function DetalhadoAmigoTable({
         nome: pendingLead.patient_name || "",
         numero: pendingLead.patient_phone || "",
         canal: "Sua Visão",
-        medico: doctorFirstName(pendingLead.doctor_name),
+        medico: pendingDoctor,
         obs: pendingLead.obs || "",
       });
       setPendingLead(null);
@@ -894,7 +899,7 @@ export function DetalhadoAmigoTable({
                 </p>
                 <p className="text-xs">
                   Já vão preenchidos: nome, telefone, data de hoje, canal Sua Visão
-                  {pendingLead && doctorFirstName(pendingLead.doctor_name) ? `, médico ${doctorFirstName(pendingLead.doctor_name)}` : ""}
+                  {pendingDoctor ? `, médico ${pendingDoctor}` : ""}
                   {pendingLead?.obs ? " e a observação" : ""}. O vendedor completa o restante.
                 </p>
                 {pendingIsExisting && (

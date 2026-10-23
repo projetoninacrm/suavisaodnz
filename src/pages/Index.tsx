@@ -241,6 +241,7 @@ const Index = () => {
             onRefreshDb={detalhadoDb.fetchRecords}
             onAddToLeads={handleDetailedLeadSubmit}
             existingLeadPhones={existingLeadPhones}
+            schedules={schedules.schedules}
           />
         );
       case "Perdas":
