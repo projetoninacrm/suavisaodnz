@@ -882,6 +882,43 @@ export function DetalhadoAmigoTable({
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!pendingLead} onOpenChange={(open) => { if (!open && !addingLead) setPendingLead(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Adicionar aos Leads?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  <strong>{pendingLead?.patient_name}</strong> visitou a loja. Deseja incluí-lo na aba Leads?
+                </p>
+                <p className="text-xs">
+                  Já vão preenchidos: nome, telefone, data de hoje, canal Sua Visão
+                  {pendingLead && doctorFirstName(pendingLead.doctor_name) ? `, médico ${doctorFirstName(pendingLead.doctor_name)}` : ""}
+                  {pendingLead?.obs ? " e a observação" : ""}. O vendedor completa o restante.
+                </p>
+                {pendingIsExisting && (
+                  <p className="text-sm font-medium text-destructive">
+                    Atenção: já existe um lead com esse telefone na aba Leads.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={addingLead}>Não adicionar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={addingLead}
+              onClick={(e) => {
+                e.preventDefault();
+                confirmAddVisitToLeads();
+              }}
+            >
+              {addingLead ? "Adicionando..." : "Adicionar aos Leads"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
