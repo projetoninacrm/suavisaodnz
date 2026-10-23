@@ -36,6 +36,20 @@
       "when": 1792765673574,
       "tag": "0004_category_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792765699332,
+      "tag": "0005_atomic_schedule_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792765709907,
+      "tag": "0006_update_employee_directory_person",
+      "breakpoints": true
     }
   ]
 }

@@ -780,6 +780,19 @@ export type Database = {
           id: string
         }[]
       }
+      replace_schedule_month: {
+        Args: {
+          p_month: number
+          p_rows: Json
+          p_sheet_name: string
+          p_year: number
+        }
+        Returns: Json
+      }
+      update_employee_directory_person: {
+        Args: { p_employee_id: string; p_name: string; p_role: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
