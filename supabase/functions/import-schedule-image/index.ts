@@ -1,7 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { generateOpenAIText, OpenAIError, parseOpenAIJSON, type OpenAIContent } from "../_shared/openai.ts";
-import { assertCompleteScheduleMonth, ScheduleImportValidationError } from "../_shared/schedule-import.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,94 +15,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, fileBase64, mimeType, month, year, sheetName, rows: submittedRows } = await req.json();
-    if (!["preview", "confirm"].includes(action)
-      || !Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 2000 || year > 2100) {
-      return new Response(JSON.stringify({ error: "Informe uma ação válida, mês e ano." }), {
+    const { fileBase64, mimeType, month, year, sheetName } = await req.json();
+    if (!fileBase64 || !mimeType || typeof month !== "number" || typeof year !== "number") {
+      return new Response(JSON.stringify({ error: "Missing fileBase64, mimeType, month or year" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
     const monthName = MONTH_NAMES[month - 1];
-    const targetSheet = typeof sheetName === "string" && sheetName.trim() ? sheetName.trim() : "Escala";
-    let rows: Array<{ sheet_name: string; date: string; day_of_week: string; morning_shift: string; afternoon_shift: string }> = [];
+    const dataUrl = `data:${mimeType};base64,${fileBase64}`;
+    const isImage = mimeType.startsWith("image/");
 
-    if (action === "confirm") {
-      if (!Array.isArray(submittedRows) || submittedRows.length === 0 || submittedRows.length > 31) {
-        return new Response(JSON.stringify({ error: "A prévia da escala está vazia ou inválida." }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const days = submittedRows.map((row: Record<string, unknown>) => {
-        const match = typeof row?.date === "string" ? row.date.match(/^(\d{4})-(\d{2})-(\d{2})$/) : null;
-        const day = match ? Number(match[3]) : NaN;
-        const professionalId = (value: unknown) => {
-          if (value === null || value === "") return null;
-          if (typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) return value;
-          throw new OpenAIError("Selecione profissionais válidos nos turnos antes de confirmar.", 422);
-        };
-        const morningProfessionalId = professionalId(row?.morning_shift_professional_id);
-        const afternoonProfessionalId = professionalId(row?.afternoon_shift_professional_id);
-        if (!match || Number(match[1]) !== year || Number(match[2]) !== month || !Number.isInteger(day) || day < 1 || day > daysInMonth
-          || (row.morning_shift_professional_id && !morningProfessionalId)
-          || (row.afternoon_shift_professional_id && !afternoonProfessionalId)) {
-          throw new OpenAIError("A prévia contém datas ou profissionais inválidos. Gere outra prévia.", 422);
-        }
-        const date = new Date(year, month - 1, day);
-        if (date.getDay() === 0) throw new OpenAIError("A prévia contém domingo. Revise a escala.", 422);
-        return {
-          day,
-          date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-          morning_shift_professional_id: morningProfessionalId,
-          afternoon_shift_professional_id: afternoonProfessionalId,
-        };
-      });
-      if (new Set(days.map((day) => day.day)).size !== days.length) {
-        throw new OpenAIError("A prévia contém dias duplicados. Gere outra prévia.", 422);
-      }
-      assertCompleteScheduleMonth(days, year, month);
-
-      const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!supabaseUrl || !serviceKey) throw new Error("Configuração do Supabase ausente.");
-      const supabase = createClient(supabaseUrl, serviceKey);
-      const professionalIds = [...new Set(days.flatMap((day) => [day.morning_shift_professional_id, day.afternoon_shift_professional_id]).filter((id): id is string => Boolean(id)))];
-      if (professionalIds.length > 0) {
-        const { data: professionals, error: professionalsError } = await supabase
-          .from("professionals")
-          .select("id")
-          .in("id", professionalIds);
-        if (professionalsError) throw professionalsError;
-        if ((professionals || []).length !== professionalIds.length) {
-          throw new OpenAIError("Um profissional selecionado não está mais cadastrado. Atualize a prévia.", 422);
-        }
-      }
-
-      const { data: result, error: importError } = await supabase.rpc("replace_schedule_month", {
-        p_sheet_name: targetSheet,
-        p_year: year,
-        p_month: month,
-        p_rows: days.map(({ day: _day, ...row }) => row),
-      });
-      if (importError) throw importError;
-      const counts = result as { inserted?: number; deleted?: number } | null;
-      return new Response(JSON.stringify({ confirmed: true, inserted: counts?.inserted || 0, deleted: counts?.deleted || 0 }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } else {
-      if (typeof fileBase64 !== "string" || !fileBase64 || !["image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"].includes(mimeType)) {
-        return new Response(JSON.stringify({ error: "Selecione uma imagem ou PDF compatível." }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const dataUrl = `data:${mimeType};base64,${fileBase64}`;
-      const isImage = mimeType.startsWith("image/");
-
-      const userContent: OpenAIContent[] = [
+    const userContent: unknown[] = [
       {
-        type: "input_text",
+        type: "text",
         text: `Você está olhando uma escala de trabalho mensal de uma clínica.
 Extraia EXATAMENTE como está na imagem/documento a escala do mês ${monthName.toUpperCase()}/${year}.
 
@@ -125,80 +53,107 @@ Responda APENAS com JSON válido, sem markdown, no formato:
       },
     ];
 
-      if (isImage) {
-        userContent.push({ type: "input_image", image_url: dataUrl, detail: "high" });
-      } else {
-        userContent.push({ type: "input_file", filename: "escala.pdf", file_data: dataUrl });
-      }
-
-      const raw = await generateOpenAIText({
-      modelEnv: "OPENAI_SCHEDULE_MODEL",
-      defaultModel: "gpt-4.1",
-      input: [{ role: "user", content: userContent }],
-      maxOutputTokens: 4000,
-      schema: {
-        name: "monthly_schedule",
-        schema: {
-          type: "object", additionalProperties: false,
-          properties: {
-            days: {
-              type: "array", minItems: 1, maxItems: 31,
-              items: {
-                type: "object", additionalProperties: false,
-                properties: {
-                  day: { type: "integer", minimum: 1, maximum: 31 },
-                  morning: { type: "string" }, afternoon: { type: "string" },
-                },
-                required: ["day", "morning", "afternoon"],
-              },
-            },
-          },
-          required: ["days"],
-        },
-      },
-    });
-      const parsed = parseOpenAIJSON<{ days?: Array<{ day: number; morning?: string; afternoon?: string }> }>(raw);
-
-      const days = Array.isArray(parsed?.days) ? parsed.days : [];
-      if (days.length === 0) {
-        return new Response(JSON.stringify({ error: "Não foi possível extrair a escala da imagem. Tente uma foto mais nítida." }), {
-          status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const daysInMonth = new Date(year, month, 0).getDate();
-      if (days.some(d => !Number.isInteger(d.day) || d.day < 1 || d.day > daysInMonth
-        || typeof d.morning !== "string" || typeof d.afternoon !== "string"
-        || d.morning.length > 200 || d.afternoon.length > 200)
-        || new Set(days.map(d => d.day)).size !== days.length) {
-        throw new OpenAIError("A escala extraída contém dias inválidos ou duplicados. Revise o arquivo.", 422);
-      }
-      rows = days
-        .map((d) => {
-          const dt = new Date(year, month - 1, d.day);
-          if (dt.getDay() === 0) return null; // skip Sundays
-          const iso = `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
-          return {
-            sheet_name: targetSheet,
-            date: iso,
-            day_of_week: DAY_NAMES[dt.getDay()],
-            morning_shift: (d.morning || "").trim(),
-            afternoon_shift: (d.afternoon || "").trim(),
-          };
-        })
-        .filter((r): r is NonNullable<typeof r> => r !== null);
+    if (isImage) {
+      userContent.push({ type: "image_url", image_url: { url: dataUrl } });
+    } else {
+      userContent.push({ type: "file", file: { filename: `escala.${mimeType.split("/")[1] || "pdf"}`, file_data: dataUrl } });
     }
 
-    if (rows.length === 0) throw new OpenAIError("Não foram encontrados dias úteis na escala. Revise o arquivo.", 422);
-    assertCompleteScheduleMonth(rows, year, month);
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-pro",
+        messages: [{ role: "user", content: userContent }],
+        response_format: { type: "json_object" },
+      }),
+    });
 
-    return new Response(JSON.stringify({ preview: true, rows }), {
+    if (!aiResp.ok) {
+      const txt = await aiResp.text();
+      console.error("Falha no processamento de imagem", aiResp.status);
+      if (aiResp.status === 429) {
+        return new Response(JSON.stringify({ error: "Limite de requisições atingido. Tente novamente em instantes." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (aiResp.status === 402) {
+        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`AI gateway error: ${aiResp.status}`);
+    }
+
+    const aiJson = await aiResp.json();
+    const raw = aiJson?.choices?.[0]?.message?.content ?? "{}";
+    let parsed: { days?: Array<{ day: number; morning?: string; afternoon?: string }> };
+    try {
+      parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    } catch {
+      const match = String(raw).match(/\{[\s\S]*\}/);
+      parsed = match ? JSON.parse(match[0]) : { days: [] };
+    }
+
+    const days = Array.isArray(parsed?.days) ? parsed.days : [];
+    if (days.length === 0) {
+      return new Response(JSON.stringify({ error: "Não foi possível extrair a escala da imagem. Tente uma foto mais nítida." }), {
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const rows = days
+      .filter((d) => Number.isInteger(d.day) && d.day >= 1 && d.day <= daysInMonth)
+      .map((d) => {
+        const dt = new Date(year, month - 1, d.day);
+        if (dt.getDay() === 0) return null; // skip Sundays
+        const iso = `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+        return {
+          sheet_name: sheetName || "Escala",
+          date: iso,
+          day_of_week: DAY_NAMES[dt.getDay()],
+          morning_shift: (d.morning || "").trim(),
+          afternoon_shift: (d.afternoon || "").trim(),
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Replace existing rows for the same month + sheet
+    const monthPrefix = `${year}-${String(month).padStart(2, "0")}-`;
+    const { data: existing } = await supabase
+      .from("schedules")
+      .select("id,date")
+      .eq("sheet_name", sheetName || "Escala");
+
+    const toDelete = (existing || [])
+      .filter((r: { date: string }) => {
+        if (!r.date) return false;
+        if (r.date.startsWith(monthPrefix)) return true;
+        // Also clean DD/mes legacy format for same month
+        const parts = r.date.split("/");
+        return parts[1]?.toLowerCase().trim() === MONTH_NAMES[month - 1];
+      })
+      .map((r: { id: string }) => r.id);
+
+    if (toDelete.length > 0) {
+      await supabase.from("schedules").delete().in("id", toDelete);
+    }
+
+    const { error: insertErr } = await supabase.from("schedules").insert(rows);
+    if (insertErr) throw insertErr;
+
+    return new Response(JSON.stringify({ inserted: rows.length, deleted: toDelete.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("import-schedule-image error", err);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: err instanceof OpenAIError || err instanceof ScheduleImportValidationError ? err.status : 500,
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

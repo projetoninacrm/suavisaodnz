@@ -5,22 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface UazapiMessage {
-  messageTimestamp?: number | string | null;
-  fromMe?: boolean;
-  text?: string | null;
-  content?: {
-    text?: string | null;
-    conversation?: string | null;
-    mimetype?: string | null;
-  } | null;
-  messageType?: string | null;
-}
-
-interface UazapiMessagesResponse {
-  messages?: UazapiMessage[] | null;
-}
-
 function cleanPhone(phone: string | null): string | null {
   if (!phone) return null;
   const cleaned = phone.replace(/\D/g, "");
@@ -48,12 +32,12 @@ async function fetchMessages(phone: string, instancia: string): Promise<string |
     });
 
     if (!res.ok) return null;
-    const data = await res.json() as UazapiMessagesResponse;
+    const data = await res.json();
     const messages = data.messages || [];
     if (messages.length === 0) return null;
 
     // Sort by timestamp ascending
-    messages.sort((a, b) => Number(a.messageTimestamp || 0) - Number(b.messageTimestamp || 0));
+    messages.sort((a: any, b: any) => (a.messageTimestamp || 0) - (b.messageTimestamp || 0));
 
     const lines: string[] = [];
     for (const msg of messages) {
@@ -94,7 +78,7 @@ async function summarize(history: string, mensagemEnviada: string | null, supaba
       body: JSON.stringify({ history, mensagem_enviada: mensagemEnviada }),
     });
     if (response.ok) {
-      const result = await response.json() as { summary?: string | null };
+      const result = await response.json();
       return result.summary || null;
     }
   } catch (err) {
@@ -145,10 +129,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const joinedAutomation = (disparo as unknown as {
-        automacoes?: { instancia?: string | null } | null;
-      }).automacoes;
-      const instancia = joinedAutomation?.instancia || "uazapi";
+      const instancia = (disparo as any).automacoes?.instancia || "uazapi";
       console.log(`Buscando mensagens via ${instancia}`);
 
       const history = await fetchMessages(phone, instancia);

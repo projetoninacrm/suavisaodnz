@@ -1,46 +1,10 @@
 import * as React from "react";
-import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-type AccordionProps = Omit<
-  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Root>,
-  "multiple" | "value" | "defaultValue" | "onValueChange"
-> & {
-  type: "single" | "multiple";
-  collapsible?: boolean;
-  value?: string | string[];
-  defaultValue?: string | string[];
-  onValueChange?: (value: string | string[]) => void;
-};
-
-function accordionValues(value: string | string[] | undefined) {
-  if (value === undefined) return undefined;
-  if (Array.isArray(value)) return value;
-  return value === "" ? [] : [value];
-}
-
-const Accordion = React.forwardRef<HTMLDivElement, AccordionProps>(
-  ({ type, collapsible = false, value, defaultValue, onValueChange, ...props }, ref) => (
-    <AccordionPrimitive.Root
-      ref={ref}
-      multiple={type === "multiple"}
-      value={accordionValues(value)}
-      defaultValue={accordionValues(defaultValue)}
-      onValueChange={(values, details) => {
-        const stringValues = values.map(String);
-        if (type === "single" && !collapsible && stringValues.length === 0) {
-          details.cancel();
-          return;
-        }
-        onValueChange?.(type === "single" ? stringValues[0] ?? "" : stringValues);
-      }}
-      {...props}
-    />
-  ),
-);
-Accordion.displayName = "Accordion";
+const Accordion = AccordionPrimitive.Root;
 
 const AccordionItem = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Item>,
@@ -58,30 +22,31 @@ const AccordionTrigger = React.forwardRef<
     <AccordionPrimitive.Trigger
       ref={ref}
       className={cn(
-        "flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-open]>svg]:rotate-180",
+        "flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180",
         className,
       )}
       {...props}
     >
       {children}
-      <ChevronDown aria-hidden="true" className="size-4 shrink-0 transition-transform duration-200" />
+      <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
     </AccordionPrimitive.Trigger>
   </AccordionPrimitive.Header>
 ));
-AccordionTrigger.displayName = "AccordionTrigger";
+AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName;
 
 const AccordionContent = React.forwardRef<
-  React.ElementRef<typeof AccordionPrimitive.Panel>,
-  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Panel>
+  React.ElementRef<typeof AccordionPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
 >(({ className, children, ...props }, ref) => (
-  <AccordionPrimitive.Panel
+  <AccordionPrimitive.Content
     ref={ref}
-    className="overflow-hidden text-sm transition-opacity data-[starting-style]:opacity-0 data-[ending-style]:opacity-0"
+    className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
     {...props}
   >
     <div className={cn("pb-4 pt-0", className)}>{children}</div>
-  </AccordionPrimitive.Panel>
+  </AccordionPrimitive.Content>
 ));
-AccordionContent.displayName = "AccordionContent";
+
+AccordionContent.displayName = AccordionPrimitive.Content.displayName;
 
 export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };

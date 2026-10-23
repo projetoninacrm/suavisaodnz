@@ -1,41 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import { toast } from "@/hooks/use-toast";
-import { useRouteState } from "@/hooks/useRouteState";
-import { useLocation } from "react-router-dom";
+import { toast } from "sonner";
 
 // Unidade específica para filtrar
 const TARGET_PLACE = "SUA VISÃO OFTALMOLOGIA – Rua Padre Pedro Pinto, 1595 – Loja 05 – Em frente à Caixa Econômica";
-const ATTENDANCES_QUERY_TIMEOUT_MS = 30_000;
-const ATTENDANCES_QUERY_TIMEOUT_MESSAGE = "A consulta ao Amigo demorou mais de 30 segundos. Tente novamente.";
-
-interface AttendanceRangeState { start: string; end: string }
-
-function parseLocalDate(value: unknown): Date | null {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
-}
-
-function defaultAttendanceRange(): AttendanceRangeState {
-  const today = new Date();
-  return {
-    start: format(startOfMonth(today), "yyyy-MM-dd"),
-    end: format(endOfMonth(today), "yyyy-MM-dd"),
-  };
-}
-
-function parseAttendanceRange(value: unknown): AttendanceRangeState {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const range = value as Partial<AttendanceRangeState>;
-    const start = parseLocalDate(range.start);
-    const end = parseLocalDate(range.end);
-    if (start && end && start <= end) return { start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") };
-  }
-  return defaultAttendanceRange();
-}
 
 export interface AmigoAttendance {
   id: string;
@@ -50,28 +19,6 @@ export interface AmigoAttendance {
   doctor_name: string | null;
   place_name: string | null;
   status: string;
-}
-
-interface AmigoApiAttendance {
-  id?: string | number;
-  start_date?: string;
-  date?: string;
-  status?: string | null;
-  place?: { name?: string | null } | null;
-  patient?: {
-    name?: string | null;
-    contact_cellphone?: string | null;
-    contact_phone?: string | null;
-    cellphone?: string | null;
-    contact_email?: string | null;
-    email?: string | null;
-    know_by?: string | null;
-    born?: string | null;
-  } | null;
-  agenda_event?: { name?: string | null } | null;
-  event?: { name?: string | null } | null;
-  doctor?: { name?: string | null } | null;
-  user?: { name?: string | null } | null;
 }
 
 const formatPhone = (phone: string | null): string | null => {
@@ -128,51 +75,26 @@ const formatTime = (isoDate?: string): string => {
 };
 
 export function useDetalhadoAmigo() {
-  const location = useLocation();
   const [attendances, setAttendances] = useState<AmigoAttendance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [loadedDateRange, setLoadedDateRange] = useState<{ start: Date; end: Date } | null>(null);
-  const requestIdRef = useRef(0);
-  const activeControllerRef = useRef<AbortController | null>(null);
-  const [rangeState, setRangeState] = useRouteState("atendimentosRange", defaultAttendanceRange, parseAttendanceRange);
-  const routeState = location.state && typeof location.state === "object" && !Array.isArray(location.state)
-    ? location.state as Record<string, unknown>
-    : {};
-  const hasSavedRange = Object.prototype.hasOwnProperty.call(routeState, "atendimentosRange");
-  const dateRange = useMemo(() => ({
-    start: parseLocalDate(rangeState.start) ?? startOfMonth(new Date()),
-    end: parseLocalDate(rangeState.end) ?? endOfMonth(new Date()),
-  }), [rangeState.end, rangeState.start]);
-
-  useEffect(() => {
-    if (!hasSavedRange) setRangeState(rangeState);
-  }, [hasSavedRange, rangeState, setRangeState]);
+  const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>(() => {
+    const today = new Date();
+    return {
+      start: startOfMonth(today),
+      end: endOfMonth(today),
+    };
+  });
 
   const fetchAttendances = useCallback(async () => {
-    const requestId = ++requestIdRef.current;
-    activeControllerRef.current?.abort();
-    const controller = new AbortController();
-    activeControllerRef.current = controller;
-    let timedOut = false;
-    const timeout = window.setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, ATTENDANCES_QUERY_TIMEOUT_MS);
-    const requestedDateRange = {
-      start: new Date(dateRange.start),
-      end: new Date(dateRange.end),
-    };
     setIsLoading(true);
-    setError(null);
     try {
       // Garantia extra contra "Invalid time value"
-      if (Number.isNaN(requestedDateRange.start?.getTime?.()) || Number.isNaN(requestedDateRange.end?.getTime?.())) {
+      if (Number.isNaN(dateRange.start?.getTime?.()) || Number.isNaN(dateRange.end?.getTime?.())) {
         throw new Error("Período inválido. Selecione novamente.");
       }
 
-      const startDate = format(requestedDateRange.start, "yyyy-MM-dd");
-      const endDate = format(requestedDateRange.end, "yyyy-MM-dd");
+      const startDate = format(dateRange.start, "yyyy-MM-dd");
+      const endDate = format(dateRange.end, "yyyy-MM-dd");
 
       console.log(`[useDetalhadoAmigo] Fetching attendances from ${startDate} to ${endDate}`);
 
@@ -185,28 +107,22 @@ export function useDetalhadoAmigo() {
             status: "DONE", // Apenas atendimentos finalizados/concluídos
           },
         },
-        signal: controller.signal,
       });
 
       if (error) {
         console.error("[useDetalhadoAmigo] Error:", error);
-        if (requestId !== requestIdRef.current) return;
-        const message = timedOut
-          ? ATTENDANCES_QUERY_TIMEOUT_MESSAGE
-          : "Não foi possível carregar os atendimentos do Amigo. Tente novamente.";
-        toast.error(timedOut ? "A consulta ao Amigo demorou demais" : "Erro ao buscar atendimentos da API Amigo");
-        setError(message);
+        toast.error("Erro ao buscar atendimentos da API Amigo");
+        setAttendances([]);
         return;
       }
 
-      if (!data?.success || !Array.isArray(data?.data?.data)) {
-        console.warn("[useDetalhadoAmigo] Invalid or missing data received");
-        if (requestId !== requestIdRef.current) return;
-        setError("A integração do Amigo não retornou uma lista válida de atendimentos.");
+      if (!data?.success || !data?.data?.data) {
+        console.warn("[useDetalhadoAmigo] No data received");
+        setAttendances([]);
         return;
       }
 
-      const rawAttendances = data.data.data as AmigoApiAttendance[];
+      const rawAttendances = data.data.data as any[];
       console.log(`[useDetalhadoAmigo] Received ${rawAttendances.length} raw attendances`);
 
       // Filtrar apenas atendimentos da unidade específica
@@ -265,47 +181,30 @@ export function useDetalhadoAmigo() {
         return parseDate(b.date).getTime() - parseDate(a.date).getTime();
       });
 
-      if (requestId !== requestIdRef.current) return;
       setAttendances(mapped);
-      setLoadedDateRange(requestedDateRange);
       console.log(`[useDetalhadoAmigo] Set ${mapped.length} attendances`);
 
     } catch (err) {
       console.error("[useDetalhadoAmigo] Exception:", err);
-      if (requestId !== requestIdRef.current) return;
-      toast.error(timedOut ? "A consulta ao Amigo demorou demais" : "Erro ao processar atendimentos");
-      setError(timedOut
-        ? ATTENDANCES_QUERY_TIMEOUT_MESSAGE
-        : "Não foi possível processar os atendimentos. Tente novamente.");
+      toast.error("Erro ao processar atendimentos");
+      setAttendances([]);
     } finally {
-      window.clearTimeout(timeout);
-      if (activeControllerRef.current === controller) activeControllerRef.current = null;
-      if (requestId === requestIdRef.current) setIsLoading(false);
+      setIsLoading(false);
     }
   }, [dateRange]);
 
   useEffect(() => {
-    void fetchAttendances();
-    return () => {
-      requestIdRef.current += 1;
-      activeControllerRef.current?.abort();
-    };
+    fetchAttendances();
   }, [fetchAttendances]);
 
   const updateDateRange = useCallback((start: Date, end: Date) => {
-    setRangeState({ start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") });
-  }, [setRangeState]);
-  const isLoadedRangeCurrent = Boolean(loadedDateRange
-    && format(loadedDateRange.start, "yyyy-MM-dd") === format(dateRange.start, "yyyy-MM-dd")
-    && format(loadedDateRange.end, "yyyy-MM-dd") === format(dateRange.end, "yyyy-MM-dd"));
+    setDateRange({ start, end });
+  }, []);
 
   return {
     attendances,
     isLoading,
-    error,
     dateRange,
-    loadedDateRange,
-    isLoadedRangeCurrent,
     updateDateRange,
     refresh: fetchAttendances,
   };

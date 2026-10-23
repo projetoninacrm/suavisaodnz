@@ -1,31 +1,24 @@
-import { useToastQueue } from "@/hooks/use-toast";
-import {
-  Toast,
-  ToastClose,
-  ToastContent,
-  ToastDescription,
-  ToastPortal,
-  ToastTitle,
-  ToastViewport,
-} from "@/components/ui/toast";
+import { useToast } from "@/hooks/use-toast";
+import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from "@/components/ui/toast";
 
 export function Toaster() {
-  const { toasts } = useToastQueue();
+  const { toasts } = useToast();
 
   return (
-    <ToastPortal>
-      <ToastViewport>
-        {toasts.map((item) => (
-          <Toast key={item.id} toast={item}>
-            <ToastContent>
-              {item.title && <ToastTitle>{item.title}</ToastTitle>}
-              {item.description && <ToastDescription>{item.description}</ToastDescription>}
-            </ToastContent>
-            {item.data?.action}
-            <ToastClose aria-label="Fechar aviso" />
+    <ToastProvider>
+      {toasts.map(function ({ id, title, description, action, ...props }) {
+        return (
+          <Toast key={id} {...props}>
+            <div className="grid gap-1">
+              {title && <ToastTitle>{title}</ToastTitle>}
+              {description && <ToastDescription>{description}</ToastDescription>}
+            </div>
+            {action}
+            <ToastClose />
           </Toast>
-        ))}
-      </ToastViewport>
-    </ToastPortal>
+        );
+      })}
+      <ToastViewport />
+    </ToastProvider>
   );
 }

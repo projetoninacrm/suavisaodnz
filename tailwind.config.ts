@@ -1,5 +1,4 @@
 import type { Config } from "tailwindcss";
-import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -15,71 +14,63 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
       },
       colors: {
-        border: "color-mix(in oklab, oklch(var(--border) / var(--border-alpha, 100%)) calc(<alpha-value> * 100%), transparent)",
-        input: "color-mix(in oklab, oklch(var(--input) / var(--input-alpha, 100%)) calc(<alpha-value> * 100%), transparent)",
-        ring: "oklch(var(--ring) / <alpha-value>)",
-        background: "oklch(var(--background) / <alpha-value>)",
-        foreground: "oklch(var(--foreground) / <alpha-value>)",
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "oklch(var(--primary) / <alpha-value>)",
-          foreground: "oklch(var(--primary-foreground) / <alpha-value>)",
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT: "oklch(var(--secondary) / <alpha-value>)",
-          foreground: "oklch(var(--secondary-foreground) / <alpha-value>)",
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-          DEFAULT: "oklch(var(--destructive) / <alpha-value>)",
-          foreground: "oklch(var(--destructive-foreground) / <alpha-value>)",
-        },
-        success: {
-          DEFAULT: "oklch(var(--success) / <alpha-value>)",
-          foreground: "oklch(var(--success-foreground) / <alpha-value>)",
-        },
-        warning: {
-          DEFAULT: "oklch(var(--warning) / <alpha-value>)",
-          foreground: "oklch(var(--warning-foreground) / <alpha-value>)",
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
         },
         muted: {
-          DEFAULT: "oklch(var(--muted) / <alpha-value>)",
-          foreground: "oklch(var(--muted-foreground) / <alpha-value>)",
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "oklch(var(--accent) / <alpha-value>)",
-          foreground: "oklch(var(--accent-foreground) / <alpha-value>)",
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
         },
         popover: {
-          DEFAULT: "oklch(var(--popover) / <alpha-value>)",
-          foreground: "oklch(var(--popover-foreground) / <alpha-value>)",
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
         },
         card: {
-          DEFAULT: "oklch(var(--card) / <alpha-value>)",
-          foreground: "oklch(var(--card-foreground) / <alpha-value>)",
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
         },
         sidebar: {
-          DEFAULT: "oklch(var(--sidebar) / <alpha-value>)",
-          foreground: "oklch(var(--sidebar-foreground) / <alpha-value>)",
-          primary: "oklch(var(--sidebar-primary) / <alpha-value>)",
-          "primary-foreground": "oklch(var(--sidebar-primary-foreground) / <alpha-value>)",
-          accent: "oklch(var(--sidebar-accent) / <alpha-value>)",
-          "accent-foreground": "oklch(var(--sidebar-accent-foreground) / <alpha-value>)",
-          border: "color-mix(in oklab, oklch(var(--sidebar-border) / var(--border-alpha, 100%)) calc(<alpha-value> * 100%), transparent)",
-          ring: "oklch(var(--sidebar-ring) / <alpha-value>)",
+          DEFAULT: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
         },
         table: {
-          header: "oklch(var(--table-header) / <alpha-value>)",
-          "row-hover": "oklch(var(--table-row-hover) / <alpha-value>)",
-          border: "oklch(var(--table-border) / <alpha-value>)",
+          header: "hsl(var(--table-header))",
+          "row-hover": "hsl(var(--table-row-hover))",
+          border: "hsl(var(--table-border))",
         },
         chart: {
-          "1": "oklch(var(--chart-1) / <alpha-value>)",
-          "2": "oklch(var(--chart-2) / <alpha-value>)",
-          "3": "oklch(var(--chart-3) / <alpha-value>)",
-          "4": "oklch(var(--chart-4) / <alpha-value>)",
-          "5": "oklch(var(--chart-5) / <alpha-value>)",
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
         },
       },
       borderRadius: {
@@ -87,7 +78,21 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
     },
   },
-  plugins: [tailwindcssAnimate],
+  plugins: [require("tailwindcss-animate")],
 } satisfies Config;

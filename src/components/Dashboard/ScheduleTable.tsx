@@ -1,12 +1,15 @@
-import { useState, useMemo, useRef, useEffect, type ReactNode } from "react";
-import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
-import { Trash2, Calendar, Wand2, Loader2, Upload, FileImage } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { Trash2, Calendar, ChevronDown, Wand2, Loader2, Upload, FileImage } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableCell } from "./EditableCell";
 import { DayBadge } from "./DayBadge";
 import { Card, CardContent } from "@/components/ui/card";
-import { SelectFilter } from "@/components/data/SelectFilter";
-import { FilterGrid } from "@/components/data/FilterGrid";
+import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,40 +30,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { Schedule } from "@/hooks/useSchedules";
-import { PersonSelect } from "@/components/Dashboard/PersonSelect";
-import { EntityDataTable } from "@/components/data/EntityDataTable";
-import { DataState } from "@/components/data/DataState";
-import { PersonDirectoryHint } from "@/components/data/PersonDirectoryHint";
-import { useDirectory } from "@/hooks/useDirectory";
-import { useRouteState } from "@/hooks/useRouteState";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "react-router-dom";
-import {
-  parseSchedulePreviewResponse,
-  ScheduleImportValidationError,
-  type SchedulePreviewRow,
-} from "../../../supabase/functions/_shared/schedule-import.ts";
 
 const MONTH_NAMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-type SchedulePeriod = { month: string; year: number };
-
-function getCurrentSchedulePeriod(): SchedulePeriod {
-  const now = new Date();
-  return { month: MONTH_NAMES[now.getMonth()], year: now.getFullYear() };
-}
-
-function parseSchedulePeriod(value: unknown): SchedulePeriod {
-  if (
-    typeof value === "object" && value !== null &&
-    "month" in value && typeof value.month === "string" && MONTH_NAMES.includes(value.month) &&
-    "year" in value && typeof value.year === "number" && Number.isInteger(value.year) && value.year >= 1900 && value.year <= 9999
-  ) {
-    return { month: value.month, year: value.year };
-  }
-  return getCurrentSchedulePeriod();
-}
-
 const MONTH_LABELS: Record<string, string> = {
   jan: "Janeiro",
   fev: "Fevereiro",
@@ -75,57 +48,6 @@ const MONTH_LABELS: Record<string, string> = {
   nov: "Novembro",
   dez: "Dezembro",
 };
-const LEGACY_SCHEDULE_YEAR = 2026;
-
-type ScheduleTableMeta = {
-  renderDate: (schedule: Schedule) => ReactNode;
-  renderMorning: (schedule: Schedule) => ReactNode;
-  renderAfternoon: (schedule: Schedule) => ReactNode;
-  renderDay: (schedule: Schedule) => ReactNode;
-  renderActions: (schedule: Schedule) => ReactNode;
-};
-
-type SchedulePreviewTableMeta = {
-  renderDate: (row: SchedulePreviewRow) => ReactNode;
-  renderMorning: (row: SchedulePreviewRow) => ReactNode;
-  renderAfternoon: (row: SchedulePreviewRow) => ReactNode;
-};
-
-const scheduleTableFeatures = tableFeatures({ tableMeta: {} as ScheduleTableMeta });
-const scheduleColumn = createColumnHelper<typeof scheduleTableFeatures, Schedule>();
-const scheduleColumns = scheduleColumn.columns([
-  scheduleColumn.display({ id: "data", header: "Data", cell: ({ row, table }) => table.options.meta.renderDate(row.original) }),
-  scheduleColumn.display({ id: "manha", header: "8:00 - 12:00", cell: ({ row, table }) => table.options.meta.renderMorning(row.original) }),
-  scheduleColumn.display({ id: "tarde", header: "13:00 - 18:00", cell: ({ row, table }) => table.options.meta.renderAfternoon(row.original) }),
-  scheduleColumn.display({ id: "dia", header: "Dia", cell: ({ row, table }) => table.options.meta.renderDay(row.original) }),
-  scheduleColumn.display({ id: "acoes", header: "Ações", cell: ({ row, table }) => table.options.meta.renderActions(row.original) }),
-]);
-const schedulePreviewTableFeatures = tableFeatures({ tableMeta: {} as SchedulePreviewTableMeta });
-const schedulePreviewColumn = createColumnHelper<typeof schedulePreviewTableFeatures, SchedulePreviewRow>();
-const schedulePreviewColumns = schedulePreviewColumn.columns([
-  schedulePreviewColumn.display({ id: "data", header: "Data", cell: ({ row, table }) => table.options.meta.renderDate(row.original) }),
-  schedulePreviewColumn.display({ id: "manha", header: "Manhã", cell: ({ row, table }) => table.options.meta.renderMorning(row.original) }),
-  schedulePreviewColumn.display({ id: "tarde", header: "Tarde", cell: ({ row, table }) => table.options.meta.renderAfternoon(row.original) }),
-]);
-
-const normalizePersonName = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
-
-async function readScheduleValidationMessage(error: unknown): Promise<string | null> {
-  if (typeof error !== "object" || error === null || !("context" in error)) return null;
-  const context = (error as { context?: unknown }).context;
-  if (!(context instanceof Response) || context.status !== 422) return null;
-
-  try {
-    const payload: unknown = await context.clone().json();
-    if (typeof payload === "object" && payload !== null && "error" in payload
-      && typeof (payload as { error?: unknown }).error === "string") {
-      return (payload as { error: string }).error.slice(0, 300);
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
 
 const DAY_OF_WEEK_MAP: Record<number, string> = {
   0: "DOM",
@@ -177,16 +99,6 @@ function getMonthFromDate(dateStr: string): string | null {
   return null;
 }
 
-function getYearFromDate(dateStr: string): number | null {
-  if (!dateStr) return null;
-  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return Number(dateStr.slice(0, 4));
-  const parts = dateStr.split("/");
-  if (parts.length >= 3 && /^\d{4}$/.test(parts[2].trim())) return Number(parts[2].trim());
-  // Schedules created by the earlier UI stored only DD/mon and were generated for 2026.
-  if (parts.length === 2) return LEGACY_SCHEDULE_YEAR;
-  return null;
-}
-
 // Helper: formata data ISO (YYYY-MM-DD) para DD/mes
 function formatDateForDisplay(dateStr: string): string {
   if (!dateStr) return "";
@@ -195,7 +107,7 @@ function formatDateForDisplay(dateStr: string): string {
     if (parts.length === 3) {
       const monthNum = parseInt(parts[1], 10);
       if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
-        return `${parts[2]}/${MONTH_NAMES[monthNum - 1]}/${parts[0]}`;
+        return `${parts[2]}/${MONTH_NAMES[monthNum - 1]}`;
       }
     }
   }
@@ -205,6 +117,7 @@ function formatDateForDisplay(dateStr: string): string {
 // Gera todos os dias de um mês (exceto domingos)
 function generateMonthDays(monthIndex: number, year: number): { date: string; dayOfWeek: string }[] {
   const days: { date: string; dayOfWeek: string }[] = [];
+  const monthName = MONTH_NAMES[monthIndex];
   
   // Primeiro dia do mês
   const firstDay = new Date(year, monthIndex, 1);
@@ -219,7 +132,7 @@ function generateMonthDays(monthIndex: number, year: number): { date: string; da
     if (dayOfWeek !== "DOM") {
       const dayStr = day.toString().padStart(2, "0");
       days.push({
-        date: `${year}-${String(monthIndex + 1).padStart(2, "0")}-${dayStr}`,
+        date: `${dayStr}/${monthName}`,
         dayOfWeek,
       });
     }
@@ -230,190 +143,63 @@ function generateMonthDays(monthIndex: number, year: number): { date: string; da
 
 interface ScheduleTableProps {
   schedules: Schedule[];
-  isRefreshing?: boolean;
   onUpdate: (id: string, field: keyof Schedule, value: string) => void;
-  onUpdateProfessional: (id: string, shift: "morning" | "afternoon", professionalId: string | null, name: string | null) => void;
   onDelete: (id: string) => void;
   onRefresh?: () => void;
 }
 
-export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpdateProfessional, onDelete, onRefresh }: ScheduleTableProps) {
+export function ScheduleTable({ schedules, onUpdate, onDelete, onRefresh }: ScheduleTableProps) {
   const { toast } = useToast();
-  const { people: professionals, isLoading: professionalsLoading, error: professionalsError, refresh: refreshProfessionals } = useDirectory("professionals");
-  const [period, setPeriod] = useRouteState<SchedulePeriod>("schedulePeriod", getCurrentSchedulePeriod, parseSchedulePeriod);
-  const { month: selectedMonth, year: selectedYear } = period;
-  const [scheduleToDelete, setScheduleToDelete] = useState<Schedule | null>(null);
+  // Inicia com o mês atual
+  const currentMonthIndex = new Date().getMonth();
+  const [selectedMonth, setSelectedMonth] = useState<string>(MONTH_NAMES[currentMonthIndex]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
-  const [previewRows, setPreviewRows] = useState<SchedulePreviewRow[]>([]);
-  const [previewError, setPreviewError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (professionalsLoading || previewRows.length === 0) return;
-    setPreviewRows((current) => current.map((row) => {
-      const resolve = (name: string, id: string | null) => {
-        if (id || !name.trim()) return { name, id };
-        const match = professionals.find((person) => normalizePersonName(person.name) === normalizePersonName(name));
-        return match ? { name: match.name, id: match.id } : { name, id: null };
-      };
-      const morning = resolve(row.morning_shift, row.morning_shift_professional_id);
-      const afternoon = resolve(row.afternoon_shift, row.afternoon_shift_professional_id);
-      return {
-        ...row,
-        morning_shift: morning.name,
-        morning_shift_professional_id: morning.id,
-        afternoon_shift: afternoon.name,
-        afternoon_shift_professional_id: afternoon.id,
-      };
-    }));
-  }, [professionals, professionalsLoading, previewRows.length]);
 
   // Detecta meses disponíveis nos schedules
   const availableMonths = useMemo(() => {
     const monthsSet = new Set<string>();
     schedules.forEach(s => {
       const month = getMonthFromDate(s.date);
-      if (month && getYearFromDate(s.date) === selectedYear) monthsSet.add(month);
+      if (month) monthsSet.add(month);
     });
     return MONTH_NAMES.filter(m => monthsSet.has(m));
-  }, [schedules, selectedYear]);
-
-  const availableYears = useMemo(() => {
-    const years = new Set(schedules.map((schedule) => getYearFromDate(schedule.date)).filter((year): year is number => year !== null));
-    years.add(new Date().getFullYear() - 1);
-    years.add(new Date().getFullYear());
-    years.add(new Date().getFullYear() + 1);
-    years.add(selectedYear);
-    return [...years].sort((a, b) => a - b);
-  }, [schedules, selectedYear]);
+  }, [schedules]);
 
   // Filtra schedules pelo mês selecionado
   const filteredSchedules = useMemo(() => {
     return schedules.filter(s => {
       const month = getMonthFromDate(s.date);
-      return month === selectedMonth && getYearFromDate(s.date) === selectedYear;
+      return month === selectedMonth;
     });
-  }, [schedules, selectedMonth, selectedYear]);
-
-  const scheduleTable = useTable({
-    features: scheduleTableFeatures,
-    columns: scheduleColumns,
-    data: filteredSchedules,
-    getRowId: (schedule) => schedule.id,
-    meta: {
-      renderDate: (schedule) => {
-        const formattedDate = formatDateForDisplay(schedule.date);
-        return (
-          <EditableCell
-            value={formattedDate}
-            onSave={(value) => onUpdate(schedule.id, "date", value)}
-            placeholder="DD/MMM"
-            ariaLabel={`Data da escala de ${formattedDate}`}
-          />
-        );
-      },
-      renderMorning: (schedule) => (
-        <PersonSelect
-          people={professionals}
-          value={schedule.morning_shift_professional_id}
-          currentLabel={schedule.morning_shift}
-          onValueChange={(id, person) => onUpdateProfessional(schedule.id, "morning", id, person?.name || null)}
-          placeholder="Selecionar profissional"
-          ariaLabel={`Profissional da manhã em ${formatDateForDisplay(schedule.date)}`}
-          emptyLabel="Sem profissional"
-          disabled={professionalsLoading}
-        />
-      ),
-      renderAfternoon: (schedule) => (
-        <PersonSelect
-          people={professionals}
-          value={schedule.afternoon_shift_professional_id}
-          currentLabel={schedule.afternoon_shift}
-          onValueChange={(id, person) => onUpdateProfessional(schedule.id, "afternoon", id, person?.name || null)}
-          placeholder="Selecionar profissional"
-          ariaLabel={`Profissional da tarde em ${formatDateForDisplay(schedule.date)}`}
-          emptyLabel="Sem profissional"
-          disabled={professionalsLoading}
-        />
-      ),
-      renderDay: (schedule) => <DayBadge day={schedule.day_of_week} />,
-      renderActions: (schedule) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setScheduleToDelete(schedule)}
-          aria-label={`Excluir escala de ${formatDateForDisplay(schedule.date)}`}
-          className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      ),
-    },
-  });
+  }, [schedules, selectedMonth]);
 
   const scheduleCount = filteredSchedules.length;
   const hasDataInMonth = availableMonths.includes(selectedMonth);
-  const activeProfessionals = professionals.filter((person) => person.is_active);
-  const requiredProfessionalNames = [...new Set(Object.values(WEEKLY_PATTERN)
-    .flatMap((pattern) => [pattern.morning, pattern.afternoon])
-    .filter(Boolean))];
-  const findActiveProfessionals = (name: string) => activeProfessionals.filter(
-    (person) => normalizePersonName(person.name) === normalizePersonName(name)
-  );
-  const missingProfessionalNames = requiredProfessionalNames.filter((name) => findActiveProfessionals(name).length === 0);
-  const ambiguousProfessionalNames = requiredProfessionalNames.filter((name) => findActiveProfessionals(name).length > 1);
-  const canGenerateAutomaticPattern = missingProfessionalNames.length === 0 && ambiguousProfessionalNames.length === 0;
-  const getPatternDisplayName = (name: string) => findActiveProfessionals(name)[0]?.name || name;
 
   // Gera escala para o mês selecionado baseado no padrão
   const handleGenerateSchedule = async () => {
-    if (isGenerating || professionalsLoading) return;
-    if (professionalsError) {
-      toast({ title: "Profissionais indisponíveis", description: "Atualize o cadastro de profissionais antes de gerar a escala.", variant: "destructive" });
-      return;
-    }
-
-    if (!canGenerateAutomaticPattern) {
-      const guidance = [
-        missingProfessionalNames.length > 0 ? `Cadastre ou reative: ${missingProfessionalNames.join(", ")}.` : "",
-        ambiguousProfessionalNames.length > 0 ? `Deixe cada nome único no cadastro: ${ambiguousProfessionalNames.join(", ")}.` : "",
-      ].filter(Boolean).join(" ");
-      toast({
-        title: "Revise o cadastro de profissionais",
-        description: guidance,
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsGenerating(true);
     
     try {
       const monthIndex = MONTH_NAMES.indexOf(selectedMonth);
-      const year = selectedYear;
+      // Usa 2026 como ano padrão (baseado no contexto do projeto)
+      const year = 2026;
       
       const days = generateMonthDays(monthIndex, year);
       
       // Cria os registros para inserir
-      const newSchedules = days.map((day) => {
-        const pattern = WEEKLY_PATTERN[day.dayOfWeek];
-        const resolveProfessional = (name: string) => findActiveProfessionals(name)[0];
-        const morning = resolveProfessional(pattern?.morning || "");
-        const afternoon = resolveProfessional(pattern?.afternoon || "");
-        return {
-          sheet_name: "Escala",
-          date: day.date,
-          day_of_week: day.dayOfWeek,
-          morning_shift: morning?.name || "",
-          morning_shift_professional_id: morning?.id || null,
-          afternoon_shift: afternoon?.name || "",
-          afternoon_shift_professional_id: afternoon?.id || null,
-        };
-      });
+      const newSchedules = days.map(day => ({
+        sheet_name: "Escala",
+        date: day.date,
+        day_of_week: day.dayOfWeek,
+        morning_shift: WEEKLY_PATTERN[day.dayOfWeek]?.morning || "",
+        afternoon_shift: WEEKLY_PATTERN[day.dayOfWeek]?.afternoon || "",
+      }));
       
       // Insere no banco
       const { error } = await supabase
@@ -424,7 +210,7 @@ export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpd
       
       toast({
         title: "Escala gerada!",
-        description: `${newSchedules.length} dias criados para ${MONTH_LABELS[selectedMonth]} de ${selectedYear}.`,
+        description: `${newSchedules.length} dias criados para ${MONTH_LABELS[selectedMonth]}.`,
       });
       
       // Atualiza a lista
@@ -432,10 +218,9 @@ export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpd
       
     } catch (error) {
       console.error("Error generating schedule:", error);
-      if (onRefresh) onRefresh();
       toast({
-        title: "Não foi possível confirmar a geração da escala",
-        description: "A lista será atualizada. Confira os dias do mês antes de tentar gerar novamente.",
+        title: "Erro ao gerar escala",
+        description: "Não foi possível criar a escala. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -443,13 +228,12 @@ export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpd
     }
   };
 
-  const handlePreviewSchedule = async () => {
+  const handleImportSchedule = async () => {
     if (!importFile) return;
-    setPreviewError(null);
     setIsImporting(true);
     try {
       const monthIndex = MONTH_NAMES.indexOf(selectedMonth);
-      const year = selectedYear;
+      const year = 2026;
 
       const fileBase64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -463,7 +247,6 @@ export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpd
 
       const { data, error } = await supabase.functions.invoke("import-schedule-image", {
         body: {
-          action: "preview",
           fileBase64,
           mimeType: importFile.type || "image/png",
           month: monthIndex + 1,
@@ -475,72 +258,19 @@ export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpd
       if (error) throw error;
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
 
-      const rows = parseSchedulePreviewResponse(data, year, monthIndex + 1, "Escala");
-      setPreviewRows(rows);
-      setPreviewError(null);
-      toast({
-        title: "Prévia pronta",
-        description: `${rows.length} dias reconhecidos. Revise antes de gravar.`,
-      });
-    } catch (err) {
-      console.error("Schedule preview error:", err);
-      const serverValidationMessage = await readScheduleValidationMessage(err);
-      const isValidationError = err instanceof ScheduleImportValidationError || serverValidationMessage !== null;
-      const description = err instanceof ScheduleImportValidationError
-        ? err.message
-        : serverValidationMessage || "Confira o formato e a nitidez do arquivo e tente novamente.";
-      setPreviewError(description);
-      toast({
-        title: isValidationError ? "Prévia incompleta" : "Não foi possível analisar a escala",
-        description,
-        variant: "destructive",
-      });
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const handleConfirmImport = async () => {
-    if (!previewRows.length) return;
-    const unresolvedNames = previewRows.some((row) => (row.morning_shift.trim() && !row.morning_shift_professional_id)
-      || (row.afternoon_shift.trim() && !row.afternoon_shift_professional_id));
-    if (unresolvedNames) {
-      toast({ title: "Revise os profissionais", description: "Associe cada nome reconhecido a um profissional cadastrado antes de confirmar.", variant: "destructive" });
-      return;
-    }
-    setIsImporting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("import-schedule-image", {
-        body: {
-          action: "confirm",
-          rows: previewRows.map((row) => ({
-            date: row.date,
-            morning_shift_professional_id: row.morning_shift_professional_id,
-            afternoon_shift_professional_id: row.afternoon_shift_professional_id,
-          })),
-          month: MONTH_NAMES.indexOf(selectedMonth) + 1,
-          year: selectedYear,
-          sheetName: "Escala",
-        },
-      });
-      if (error) throw error;
-      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
-
       const inserted = (data as { inserted?: number })?.inserted ?? 0;
       toast({
-        title: "Escala importada",
-        description: `${inserted} dias gravados para ${MONTH_LABELS[selectedMonth]} de ${selectedYear}.`,
+        title: "Agenda importada!",
+        description: `${inserted} dias replicados para ${MONTH_LABELS[selectedMonth]}.`,
       });
       setImportOpen(false);
       setImportFile(null);
-      setPreviewRows([]);
       if (onRefresh) onRefresh();
     } catch (err) {
-      console.error("Schedule import error:", err);
-      if (onRefresh) onRefresh();
+      console.error("Import error:", err);
       toast({
-        title: "Não foi possível confirmar a importação",
-        description: "A lista será atualizada. Confira a escala do mês antes de repetir a importação.",
+        title: "Erro ao importar agenda",
+        description: (err as Error).message || "Tente outra imagem mais nítida.",
         variant: "destructive",
       });
     } finally {
@@ -552,144 +282,99 @@ export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpd
     if (!file) return;
     const okTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"];
     if (!okTypes.includes(file.type)) {
-      const description = "Envie uma imagem PNG, JPG, WEBP ou PDF.";
-      setPreviewError(description);
       toast({
         title: "Formato não suportado",
-        description,
+        description: "Envie uma imagem (PNG, JPG, WEBP) ou PDF.",
         variant: "destructive",
       });
       return;
     }
     setImportFile(file);
-    setPreviewRows([]);
-    setPreviewError(null);
   };
-
-  const updatePreviewProfessional = (date: string, shift: "morning" | "afternoon", id: string | null, personName: string | null) => {
-    setPreviewRows((current) => current.map((row) => row.date !== date ? row : shift === "morning"
-      ? { ...row, morning_shift_professional_id: id, morning_shift: personName || "" }
-      : { ...row, afternoon_shift_professional_id: id, afternoon_shift: personName || "" }));
-  };
-
-  const unresolvedNameCount = previewRows.reduce((count, row) => count
-    + Number(Boolean(row.morning_shift.trim() && !row.morning_shift_professional_id))
-    + Number(Boolean(row.afternoon_shift.trim() && !row.afternoon_shift_professional_id)), 0);
-  const schedulePreviewTable = useTable({
-    features: schedulePreviewTableFeatures,
-    columns: schedulePreviewColumns,
-    data: previewRows,
-    getRowId: (row) => row.date,
-    meta: {
-      renderDate: (row) => <span className="whitespace-nowrap">{formatDateForDisplay(row.date)}</span>,
-      renderMorning: (row) => (
-        <PersonSelect
-          people={professionals}
-          value={row.morning_shift_professional_id}
-          currentLabel={row.morning_shift || null}
-          placeholder="Selecionar profissional"
-          ariaLabel={`Profissional da manhã em ${formatDateForDisplay(row.date)}`}
-          emptyLabel="Sem profissional"
-          disabled={professionalsLoading}
-          onValueChange={(id, person) => updatePreviewProfessional(row.date, "morning", id, person?.name || null)}
-        />
-      ),
-      renderAfternoon: (row) => (
-        <PersonSelect
-          people={professionals}
-          value={row.afternoon_shift_professional_id}
-          currentLabel={row.afternoon_shift || null}
-          placeholder="Selecionar profissional"
-          ariaLabel={`Profissional da tarde em ${formatDateForDisplay(row.date)}`}
-          emptyLabel="Sem profissional"
-          disabled={professionalsLoading}
-          onValueChange={(id, person) => updatePreviewProfessional(row.date, "afternoon", id, person?.name || null)}
-        />
-      ),
-    },
-  });
 
   return (
     <div className="space-y-4">
-      <PersonDirectoryHint
-        title="Profissionais"
-        kind="profissional"
-        path="/cadastros/profissionais"
-        people={professionals}
-        isLoading={professionalsLoading}
-        error={professionalsError}
-        onRetry={refreshProfessionals}
-      />
       {/* Filtro de Mês */}
       <Card className="border-border">
-        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:flex-wrap sm:items-end sm:p-5">
-          <FilterGrid columns={2} className="w-full sm:w-auto sm:grid-cols-[190px_110px]">
-            <SelectFilter
-              id="schedule-month"
-              label="Mês"
-              value={selectedMonth}
-              onValueChange={(month) => setPeriod((current) => ({ ...current, month }))}
-              options={MONTH_NAMES.map((month) => ({
-                value: month,
-                label: `${MONTH_LABELS[month]}${availableMonths.includes(month) ? "" : " · Sem registros"}`,
-              }))}
-              labelAdornment={<Calendar aria-hidden="true" className="size-4 text-primary" />}
-              className="w-full min-w-0"
-              triggerClassName="w-full"
-            />
-            <SelectFilter
-              id="schedule-year"
-              label="Ano"
-              value={String(selectedYear)}
-              onValueChange={(year) => setPeriod((current) => ({ ...current, year: Number(year) }))}
-              options={availableYears.map(String)}
-              className="w-full min-w-0"
-              triggerClassName="w-full"
-            />
-          </FilterGrid>
-          <p className="text-sm text-muted-foreground sm:pb-2" aria-live="polite">
-            {scheduleCount} {scheduleCount === 1 ? "dia" : "dias"} na escala
-            {isRefreshing && <span className="ml-2">· Atualizando…</span>}
-          </p>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" />
+              Mês:
+            </Label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="min-w-[180px] justify-between">
+                  {MONTH_LABELS[selectedMonth] || selectedMonth}
+                  <ChevronDown className="h-4 w-4 ml-2 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[200px] p-2" align="start">
+                <div className="space-y-1">
+                  {MONTH_NAMES.map((month) => {
+                    const hasData = availableMonths.includes(month);
+                    return (
+                      <div
+                        key={month}
+                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors ${
+                          selectedMonth === month
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted"
+                        }`}
+                        onClick={() => setSelectedMonth(month)}
+                      >
+                        <span className="text-sm font-medium">{MONTH_LABELS[month]}</span>
+                        {!hasData && (
+                          <span className={`text-xs ${selectedMonth === month ? "opacity-80" : "text-muted-foreground"}`}>
+                            vazio
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="text-sm text-muted-foreground">
+              ({scheduleCount} registros)
+            </span>
 
-          <div className="flex flex-wrap gap-2 sm:ml-auto">
             <Button
               variant="outline"
               className="gap-2"
               onClick={() => setImportOpen(true)}
-              disabled={isImporting}
             >
               <Upload className="h-4 w-4" />
-              Importar escala
+              Importar Agenda
             </Button>
 
             {/* Botão para gerar escala */}
             {!hasDataInMonth && (
               <AlertDialog>
-                <AlertDialogTrigger render={
-                  <Button variant="default" className="gap-2" disabled={isGenerating || professionalsLoading || Boolean(professionalsError) || !canGenerateAutomaticPattern}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="default" className="gap-2" disabled={isGenerating}>
                     {isGenerating ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Wand2 className="h-4 w-4" />
                     )}
-                    Gerar Escala de {MONTH_LABELS[selectedMonth]} de {selectedYear}
+                    Gerar Escala de {MONTH_LABELS[selectedMonth]}
                   </Button>
-                } />
+                </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Gerar Escala Automática</AlertDialogTitle>
                     <AlertDialogDescription className="space-y-2">
                       <p>
-                        Isso criará a escala de <strong>{MONTH_LABELS[selectedMonth]} de {selectedYear}</strong> seguindo o padrão semanal:
+                        Isso criará a escala de <strong>{MONTH_LABELS[selectedMonth]}</strong> seguindo o padrão semanal:
                       </p>
                       <div className="mt-3 p-3 bg-muted rounded-lg text-sm space-y-1">
-                        <p><strong>SEG:</strong> {getPatternDisplayName(WEEKLY_PATTERN.SEG.morning)} (manhã e tarde)</p>
-                        <p><strong>TER:</strong> {getPatternDisplayName(WEEKLY_PATTERN.TER.morning)} (manhã e tarde)</p>
-                        <p><strong>QUA:</strong> {getPatternDisplayName(WEEKLY_PATTERN.QUA.morning)} (manhã) / {getPatternDisplayName(WEEKLY_PATTERN.QUA.afternoon)} (tarde)</p>
-                        <p><strong>QUI:</strong> {getPatternDisplayName(WEEKLY_PATTERN.QUI.morning)} (manhã) / {getPatternDisplayName(WEEKLY_PATTERN.QUI.afternoon)} (tarde)</p>
-                        <p><strong>SEX:</strong> {getPatternDisplayName(WEEKLY_PATTERN.SEX.morning)} (manhã e tarde)</p>
-                        <p><strong>SAB:</strong> {getPatternDisplayName(WEEKLY_PATTERN.SAB.morning)} (manhã)</p>
+                        <p><strong>SEG:</strong> ANA (manhã e tarde)</p>
+                        <p><strong>TER:</strong> THABATA (manhã e tarde)</p>
+                        <p><strong>QUA:</strong> CAROL (manhã) / ANA (tarde)</p>
+                        <p><strong>QUI:</strong> LARISSA (manhã) / CASSIO (tarde)</p>
+                        <p><strong>SEX:</strong> AMANDA (manhã e tarde)</p>
+                        <p><strong>SAB:</strong> ALICE (manhã)</p>
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">
                         Domingos são automaticamente excluídos.
@@ -698,7 +383,7 @@ export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpd
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleGenerateSchedule} disabled={isGenerating || professionalsLoading || Boolean(professionalsError) || !canGenerateAutomaticPattern}>
+                    <AlertDialogAction onClick={handleGenerateSchedule}>
                       Gerar Escala
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -709,38 +394,14 @@ export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpd
         </CardContent>
       </Card>
 
-      {professionalsError && (
-        <div role="alert" className="flex flex-wrap items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
-          <span className="min-w-0 flex-1 text-muted-foreground">Não foi possível carregar o cadastro de profissionais: {professionalsError}</span>
-          <Button type="button" variant="outline" size="sm" disabled={professionalsLoading} onClick={() => void refreshProfessionals()}>
-            {professionalsLoading ? "Atualizando…" : "Tentar novamente"}
-          </Button>
-          <Link className="font-medium text-primary underline" to="/cadastros/profissionais">Cadastros de profissionais</Link>
-        </div>
-      )}
-
-      {!hasDataInMonth && !professionalsLoading && !professionalsError && !canGenerateAutomaticPattern && (
-        <div role="alert" className="flex flex-wrap items-start gap-x-3 gap-y-1 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-sm">
-          <p className="min-w-0 flex-1 text-warning-foreground">
-            {missingProfessionalNames.length > 0 && <>Cadastre ou reative: {missingProfessionalNames.join(", ")}.</>}
-            {missingProfessionalNames.length > 0 && ambiguousProfessionalNames.length > 0 && " "}
-            {ambiguousProfessionalNames.length > 0 && <>Mantenha um único cadastro ativo para: {ambiguousProfessionalNames.join(", ")}.</>}
-          </p>
-          <Link className="shrink-0 font-medium text-primary underline" to="/cadastros/profissionais">Revisar profissionais</Link>
-        </div>
-      )}
-
       {/* Modal Importar Agenda */}
-      <Dialog open={importOpen} onOpenChange={(o) => {
-        if (!o && isImporting) return;
-        setImportOpen(o);
-        if (!o) { setImportFile(null); setPreviewRows([]); setPreviewError(null); }
-      }}>
-        <DialogContent className="max-w-lg" closeButtonDisabled={isImporting} aria-busy={isImporting}>
+      <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) setImportFile(null); }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Importar Escala — {MONTH_LABELS[selectedMonth]} de {selectedYear}</DialogTitle>
+            <DialogTitle>Importar Agenda — {MONTH_LABELS[selectedMonth]}</DialogTitle>
             <DialogDescription>
-              A IA lê os profissionais por turno. Você verá a prévia antes de gravar; os registros atuais só serão substituídos na confirmação.
+              Arraste uma foto/print ou PDF da escala. A IA vai ler e replicar exatamente os médicos
+              de cada turno. Os registros já existentes em {MONTH_LABELS[selectedMonth]} serão substituídos.
             </DialogDescription>
           </DialogHeader>
 
@@ -752,6 +413,7 @@ export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpd
               setIsDragging(false);
               handleFileSelected(e.dataTransfer.files?.[0]);
             }}
+            onClick={() => fileInputRef.current?.click()}
             className={`mt-2 cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
               isDragging ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
             }`}
@@ -760,236 +422,121 @@ export function ScheduleTable({ schedules, isRefreshing = false, onUpdate, onUpd
               ref={fileInputRef}
               type="file"
               accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
-              className="sr-only"
-              tabIndex={-1}
-              aria-label="Arquivo da escala"
-              onChange={(event) => {
-                handleFileSelected(event.currentTarget.files?.[0]);
-                event.currentTarget.value = "";
-              }}
+              className="hidden"
+              onChange={(e) => handleFileSelected(e.target.files?.[0])}
             />
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={isImporting}
-              onClick={() => fileInputRef.current?.click()}
-              aria-describedby="schedule-import-file-help"
-              className="h-auto w-full flex-col gap-2 whitespace-normal py-3 text-center hover:bg-transparent"
-            >
-              {importFile ? (
-                <>
-                  <FileImage aria-hidden="true" className="size-8 text-primary" />
-                  <span className="text-sm font-medium">{importFile.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {(importFile.size / 1024).toFixed(0)} KB — selecione para trocar
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Upload aria-hidden="true" className="size-8 text-muted-foreground" />
-                  <span className="text-sm font-medium">Arraste a imagem aqui</span>
-                  <span className="text-xs text-muted-foreground">
-                    ou pressione Enter para selecionar (PNG, JPG, WEBP ou PDF)
-                  </span>
-                </>
-              )}
-            </Button>
-            <p id="schedule-import-file-help" className="sr-only">Arquivo aceito: PNG, JPG, WEBP ou PDF.</p>
-          </div>
-
-          {previewError && (
-            <div role="alert" className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning-foreground">
-              {previewError}
-            </div>
-          )}
-
-          {previewRows.length > 0 && (
-            <section aria-label="Prévia da escala reconhecida" className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">Prévia: {previewRows.length} dias</p>
+            {importFile ? (
+              <div className="flex flex-col items-center gap-2">
+                <FileImage className="h-8 w-8 text-primary" />
+                <p className="text-sm font-medium">{importFile.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {scheduleCount > 0 ? `${scheduleCount} registros atuais serão substituídos.` : "Nenhum registro atual será removido."}
+                  {(importFile.size / 1024).toFixed(0)} KB — clique para trocar
                 </p>
               </div>
-              <EntityDataTable
-                table={schedulePreviewTable}
-                label="Dias e turnos identificados"
-                className="max-h-56 overflow-auto rounded-md border"
-                tableClassName="text-sm"
-                headerClassName="sticky top-0 bg-muted"
-                getHeaderClassName={(columnId) => columnId === "data"
-                  ? "px-3 py-2"
-                  : "min-w-[230px] px-3 py-2"}
-                getCellClassName={(columnId) => columnId === "data" ? "whitespace-nowrap px-3 py-2" : "px-2 py-2"}
-              />
-              {unresolvedNameCount > 0 && <div role={professionalsError ? "alert" : "status"} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                <span className={professionalsError ? "text-destructive" : "text-warning-foreground"}>{professionalsError || `${unresolvedNameCount} nome(s) precisam ser associados a profissionais cadastrados.`}</span>
-                <Link className="font-medium text-primary underline" to="/cadastros/profissionais" target="_blank" rel="noreferrer">Abrir cadastros de profissionais</Link>
-                <Button type="button" variant="ghost" size="sm" className="h-7 px-2" disabled={professionalsLoading} onClick={() => void refreshProfessionals()}>{professionalsLoading ? "Atualizando…" : "Atualizar lista"}</Button>
-              </div>}
-              {professionals.some((person) => !person.is_active && previewRows.some((row) => row.morning_shift_professional_id === person.id || row.afternoon_shift_professional_id === person.id)) && <p className="text-xs text-muted-foreground">A prévia inclui profissional(is) inativo(s); confirme se a escala se refere a um período histórico.</p>}
-            </section>
-          )}
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <p className="text-sm font-medium">Arraste a imagem aqui</p>
+                <p className="text-xs text-muted-foreground">
+                  ou clique para selecionar (PNG, JPG, WEBP ou PDF)
+                </p>
+              </div>
+            )}
+          </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportOpen(false)} disabled={isImporting}>
               Cancelar
             </Button>
-            <Button
-              onClick={previewRows.length > 0 ? handleConfirmImport : handlePreviewSchedule}
-              disabled={!importFile || isImporting || (previewRows.length > 0 && (professionalsLoading || unresolvedNameCount > 0))}
-              className="gap-2"
-            >
+            <Button onClick={handleImportSchedule} disabled={!importFile || isImporting} className="gap-2">
               {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              {isImporting ? "Processando…" : previewRows.length > 0
-                ? scheduleCount > 0 ? `Confirmar e substituir ${scheduleCount}` : `Confirmar escala (${previewRows.length} dias)`
-                : "Ler e mostrar prévia"}
+              {isImporting ? "Importando..." : "Importar"}
             </Button>
-            <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-              {isImporting ? "Processando a escala; aguarde até que seja seguro fechar." : ""}
-            </span>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Lista compacta para celular */}
-      <div className="space-y-3 md:hidden" aria-label={`Escala de ${MONTH_LABELS[selectedMonth]} de ${selectedYear}`}>
-        {filteredSchedules.length === 0 ? (
-          <DataState
-            variant="empty"
-            title={`Sem dias cadastrados em ${MONTH_LABELS[selectedMonth]} de ${selectedYear}`}
-            description="Importe uma escala ou gere o mês pelas ações acima."
-            className="min-h-48"
-          />
-        ) : filteredSchedules.map((schedule) => {
-          const formattedDate = formatDateForDisplay(schedule.date);
-          return (
-            <Card key={schedule.id}>
-              <CardContent className="space-y-4 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="mb-1 text-xs font-medium text-muted-foreground">Data</p>
+      {/* Tabela */}
+      <div className="bg-card rounded-xl border border-border overflow-hidden card-shadow-lg animate-fade-in">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-table-header border-b border-table-border">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">
+                  Data
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  8:00 - 12:00
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  13:00 - 18:00
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">
+                  Dia
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[60px]">
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-table-border">
+              {filteredSchedules.map((schedule, index) => (
+                <tr 
+                  key={schedule.id} 
+                  className="table-cell-hover animate-slide-in"
+                  style={{ animationDelay: `${index * 20}ms` }}
+                >
+                  <td className="px-4 py-1">
                     <EditableCell
-                      value={formattedDate}
+                      value={formatDateForDisplay(schedule.date)}
                       onSave={(value) => onUpdate(schedule.id, "date", value)}
                       placeholder="DD/MMM"
-                      ariaLabel={`Data da escala de ${formattedDate}`}
                     />
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  </td>
+                  <td className="px-4 py-1">
+                    <EditableCell
+                      value={schedule.morning_shift || ""}
+                      onSave={(value) => onUpdate(schedule.id, "morning_shift", value)}
+                      placeholder="Nome"
+                    />
+                  </td>
+                  <td className="px-4 py-1">
+                    <EditableCell
+                      value={schedule.afternoon_shift || ""}
+                      onSave={(value) => onUpdate(schedule.id, "afternoon_shift", value)}
+                      placeholder="Nome"
+                    />
+                  </td>
+                  <td className="px-4 py-2 text-center">
                     <DayBadge day={schedule.day_of_week} />
+                  </td>
+                  <td className="px-4 py-2 text-center">
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setScheduleToDelete(schedule)}
-                      aria-label={`Excluir escala de ${formattedDate}`}
-                      className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => onDelete(schedule.id)}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     >
-                      <Trash2 className="size-4" aria-hidden="true" />
+                      <Trash2 className="w-4 h-4" />
                     </Button>
-                  </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label htmlFor={`schedule-morning-${schedule.id}`} className="text-xs font-medium text-muted-foreground">
-                      Manhã · 8:00–12:00
-                    </label>
-                    <PersonSelect
-                      id={`schedule-morning-${schedule.id}`}
-                      people={professionals}
-                      value={schedule.morning_shift_professional_id}
-                      currentLabel={schedule.morning_shift}
-                      onValueChange={(id, person) => onUpdateProfessional(schedule.id, "morning", id, person?.name || null)}
-                      placeholder="Selecionar profissional"
-                      ariaLabel={`Profissional da manhã em ${formattedDate}`}
-                      emptyLabel="Sem profissional"
-                      disabled={professionalsLoading}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor={`schedule-afternoon-${schedule.id}`} className="text-xs font-medium text-muted-foreground">
-                      Tarde · 13:00–18:00
-                    </label>
-                    <PersonSelect
-                      id={`schedule-afternoon-${schedule.id}`}
-                      people={professionals}
-                      value={schedule.afternoon_shift_professional_id}
-                      currentLabel={schedule.afternoon_shift}
-                      onValueChange={(id, person) => onUpdateProfessional(schedule.id, "afternoon", id, person?.name || null)}
-                      placeholder="Selecionar profissional"
-                      ariaLabel={`Profissional da tarde em ${formattedDate}`}
-                      emptyLabel="Sem profissional"
-                      disabled={professionalsLoading}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {filteredSchedules.length === 0 && (
+          <div className="px-6 py-12 text-center text-muted-foreground">
+            <p>Nenhum registro encontrado para {MONTH_LABELS[selectedMonth]}.</p>
+            <p className="text-sm mt-1">
+              {hasDataInMonth 
+                ? 'Clique em "Nova Linha" para adicionar.' 
+                : `Clique em "Gerar Escala de ${MONTH_LABELS[selectedMonth]}" para criar automaticamente.`
+              }
+            </p>
+          </div>
+        )}
       </div>
-
-      {/* Tabela para telas médias e grandes */}
-      <div className="hidden md:block">
-      {filteredSchedules.length === 0 ? (
-        <DataState
-          variant="empty"
-          title={`Sem dias cadastrados em ${MONTH_LABELS[selectedMonth]} de ${selectedYear}`}
-          description="Importe uma escala ou gere o mês pelas ações acima."
-          className="min-h-48"
-        />
-      ) : (
-      <EntityDataTable
-        table={scheduleTable}
-        label={`Escala de ${MONTH_LABELS[selectedMonth]} de ${selectedYear}`}
-        className="rounded-xl border border-border bg-card"
-        tableClassName="min-w-[760px]"
-        headerRowClassName="bg-table-header border-table-border hover:bg-table-header"
-        rowClassName="table-cell-hover animate-slide-in"
-        getRowStyle={(_, index) => ({ animationDelay: `${index * 20}ms` })}
-        getHeaderClassName={(columnId) => columnId === "data"
-          ? "w-[140px] text-xs font-semibold uppercase tracking-wider"
-          : columnId === "dia"
-            ? "w-[90px] text-center text-xs font-semibold uppercase tracking-wider"
-            : columnId === "acoes"
-              ? "w-[72px] text-center text-xs font-semibold uppercase tracking-wider"
-              : "text-xs font-semibold uppercase tracking-wider"}
-        getCellClassName={(columnId) => columnId === "dia" || columnId === "acoes"
-          ? "px-4 py-2 text-center"
-          : "px-4 py-1"}
-      />
-      )}
-      </div>
-
-      <AlertDialog
-        open={Boolean(scheduleToDelete)}
-        onOpenChange={(open) => { if (!open) setScheduleToDelete(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir dia da escala?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {scheduleToDelete && (
-                <>
-                  O dia {formatDateForDisplay(scheduleToDelete.date)} será removido da escala, incluindo os profissionais dos dois turnos. Esta ação não pode ser desfeita.
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (scheduleToDelete) onDelete(scheduleToDelete.id);
-                setScheduleToDelete(null);
-              }}
-            >
-              Excluir dia
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

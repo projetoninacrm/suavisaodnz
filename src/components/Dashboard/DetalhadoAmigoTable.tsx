@@ -1,32 +1,21 @@
-import { useState, useMemo, useEffect, type ReactNode } from "react";
-import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
-import { MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, TrendingUp, Percent, ShoppingCart, Store, UserCheck, Trash2, MoreVertical, UserPlus } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Filter, X, MessageCircle, Calendar, RefreshCw, Users, FileText, Tag, ChevronDown, Check, TrendingUp, Percent, ShoppingCart, Store, UserCheck, Search, Trash2, MoreVertical, UserPlus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FilterPanel } from "@/components/data/FilterPanel";
-import { FilterField } from "@/components/data/FilterField";
-import { FilterGrid } from "@/components/data/FilterGrid";
-import { SearchInput } from "@/components/data/SearchInput";
+import { CalendarFilterPopover } from "./CalendarFilterPopover";
+import { EditableCell } from "./EditableCell";
 import { ExpandableTextCell } from "./ExpandableTextCell";
 import { YesNoSelectCell } from "./YesNoSelectCell";
-import { MultiSelectFilter, UNINFORMED_FILTER_VALUE, type MultiSelectFilterItem } from "./MultiSelectFilter";
+import { MultiSelectFilter } from "./MultiSelectFilter";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Link } from "react-router-dom";
-import { DataState } from "@/components/data/DataState";
-import { DataTablePagination } from "@/components/data/DataTablePagination";
-import { CategorySelect } from "@/components/data/CategorySelect";
-import { EntityDataTable } from "@/components/data/EntityDataTable";
-import { useCategories, categoryMatchesValue, normalizeCategoryValue } from "@/hooks/useCategories";
-import type { CategoryCatalogItem } from "@/hooks/useCategories";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { AmigoAttendance } from "@/hooks/useDetalhadoAmigo";
 import type { GenericRecord } from "@/hooks/useGenericTable";
-import { useRouteState } from "@/hooks/useRouteState";
 import type { DateRange } from "react-day-picker";
 import {
   AlertDialog,
@@ -39,60 +28,29 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { buildLeadFromAttendance, type AttendanceLeadDraft } from "@/lib/leads";
 
 interface DetalhadoAmigoTableProps {
   attendances: AmigoAttendance[];
   isLoading: boolean;
-  sourceError: string | null;
   dateRange: { start: Date; end: Date };
   onDateRangeChange: (start: Date, end: Date) => void;
   onRefresh: () => void;
   dbRecords: GenericRecord[];
-  isDbLoading: boolean;
-  dbError: string | null;
   onUpdateDb: (id: string, field: string, value: string) => void;
   onCreateDb: (record: Partial<GenericRecord>) => Promise<string | null>;
   onDeleteDb: (id: string) => void;
   onRefreshDb: () => void;
-  onAddToLeads: (lead: AttendanceLeadDraft) => Promise<void>;
+  onAddToLeads: (lead: { nome: string; numero: string }) => Promise<void>;
 }
 
 interface Filters {
   patient_name: string;
-  professional: string[];
+  data: string[];
   como_conheceu: string[];
   receita: string[];
   venda: string[];
   visitou_loja: string[];
   tipo: string[];
-}
-
-const EMPTY_FILTERS: Filters = {
-  patient_name: "",
-  professional: [],
-  como_conheceu: [],
-  receita: [],
-  venda: [],
-  visitou_loja: [],
-  tipo: [],
-};
-
-function emptyFilters(): Filters { return EMPTY_FILTERS; }
-
-function parseFilters(value: unknown): Filters {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return EMPTY_FILTERS;
-  const source = value as Partial<Record<keyof Filters, unknown>>;
-  const strings = (item: unknown) => Array.isArray(item) ? item.filter((entry): entry is string => typeof entry === "string") : [];
-  return {
-    patient_name: typeof source.patient_name === "string" ? source.patient_name : "",
-    professional: strings(source.professional),
-    como_conheceu: strings(source.como_conheceu),
-    receita: strings(source.receita),
-    venda: strings(source.venda),
-    visitou_loja: strings(source.visitou_loja),
-    tipo: strings(source.tipo),
-  };
 }
 
 // Tipo combinado: dados da API + dados editáveis do banco
@@ -106,7 +64,6 @@ interface CombinedRecord {
   patient_phone: string | null;
   patient_know_by: string | null;
   event_name: string; // Tipo de atendimento da API
-  doctor_name: string;
 // Campos editáveis do banco
   como_conheceu: string;
   receita: string;
@@ -115,251 +72,40 @@ interface CombinedRecord {
   obs: string;
 }
 
-type AttendanceTableMeta = {
-  renderName: (record: CombinedRecord) => ReactNode;
-  renderPhone: (record: CombinedRecord) => ReactNode;
-  renderOrigin: (record: CombinedRecord) => ReactNode;
-  renderRevenue: (record: CombinedRecord) => ReactNode;
-  renderSale: (record: CombinedRecord) => ReactNode;
-  renderStoreVisit: (record: CombinedRecord) => ReactNode;
-  renderObservation: (record: CombinedRecord) => ReactNode;
-  renderActions: (record: CombinedRecord) => ReactNode;
-};
-
-const attendanceTableFeatures = tableFeatures({ tableMeta: {} as AttendanceTableMeta });
-const attendanceColumn = createColumnHelper<typeof attendanceTableFeatures, CombinedRecord>();
-const attendanceColumns = attendanceColumn.columns([
-  attendanceColumn.accessor("patient_name", { header: "Nome", cell: ({ row, table }) => table.options.meta.renderName(row.original) }),
-  attendanceColumn.accessor("patient_age", { header: "Idade", cell: ({ getValue }) => getValue() !== null ? `${getValue()} anos` : "-" }),
-  attendanceColumn.accessor("patient_phone", { header: "Telefone", cell: ({ row, table }) => table.options.meta.renderPhone(row.original) }),
-  attendanceColumn.accessor("event_name", { header: "Tipo", cell: ({ getValue }) => getValue() || "-" }),
-  attendanceColumn.display({ id: "origem", header: "Origem do contato", cell: ({ row, table }) => table.options.meta.renderOrigin(row.original) }),
-  attendanceColumn.display({ id: "receita", header: "Receita", cell: ({ row, table }) => table.options.meta.renderRevenue(row.original) }),
-  attendanceColumn.display({ id: "venda", header: "Venda", cell: ({ row, table }) => table.options.meta.renderSale(row.original) }),
-  attendanceColumn.accessor("date", { header: "Data" }),
-  attendanceColumn.display({ id: "visita", header: "Visita à loja", cell: ({ row, table }) => table.options.meta.renderStoreVisit(row.original) }),
-  attendanceColumn.display({ id: "observacao", header: "Observação", cell: ({ row, table }) => table.options.meta.renderObservation(row.original) }),
-  attendanceColumn.display({ id: "acoes", header: "Ações", cell: ({ row, table }) => table.options.meta.renderActions(row.original) }),
-]);
-
-function formatPhoneForWhatsApp(phone: string | null) {
-  if (!phone) return null;
-  const cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length === 11 || cleaned.length === 10) return `55${cleaned}`;
-  return cleaned;
-}
-
-function AttendanceRowActions({ record, addDisabled, deleteDisabled, onAddToLeads, onDelete }: {
-  record: CombinedRecord;
-  addDisabled: boolean;
-  deleteDisabled: boolean;
-  onAddToLeads: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-end gap-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={(
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Ações para ${record.patient_name}`}
-              className="size-9 text-muted-foreground hover:text-foreground"
-              disabled={addDisabled}
-            >
-              <MoreVertical className="size-4" aria-hidden="true" />
-            </Button>
-          )}
-        />
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={onAddToLeads} disabled={addDisabled}>
-            <UserPlus className="mr-2 size-4" aria-hidden="true" />
-            Adicionar aos Leads
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {record.dbId && (
-        <AlertDialog>
-          <AlertDialogTrigger render={(
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-9 text-muted-foreground hover:text-destructive"
-              aria-label={`Excluir complementos locais de ${record.patient_name}`}
-              disabled={deleteDisabled}
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-            </Button>
-          )} />
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Excluir complementos deste atendimento?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Os dados locais de origem, receita, venda, visita e observação de <strong>{record.patient_name}</strong> serão removidos. O atendimento original do Amigo permanece. Esta ação não pode ser desfeita.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={deleteDisabled} onClick={onDelete}>
-                Excluir complementos
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-    </div>
-  );
-}
-
-function AttendanceMobileCard({ record, categories, fallbackOrigins, fieldsDisabled, addDisabled, deleteDisabled, onUpdate, onAddToLeads, onDelete }: {
-  record: CombinedRecord;
-  categories: CategoryCatalogItem[];
-  fallbackOrigins: string[];
-  fieldsDisabled: boolean;
-  addDisabled: boolean;
-  deleteDisabled: boolean;
-  onUpdate: (field: string, value: string) => void;
-  onAddToLeads: () => void;
-  onDelete: () => void;
-}) {
-  const whatsappNumber = formatPhoneForWhatsApp(record.patient_phone);
-
-  return (
-    <Card className="w-full min-w-0">
-      <CardContent className="min-w-0 space-y-4 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="break-words font-semibold">{record.patient_name || "Sem nome"}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{record.event_name || "Atendimento"}{record.doctor_name ? ` · ${record.doctor_name}` : ""}</p>
-          </div>
-          <div className="shrink-0 text-right text-sm tabular-nums">
-            <p className="font-medium">{record.date}</p>
-            {record.time && <p className="text-xs text-muted-foreground">{record.time}</p>}
-          </div>
-        </div>
-
-        <dl className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3 text-sm">
-          <div className="min-w-0">
-            <dt className="text-xs text-muted-foreground">Telefone</dt>
-            <dd className="mt-0.5 flex min-w-0 items-center gap-1">
-              <span className="min-w-0 break-all">{record.patient_phone || "Não informado"}</span>
-              {whatsappNumber && (
-                <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" aria-label={`Abrir conversa de WhatsApp com ${record.patient_name}`} className="shrink-0 rounded p-1 text-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <MessageCircle className="size-4" aria-hidden="true" />
-                </a>
-              )}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-xs text-muted-foreground">Idade</dt>
-            <dd className="mt-0.5 min-w-0 break-words font-medium">{record.patient_age !== null ? `${record.patient_age} anos` : "Não informada"}</dd>
-          </div>
-        </dl>
-
-        <div className="space-y-3 border-t border-border pt-3">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Origem do contato</p>
-            <OriginCategorySelect value={record.como_conheceu} categories={categories} fallbackValues={fallbackOrigins} ariaLabel={`Origem do contato de ${record.patient_name}`} disabled={fieldsDisabled} onSave={(value) => onUpdate("como_conheceu", value)} />
-          </div>
-          <div className="grid min-w-0 grid-cols-2 gap-3">
-            <div className="min-w-0 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Receita</p>
-              <YesNoSelectCell value={record.receita} onSave={(value) => onUpdate("receita", value)} placeholder="Receita" emptyLabel="Selecionar" ariaLabel={`Receita de ${record.patient_name}`} disabled={fieldsDisabled} />
-            </div>
-            <div className="min-w-0 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Venda</p>
-              <YesNoSelectCell value={record.venda} onSave={(value) => onUpdate("venda", value)} placeholder="Venda" emptyLabel="Selecionar" ariaLabel={`Venda de ${record.patient_name}`} disabled={fieldsDisabled} />
-            </div>
-            <div className="min-w-0 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Visita à loja</p>
-              <YesNoSelectCell value={record.visitou_loja} onSave={(value) => onUpdate("visitou_loja", value)} placeholder="Visitou" emptyLabel="Selecionar" ariaLabel={`Visita à loja de ${record.patient_name}`} disabled={fieldsDisabled} />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Observação</p>
-            <ExpandableTextCell value={record.obs} onSave={(value) => onUpdate("obs", value)} placeholder="Motivo / observação" ariaLabel={`Observação de ${record.patient_name}`} disabled={fieldsDisabled} />
-          </div>
-        </div>
-
-        <AttendanceRowActions record={record} addDisabled={addDisabled} deleteDisabled={deleteDisabled} onAddToLeads={onAddToLeads} onDelete={onDelete} />
-      </CardContent>
-    </Card>
-  );
-}
-
-function matchesPatientSearch(record: Pick<CombinedRecord, "patient_name" | "patient_phone">, query: string) {
-  if (!query) return true;
-
-  const normalizedQuery = query.toLowerCase();
-  const matchesName = record.patient_name.toLowerCase().includes(normalizedQuery);
-  const phoneQuery = query.replace(/\D/g, "");
-  const matchesPhone = phoneQuery.length > 0 && (record.patient_phone || "").replace(/\D/g, "").includes(phoneQuery);
-
-  return matchesName || matchesPhone;
-}
-
-function isUninformed(value: string | null | undefined) {
-  return !value?.trim();
-}
-
-function matchesSelectedValues(selected: string[], value: string | null | undefined) {
-  if (selected.length === 0) return true;
-  return selected.some((selectedValue) => selectedValue === UNINFORMED_FILTER_VALUE
-    ? isUninformed(value)
-    : selectedValue === (value ?? ""));
-}
-
-function addUninformedOption(values: string[], hasUninformed: boolean): MultiSelectFilterItem[] {
-  return [
-    ...values,
-    ...(hasUninformed ? [{ value: UNINFORMED_FILTER_VALUE, label: "Não informado (vazio)" }] : []),
-  ];
-}
-
 export function DetalhadoAmigoTable({ 
   attendances, 
   isLoading, 
-  sourceError,
   dateRange,
   onDateRangeChange,
   onRefresh,
   dbRecords,
-  isDbLoading,
-  dbError,
   onUpdateDb,
   onCreateDb,
   onDeleteDb,
   onRefreshDb,
   onAddToLeads,
 }: DetalhadoAmigoTableProps) {
-  const {
-    categories: originCategories,
-    error: originCategoriesError,
-    isLoading: isLoadingOriginCategories,
-    refresh: refreshOriginCategories,
-  } = useCategories("service_origin");
-  const activeOriginCategories = useMemo(() => originCategories.filter((category) => category.is_active), [originCategories]);
-  const [filters, setFilters] = useRouteState("atendimentosFilters", emptyFilters, parseFilters);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
-  const [pendingVisitLead, setPendingVisitLead] = useState<CombinedRecord | null>(null);
-  const [isAddingVisitLead, setIsAddingVisitLead] = useState(false);
+  const [filters, setFilters] = useState<Filters>({
+    patient_name: "",
+    data: [],
+    como_conheceu: [],
+    receita: [],
+    venda: [],
+    visitou_loja: [],
+    tipo: [],
+  });
 
   const [calendarRange, setCalendarRange] = useState<DateRange | undefined>({
     from: dateRange.start,
     to: dateRange.end,
   });
-  useEffect(() => {
-    setCalendarRange({ from: dateRange.start, to: dateRange.end });
-  }, [dateRange.end, dateRange.start]);
 
   // Carregar dados do banco quando a API retornar
   useEffect(() => {
     if (attendances.length > 0) {
       onRefreshDb();
     }
-  }, [attendances.length, onRefreshDb]);
+  }, [attendances.length]);
 
   // Normalizar nome para comparação (lowercase, sem espaços extras)
   const normalizeName = (name: string | null | undefined): string => {
@@ -385,13 +131,12 @@ export function DetalhadoAmigoTable({
         patient_phone: att.patient_phone,
         patient_know_by: att.patient_know_by,
         event_name: att.event_name || "",
-        doctor_name: att.doctor_name || "",
         // Prioriza o valor do banco, mas usa o da API como fallback
         como_conheceu: dbRecord?.como_conheceu || att.patient_know_by || "",
         receita: dbRecord?.receita || "",
         visitou_loja: dbRecord?.visitou_loja || "",
-        venda: dbRecord?.venda || "",
-        obs: dbRecord?.obs || "",
+        venda: (dbRecord as any)?.venda || "",
+        obs: (dbRecord as any)?.obs || "",
       };
     });
   }, [attendances, dbRecords]);
@@ -408,65 +153,51 @@ export function DetalhadoAmigoTable({
     const allComoConheceu = [
       ...combinedRecords.map(r => r.como_conheceu),
       ...uniqueValuesFromDb.comoConheceuDb
-    ].filter((value) => Boolean(value?.trim()));
+    ].filter(Boolean);
     
     const allReceita = [
       ...combinedRecords.map(r => r.receita),
       ...uniqueValuesFromDb.receitaDb
-    ].filter((value) => Boolean(value?.trim()));
-
-    const originValues = [...new Set([
-      ...activeOriginCategories.map((category) => category.label),
-      ...allComoConheceu.filter((value) => !activeOriginCategories.some((category) => categoryMatchesValue(category, value))),
-    ])].sort();
-    const revenueValues = [...new Set(allReceita)].sort();
-    const typeValues = [...new Set(combinedRecords.map((record) => record.event_name).filter((value) => Boolean(value?.trim())))].sort();
-    const saleValues = [...new Set(["Sim", "Não", ...combinedRecords.map((record) => record.venda).filter((value) => Boolean(value?.trim()))])];
-    const visitValues = [...new Set(["Sim", "Não", ...combinedRecords.map((record) => record.visitou_loja).filter((value) => Boolean(value?.trim()))])];
+    ].filter(Boolean);
 
     return {
       patient_name: [...new Set(combinedRecords.map(r => r.patient_name).filter(Boolean))] as string[],
-      professional: [...new Set(combinedRecords.map((record) => record.doctor_name.trim() || "Sem profissional"))].sort(),
-      como_conheceu: originValues,
-      como_conheceu_filter: addUninformedOption(originValues, combinedRecords.some((record) => isUninformed(record.como_conheceu))),
-      receita: revenueValues,
-      receita_filter: addUninformedOption(revenueValues, combinedRecords.some((record) => isUninformed(record.receita))),
-      venda_filter: addUninformedOption(saleValues, combinedRecords.some((record) => isUninformed(record.venda))),
-      visitou_loja_filter: addUninformedOption(visitValues, combinedRecords.some((record) => isUninformed(record.visitou_loja))),
-      tipo: typeValues,
-      tipo_filter: addUninformedOption(typeValues, combinedRecords.some((record) => isUninformed(record.event_name))),
+      data: [...new Set(combinedRecords.map(r => r.date).filter(Boolean))] as string[],
+      como_conheceu: [...new Set(allComoConheceu)].sort() as string[],
+      receita: [...new Set(allReceita)].sort() as string[],
+      tipo: [...new Set(combinedRecords.map(r => r.event_name).filter(Boolean))].sort() as string[],
     };
-  }, [activeOriginCategories, combinedRecords, uniqueValuesFromDb]);
+  }, [combinedRecords, uniqueValuesFromDb]);
 
   const filteredRecords = useMemo(() => {
     const filtered = combinedRecords.filter(record => {
-      if (!matchesPatientSearch(record, filters.patient_name)) return false;
-      if (filters.professional.length > 0 && !filters.professional.includes(record.doctor_name.trim() || "Sem profissional")) return false;
+      // Filtro de busca por nome (case-insensitive)
+      if (filters.patient_name && !record.patient_name?.toLowerCase().includes(filters.patient_name.toLowerCase())) return false;
+      if (filters.data.length > 0 && !filters.data.includes(record.date || "")) return false;
       // Filtro multi-select para Como Conheceu
       if (filters.como_conheceu.length > 0) {
         const value = record.como_conheceu || "";
-        const matchesSelectedOrigin = filters.como_conheceu.some((selected) => {
-          if (selected === UNINFORMED_FILTER_VALUE) return isUninformed(value);
-          const category = activeOriginCategories.find((candidate) => normalizeCategoryValue(candidate.label) === normalizeCategoryValue(selected));
-          return category ? categoryMatchesValue(category, value) : selected === value;
-        });
-        if (!matchesSelectedOrigin) return false;
+        if (!filters.como_conheceu.includes(value)) return false;
       }
       // Filtro multi-select para Receita
       if (filters.receita.length > 0) {
-        if (!matchesSelectedValues(filters.receita, record.receita)) return false;
+        const value = record.receita || "";
+        if (!filters.receita.includes(value)) return false;
       }
       // Filtro multi-select para Venda
       if (filters.venda.length > 0) {
-        if (!matchesSelectedValues(filters.venda, record.venda)) return false;
+        const value = record.venda || "";
+        if (!filters.venda.includes(value)) return false;
       }
       // Filtro multi-select para Visitou a Loja
       if (filters.visitou_loja.length > 0) {
-        if (!matchesSelectedValues(filters.visitou_loja, record.visitou_loja)) return false;
+        const value = record.visitou_loja || "";
+        if (!filters.visitou_loja.includes(value)) return false;
       }
       // Filtro multi-select para Tipo
       if (filters.tipo.length > 0) {
-        if (!matchesSelectedValues(filters.tipo, record.event_name)) return false;
+        const value = record.event_name || "";
+        if (!filters.tipo.includes(value)) return false;
       }
       return true;
     });
@@ -481,25 +212,34 @@ export function DetalhadoAmigoTable({
       const timeB = b.time || "00:00";
       return timeB.localeCompare(timeA);
     });
-  }, [activeOriginCategories, combinedRecords, filters]);
-
-  const pageCount = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
-  const currentPage = Math.min(page, pageCount);
-  const visibleRecords = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredRecords.slice(start, start + pageSize);
-  }, [currentPage, filteredRecords, pageSize]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [dateRange.end, dateRange.start, filters]);
+  }, [combinedRecords, filters]);
 
   const hasActiveFilters = Object.entries(filters).some(([, value]) => 
     Array.isArray(value) ? value.length > 0 : value !== ""
   );
 
   const clearFilters = () => {
-    setFilters(EMPTY_FILTERS);
+    setFilters({
+      patient_name: "",
+      data: [],
+      como_conheceu: [],
+      receita: [],
+      venda: [],
+      visitou_loja: [],
+      tipo: [],
+    });
+  };
+
+  const formatPhoneForWhatsApp = (phone: string | null) => {
+    if (!phone) return null;
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.length === 11 || cleaned.length === 10) {
+      return `55${cleaned}`;
+    }
+    if (cleaned.length === 13 && cleaned.startsWith("55")) {
+      return cleaned;
+    }
+    return cleaned;
   };
 
   const handleDateRangeSelect = (range: DateRange | undefined) => {
@@ -510,27 +250,13 @@ export function DetalhadoAmigoTable({
   };
 
   const handleAddToLeads = async (record: CombinedRecord) => {
-    if (isLoading) return;
-    await onAddToLeads(buildLeadFromAttendance(record));
-  };
-
-  const confirmVisitLead = async () => {
-    const record = pendingVisitLead;
-    if (!record) return;
-    setIsAddingVisitLead(true);
-    try {
-      await handleAddToLeads(record);
-    } catch {
-      // Error toast already shown by the lead creation flow.
-    } finally {
-      setIsAddingVisitLead(false);
-      setPendingVisitLead(null);
-    }
+    await onAddToLeads({
+      nome: record.patient_name || "",
+      numero: record.patient_phone || "",
+    });
   };
 
   const handleDbUpdate = async (record: CombinedRecord, field: string, value: string) => {
-    if (isLoading || isDbLoading || dbError) return;
-    const becameStoreVisit = field === "visitou_loja" && value === "Sim" && record.visitou_loja?.toLowerCase() !== "sim";
     if (record.dbId) {
       // Atualizar registro existente no banco
       onUpdateDb(record.dbId, field, value);
@@ -550,110 +276,44 @@ export function DetalhadoAmigoTable({
         onRefreshDb();
       }
     }
-    if (becameStoreVisit) setPendingVisitLead({ ...record, visitou_loja: "Sim" });
   };
 
-  const attendanceTable = useTable({
-    features: attendanceTableFeatures,
-    columns: attendanceColumns,
-    data: visibleRecords,
-    getRowId: (record) => record.apiId,
-    meta: {
-      renderName: (record) => (
-        <div className="text-sm">
-          <div>{record.patient_name}</div>
-          {record.time && <div className="text-xs text-muted-foreground">{record.time}</div>}
-        </div>
-      ),
-      renderPhone: (record) => {
-        const whatsappNumber = formatPhoneForWhatsApp(record.patient_phone);
-        return (
-          <div className="flex items-center gap-1">
-            <span className="text-sm">{record.patient_phone || "-"}</span>
-            {whatsappNumber && (
-              <a
-                href={`https://wa.me/${whatsappNumber}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Abrir conversa de WhatsApp com ${record.patient_name}`}
-                className="rounded-md p-1 text-accent transition-colors hover:bg-accent/20"
-                title="Abrir WhatsApp"
-              >
-                <MessageCircle className="w-4 h-4" />
-              </a>
-            )}
-          </div>
-        );
-      },
-      renderOrigin: (record) => (
-        <OriginCategorySelect
-          value={record.como_conheceu}
-          categories={originCategories}
-          fallbackValues={uniqueValues.como_conheceu}
-          ariaLabel={`Origem do contato de ${record.patient_name}`}
-          disabled={isLoading || isDbLoading || Boolean(dbError)}
-          onSave={(value) => handleDbUpdate(record, "como_conheceu", value)}
-        />
-      ),
-      renderRevenue: (record) => (
-        <YesNoSelectCell
-          value={record.receita}
-          onSave={(value) => handleDbUpdate(record, "receita", value)}
-          placeholder="Receita"
-          ariaLabel={`Receita de ${record.patient_name}`}
-          disabled={isLoading || isDbLoading || Boolean(dbError)}
-        />
-      ),
-      renderSale: (record) => (
-        <YesNoSelectCell
-          value={record.venda}
-          onSave={(value) => handleDbUpdate(record, "venda", value)}
-          placeholder="Venda"
-          ariaLabel={`Venda de ${record.patient_name}`}
-          disabled={isLoading || isDbLoading || Boolean(dbError)}
-        />
-      ),
-      renderStoreVisit: (record) => (
-        <YesNoSelectCell
-          value={record.visitou_loja}
-          onSave={(value) => handleDbUpdate(record, "visitou_loja", value)}
-          placeholder="Visitou"
-          ariaLabel={`Visita à loja de ${record.patient_name}`}
-          disabled={isLoading || isDbLoading || Boolean(dbError)}
-        />
-      ),
-      renderObservation: (record) => (
-        <ExpandableTextCell
-          value={record.obs}
-          onSave={(value) => handleDbUpdate(record, "obs", value)}
-          placeholder="Motivo / observação"
-          ariaLabel={`Observação de ${record.patient_name}`}
-          disabled={isLoading || isDbLoading || Boolean(dbError)}
-        />
-      ),
-      renderActions: (record) => (
-        <AttendanceRowActions
-          record={record}
-          addDisabled={isLoading}
-          deleteDisabled={isLoading || isDbLoading || Boolean(dbError)}
-          onAddToLeads={() => void handleAddToLeads(record)}
-          onDelete={() => { if (record.dbId) onDeleteDb(record.dbId); }}
-        />
-      ),
-    },
-  });
+  const FilterSelect = ({ 
+    value, 
+    onChange, 
+    options, 
+    placeholder 
+  }: { 
+    value: string; 
+    onChange: (v: string) => void; 
+    options: string[]; 
+    placeholder: string;
+  }) => (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-8 text-xs bg-background border-border">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent className="bg-popover border-border z-50">
+        <SelectItem value="all">{placeholder}</SelectItem>
+        {options.map(opt => (
+          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
   // Registros filtrados SEM o filtro de como_conheceu (para calcular total do período)
   const recordsWithoutComoConheceuFilter = useMemo(() => {
     return combinedRecords.filter(record => {
-      if (!matchesPatientSearch(record, filters.patient_name)) return false;
-      if (filters.professional.length > 0 && !filters.professional.includes(record.doctor_name.trim() || "Sem profissional")) return false;
+      if (filters.patient_name && record.patient_name !== filters.patient_name) return false;
+      if (filters.data.length > 0 && !filters.data.includes(record.date || "")) return false;
       if (filters.receita.length > 0) {
-        if (!matchesSelectedValues(filters.receita, record.receita)) return false;
+        const value = record.receita || "";
+        if (!filters.receita.includes(value)) return false;
       }
       return true;
     });
-  }, [combinedRecords, filters.patient_name, filters.professional, filters.receita]);
+  }, [combinedRecords, filters.patient_name, filters.data, filters.receita]);
 
   // Métricas calculadas baseadas nos filtros ativos
   const metrics = useMemo(() => {
@@ -664,6 +324,15 @@ export function DetalhadoAmigoTable({
     const receitasTotais = recordsWithoutComoConheceuFilter.filter(r => 
       r.receita?.toLowerCase() === "sim"
     ).length;
+    
+    // Agrupamento por "como_conheceu" para filtro interativo (apenas receita=sim)
+    const byComoConheceu: Record<string, number> = {};
+    recordsWithoutComoConheceuFilter.forEach(r => {
+      if (r.receita?.toLowerCase() === "sim") {
+        const key = r.como_conheceu || "Não informado";
+        byComoConheceu[key] = (byComoConheceu[key] || 0) + 1;
+      }
+    });
     
     // Receitas com potencial de venda = Receitas sim COM filtro de como_conheceu aplicado
     const receitasPotencial = filteredRecords.filter(r => 
@@ -705,6 +374,7 @@ export function DetalhadoAmigoTable({
     return {
       consultas,
       receitasTotais,
+      byComoConheceu,
       receitasPotencial,
       visitouLoja,
       taxaPresenca,
@@ -717,17 +387,190 @@ export function DetalhadoAmigoTable({
 
   return (
     <div className="space-y-4">
+      {/* Métricas / Kanbans */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3 animate-fade-in">
+        {/* Consultas (Total de Leads) */}
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-4 h-4 text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">Consultas</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.consultas}</p>
+          </CardContent>
+        </Card>
+
+        {/* Receitas Totais */}
+        <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-green-500" />
+              <span className="text-xs font-medium text-muted-foreground">Receitas Totais</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.receitasTotais}</p>
+          </CardContent>
+        </Card>
+
+        {/* Receitas c/ Potencial (filtro como conheceu) */}
+        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="w-4 h-4 text-purple-500" />
+              <span className="text-xs font-medium text-muted-foreground">Receitas c/ Potencial</span>
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full h-9 justify-between text-sm">
+                  <span className="truncate">
+                    {filters.como_conheceu.length === 0 
+                      ? "Selecionar origens" 
+                      : `${filters.como_conheceu.length} origem(ns)`}
+                  </span>
+                  <ChevronDown className="w-4 h-4 ml-2 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0 bg-popover border-border" align="start">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                  <button
+                    className="text-sm text-foreground hover:underline"
+                    onClick={() => setFilters(f => ({ 
+                      ...f, 
+                      como_conheceu: Object.keys(metrics.byComoConheceu) 
+                    }))}
+                  >
+                    Marcar todos
+                  </button>
+                  <X className="w-4 h-4 text-muted-foreground" />
+                  <button
+                    className="text-sm text-foreground hover:underline"
+                    onClick={() => setFilters(f => ({ ...f, como_conheceu: [] }))}
+                  >
+                    Limpar
+                  </button>
+                </div>
+                <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                  {Object.entries(metrics.byComoConheceu)
+                    .sort((a, b) => a[0].localeCompare(b[0]))
+                    .map(([origem, count]) => {
+                      const isSelected = filters.como_conheceu.includes(origem);
+                      return (
+                        <button
+                          key={origem}
+                          onClick={() => {
+                            setFilters(f => {
+                              const current = f.como_conheceu;
+                              if (current.includes(origem)) {
+                                return { ...f, como_conheceu: current.filter(v => v !== origem) };
+                              } else {
+                                return { ...f, como_conheceu: [...current, origem] };
+                              }
+                            });
+                          }}
+                          className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-muted/50 text-left"
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            isSelected ? "bg-primary border-primary" : "border-border"
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                          </div>
+                          <span className="text-sm text-foreground truncate flex-1">{origem}</span>
+                          <span className="text-xs text-muted-foreground">({count})</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <p className="text-2xl font-bold text-foreground mt-2">{metrics.receitasPotencial}</p>
+          </CardContent>
+        </Card>
+        
+        {/* Visitou a Loja */}
+        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Store className="w-4 h-4 text-amber-500" />
+              <span className="text-xs font-medium text-muted-foreground">Visitou a Loja</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.visitouLoja}</p>
+          </CardContent>
+        </Card>
+
+        {/* Taxa de Presença */}
+        <Card className="bg-gradient-to-br from-rose-500/10 to-rose-500/5 border-rose-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <UserCheck className="w-4 h-4 text-rose-500" />
+              <span className="text-xs font-medium text-muted-foreground">Taxa de Presença</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.taxaPresenca}%</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Visitou ÷ Potencial</p>
+          </CardContent>
+        </Card>
+
+        {/* Vendas */}
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <ShoppingCart className="w-4 h-4 text-blue-500" />
+              <span className="text-xs font-medium text-muted-foreground">Vendas</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.vendas}</p>
+          </CardContent>
+        </Card>
+
+        {/* Média de Idade */}
+        <Card className="bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border-indigo-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-4 h-4 text-indigo-500" />
+              <span className="text-xs font-medium text-muted-foreground">Média de Idade</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">
+              {metrics.mediaIdadeCompradores === "-" ? "-" : `${metrics.mediaIdadeCompradores} anos`}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">Clientes com venda = sim</p>
+          </CardContent>
+        </Card>
+
+        {/* Conversão */}
+        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-4 h-4 text-orange-500" />
+              <span className="text-xs font-medium text-muted-foreground">Conversão</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.conversao}%</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Vendas ÷ Visitou Loja</p>
+          </CardContent>
+        </Card>
+
+        {/* Receitas x Consultas */}
+        <Card className="bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 border-cyan-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Percent className="w-4 h-4 text-cyan-500" />
+              <span className="text-xs font-medium text-muted-foreground">Receitas x Consultas</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{metrics.receitasXConsultas}%</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Potencial ÷ Consultas</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Date Range Selector */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-fade-in">
+      <div className="bg-card rounded-xl border border-border p-4 card-shadow animate-fade-in">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-medium text-foreground">Período:</span>
           </div>
           <Popover>
-            <PopoverTrigger render={<Button variant="outline" className="h-10 text-sm" aria-label={`Selecionar período de atendimentos, de ${format(dateRange.start, "dd/MM/yyyy", { locale: ptBR })} até ${format(dateRange.end, "dd/MM/yyyy", { locale: ptBR })}`}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-9 text-sm">
                 {format(dateRange.start, "dd/MM/yyyy", { locale: ptBR })} - {format(dateRange.end, "dd/MM/yyyy", { locale: ptBR })}
-              </Button>} />
+              </Button>
+            </PopoverTrigger>
             <PopoverContent className="w-auto p-0 bg-popover border-border" align="start">
               <CalendarComponent
                 mode="range"
@@ -739,15 +582,15 @@ export function DetalhadoAmigoTable({
               />
             </PopoverContent>
           </Popover>
-          <Button
-            variant="outline"
-            size="sm"
+          <Button 
+            variant="outline" 
+            size="sm" 
             onClick={onRefresh}
             disabled={isLoading}
-            className="h-10"
+            className="h-9"
           >
             <RefreshCw className={`w-4 h-4 mr-1 ${isLoading ? "animate-spin" : ""}`} />
-            {isLoading ? "Atualizando…" : "Atualizar"}
+            Atualizar
           </Button>
           <div className="ml-auto text-sm text-muted-foreground">
             Unidade: <span className="font-medium text-foreground">Sua Visão - Padre Pedro Pinto</span>
@@ -755,388 +598,254 @@ export function DetalhadoAmigoTable({
         </div>
       </div>
 
-      <FilterPanel
-        hasActiveFilters={hasActiveFilters}
-        onClear={clearFilters}
-        resultSummary={`${filteredRecords.length} de ${attendances.length} atendimentos`}
-      >
-        <FilterGrid columns={7}>
-          <FilterField id="attendance-name-filter" label="Buscar cliente">
-            <SearchInput
-              id="attendance-name-filter"
-              value={filters.patient_name}
-              onChange={(e) => setFilters(f => ({ ...f, patient_name: e.target.value }))}
-              placeholder="Nome ou telefone"
-              className="h-10 bg-background text-sm"
-            />
-          </FilterField>
-          <FilterField id="attendance-type-filter" label="Tipo de atendimento">
+      {/* Filters */}
+      <div className="bg-card rounded-xl border border-border p-4 card-shadow animate-fade-in">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">Filtros</span>
+          <span className="text-xs text-muted-foreground ml-2">
+            {filteredRecords.length} de {attendances.length} registros
+          </span>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="ml-auto h-7 text-xs">
+              <X className="w-3 h-3 mr-1" />
+              Limpar filtros
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Nome</label>
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+              <Input
+                type="text"
+                value={filters.patient_name}
+                onChange={(e) => setFilters(f => ({ ...f, patient_name: e.target.value }))}
+                placeholder="Buscar nome..."
+                className="h-8 text-xs pl-7 bg-background border-border"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Tipo</label>
             <MultiSelectFilter
-              id="attendance-type-filter"
-              ariaLabel="Filtrar por tipo de atendimento"
-              options={uniqueValues.tipo_filter}
+              options={uniqueValues.tipo}
               selectedValues={filters.tipo}
               onSelectionChange={(values) => setFilters(f => ({ ...f, tipo: values }))}
               placeholder="Todos"
               emptyText="Nenhum tipo"
             />
-          </FilterField>
-          <FilterField id="attendance-professional-filter" label="Profissional">
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Como Conheceu</label>
             <MultiSelectFilter
-              id="attendance-professional-filter"
-              ariaLabel="Filtrar por profissional"
-              options={uniqueValues.professional}
-              selectedValues={filters.professional}
-              onSelectionChange={(values) => setFilters((current) => ({ ...current, professional: values }))}
-              placeholder="Todos"
-              emptyText="Nenhum profissional"
-            />
-          </FilterField>
-          <FilterField id="attendance-origin-filter" label="Origem do contato">
-            <MultiSelectFilter
-              id="attendance-origin-filter"
-              ariaLabel="Filtrar por origem do contato"
-              options={uniqueValues.como_conheceu_filter}
+              options={uniqueValues.como_conheceu}
               selectedValues={filters.como_conheceu}
               onSelectionChange={(values) => setFilters(f => ({ ...f, como_conheceu: values }))}
               placeholder="Todos"
               emptyText="Nenhum valor preenchido"
             />
-          </FilterField>
-          <FilterField id="attendance-revenue-filter" label="Receita">
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Receita</label>
             <MultiSelectFilter
-              id="attendance-revenue-filter"
-              ariaLabel="Filtrar por receita"
-              options={uniqueValues.receita_filter}
+              options={uniqueValues.receita}
               selectedValues={filters.receita}
               onSelectionChange={(values) => setFilters(f => ({ ...f, receita: values }))}
               placeholder="Todos"
               emptyText="Nenhum valor preenchido"
             />
-          </FilterField>
-          <FilterField id="attendance-sale-filter" label="Venda">
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Venda</label>
             <MultiSelectFilter
-              id="attendance-sale-filter"
-              ariaLabel="Filtrar por venda"
-              options={uniqueValues.venda_filter}
+              options={["Sim", "Não"]}
               selectedValues={filters.venda}
               onSelectionChange={(values) => setFilters(f => ({ ...f, venda: values }))}
               placeholder="Todos"
               emptyText="Nenhum valor"
             />
-          </FilterField>
-          <FilterField id="attendance-visit-filter" label="Visita à loja">
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Visitou a Loja</label>
             <MultiSelectFilter
-              id="attendance-visit-filter"
-              ariaLabel="Filtrar por visita à loja"
-              options={uniqueValues.visitou_loja_filter}
+              options={["Sim", "Não"]}
               selectedValues={filters.visitou_loja}
               onSelectionChange={(values) => setFilters(f => ({ ...f, visitou_loja: values }))}
               placeholder="Todos"
               emptyText="Nenhum valor"
             />
-          </FilterField>
-        </FilterGrid>
-      </FilterPanel>
-
-      {!sourceError && filteredRecords.length > 0 && (
-        <DataTablePagination
-          total={filteredRecords.length}
-          page={currentPage}
-          pageSize={pageSize}
-          onPageChange={setPage}
-          onPageSizeChange={(nextPageSize) => {
-            setPageSize(nextPageSize);
-            setPage(1);
-          }}
-          label="atendimentos"
-        />
-      )}
-
-      <div role="note" className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">Base dos indicadores:</span> Consultas e Receitas Totais consideram cliente, profissional e receita, mas não mudam com origem, tipo, venda e visita. Receitas potenciais, visitas e vendas seguem todos os filtros da lista; “Receitas × Consultas” compara essas bases.
-      </div>
-      {/* Métricas / Kanbans */}
-      <div role="group" aria-label="Métricas dos atendimentos" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 animate-fade-in">
-        {/* Consultas (Total de Leads) */}
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-4 h-4 text-primary" />
-              <span className="text-xs font-medium text-muted-foreground md:text-sm">Consultas</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.consultas}</p>
-          </CardContent>
-        </Card>
-
-        {/* Receitas Totais */}
-        <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-4 h-4 text-success-foreground" />
-              <span className="text-xs font-medium text-muted-foreground md:text-sm">Receitas Totais</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.receitasTotais}</p>
-          </CardContent>
-        </Card>
-
-        {/* Receitas com potencial; a origem é filtrada no painel único de filtros. */}
-        <Card className="bg-gradient-to-br from-chart-1/10 to-chart-1/5 border-chart-1/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Tag className="w-4 h-4 text-chart-1" />
-              <span className="text-xs font-medium text-muted-foreground md:text-sm">Receitas c/ Potencial</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.receitasPotencial}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Receitas com os filtros atuais</p>
-          </CardContent>
-        </Card>
-
-        {/* Visitou a Loja */}
-        <Card className="bg-gradient-to-br from-chart-2/10 to-chart-2/5 border-chart-2/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Store className="w-4 h-4 text-chart-2" />
-              <span className="text-xs font-medium text-muted-foreground md:text-sm">Visitou a Loja</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.visitouLoja}</p>
-          </CardContent>
-        </Card>
-
-        {/* Taxa de Presença */}
-        <Card className="bg-gradient-to-br from-chart-3/10 to-chart-3/5 border-chart-3/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <UserCheck className="w-4 h-4 text-chart-3" />
-              <span className="text-xs font-medium text-muted-foreground md:text-sm">Taxa de Presença</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.taxaPresenca}%</p>
-            <p className="text-xs text-muted-foreground mt-1">Visitou ÷ Potencial</p>
-          </CardContent>
-        </Card>
-
-        {/* Vendas */}
-        <Card className="bg-gradient-to-br from-chart-4/10 to-chart-4/5 border-chart-4/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <ShoppingCart className="w-4 h-4 text-chart-4" />
-              <span className="text-xs font-medium text-muted-foreground md:text-sm">Vendas</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.vendas}</p>
-          </CardContent>
-        </Card>
-
-        {/* Média de Idade */}
-        <Card className="bg-gradient-to-br from-chart-5/10 to-chart-5/5 border-chart-5/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-4 h-4 text-chart-5" />
-              <span className="text-xs font-medium text-muted-foreground md:text-sm">Média de Idade</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {metrics.mediaIdadeCompradores === "-" ? "-" : `${metrics.mediaIdadeCompradores} anos`}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Clientes com venda = sim</p>
-          </CardContent>
-        </Card>
-
-        {/* Conversão */}
-        <Card className="bg-gradient-to-br from-chart-1/10 to-chart-1/5 border-chart-1/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-4 h-4 text-chart-1" />
-              <span className="text-xs font-medium text-muted-foreground md:text-sm">Conversão</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.conversao}%</p>
-            <p className="text-xs text-muted-foreground mt-1">Vendas ÷ Visitou Loja</p>
-          </CardContent>
-        </Card>
-
-        {/* Receitas x Consultas */}
-        <Card className="bg-gradient-to-br from-chart-2/10 to-chart-2/5 border-chart-2/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Percent className="w-4 h-4 text-chart-2" />
-              <span className="text-xs font-medium text-muted-foreground md:text-sm">Receitas x Consultas</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{metrics.receitasXConsultas}%</p>
-            <p className="text-xs text-muted-foreground mt-1">Potencial ÷ Consultas</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {originCategoriesError && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
-          <p role="status" className="min-w-0 flex-1 text-sm text-muted-foreground">
-            Não foi possível carregar as categorias de origem. O filtro continua usando os valores registrados, sem agrupá-los em categorias.
-          </p>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => void refreshOriginCategories()} disabled={isLoadingOriginCategories}>
-              <RefreshCw className={`mr-1 size-3.5 ${isLoadingOriginCategories ? "animate-spin" : ""}`} aria-hidden="true" />
-              {isLoadingOriginCategories ? "Atualizando…" : "Tentar novamente"}
-            </Button>
-            <Link className="text-sm font-medium text-primary underline" to="/cadastros/categorias">Abrir Categorias</Link>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Data</label>
+            <CalendarFilterPopover
+              selectedDates={filters.data}
+              onDatesChange={(dates) => setFilters(f => ({ ...f, data: dates }))}
+              placeholder="Todas"
+              availableDates={uniqueValues.data}
+            />
           </div>
         </div>
-      )}
-
-      {dbError ? (
-        <DataState
-          variant="error"
-          title={dbRecords.length > 0 ? "Complementos desatualizados" : "Complementos indisponíveis"}
-          description={`${dbError} Os campos de origem, receita, venda, visita e observação ficam bloqueados até a lista ser carregada.`}
-          action={{ label: "Tentar novamente", onClick: () => void onRefreshDb() }}
-        />
-      ) : isDbLoading ? (
-        <DataState variant="loading" title="Carregando complementos" description="Aguarde a consulta dos dados registrados antes de editar os atendimentos." />
-      ) : null}
+      </div>
 
       {/* Table */}
-      {isLoading && attendances.length > 0 && (
-        <DataState variant="refreshing" title="Atualizando atendimentos" description="Os dados carregados permanecem visíveis." />
-      )}
-      <div className="space-y-3 md:hidden">
-        {isLoading && attendances.length === 0 ? (
-          <DataState variant="loading" title="Carregando atendimentos" description="Consultando o período selecionado no Amigo." />
-        ) : sourceError ? (
-          <DataState variant="error" title="Período indisponível" description={sourceError} action={{ label: "Tentar novamente", onClick: onRefresh }} />
-        ) : filteredRecords.length === 0 ? (
-          <DataState
-            variant="empty"
-            title="Nenhum atendimento encontrado"
-            description={hasActiveFilters ? "Ajuste os filtros selecionados." : "Ajuste o período ou verifique se há atendimentos concluídos na unidade."}
-            action={hasActiveFilters ? { label: "Limpar filtros", onClick: clearFilters } : undefined}
-          />
+      <div className="bg-card rounded-xl border border-border overflow-hidden card-shadow-lg animate-fade-in">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+            <span className="ml-3 text-muted-foreground">Carregando atendimentos...</span>
+          </div>
         ) : (
-          <ul className="grid min-w-0 grid-cols-1 gap-3" aria-label="Atendimentos do período" aria-busy={isLoading}>
-            {visibleRecords.map((record) => (
-              <li key={record.apiId} className="min-w-0">
-                <AttendanceMobileCard
-                  record={record}
-                  categories={originCategories}
-                  fallbackOrigins={uniqueValues.como_conheceu}
-                  fieldsDisabled={isLoading || isDbLoading || Boolean(dbError)}
-                  addDisabled={isLoading}
-                  deleteDisabled={isLoading || isDbLoading || Boolean(dbError)}
-                  onUpdate={(field, value) => void handleDbUpdate(record, field, value)}
-                  onAddToLeads={() => handleAddToLeads(record)}
-                  onDelete={() => { if (record.dbId) onDeleteDb(record.dbId); }}
-                />
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-table-header border-b border-table-border">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[200px]">Nome</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Idade</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">Telefone</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Tipo</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[130px]">Como Conheceu</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Receita</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Venda</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Data</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Visitou a Loja</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px]">Obs</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[50px]"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-table-border">
+                {filteredRecords.map((record, index) => {
+                  const whatsappNumber = formatPhoneForWhatsApp(record.patient_phone);
+                  return (
+                    <tr 
+                      key={record.apiId} 
+                      className="table-cell-hover animate-slide-in"
+                      style={{ animationDelay: `${index * 15}ms` }}
+                    >
+                      <td className="px-3 py-2 text-sm">
+                        <div>{record.patient_name}</div>
+                        {record.time && (
+                          <div className="text-xs text-muted-foreground">{record.time}</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-sm">{record.patient_age !== null ? `${record.patient_age} anos` : "-"}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm">{record.patient_phone || "-"}</span>
+                          {whatsappNumber && (
+                            <a
+                              href={`https://wa.me/${whatsappNumber}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 rounded-md hover:bg-accent/20 text-accent transition-colors"
+                              title="Abrir WhatsApp"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-sm">{record.event_name || "-"}</td>
+                      <td className="px-1 py-1">
+                        <EditableCell 
+                          value={record.como_conheceu} 
+                          onSave={(v) => handleDbUpdate(record, "como_conheceu", v)} 
+                          placeholder="Como Conheceu" 
+                        />
+                      </td>
+                      <td className="px-1 py-1">
+                        <YesNoSelectCell 
+                          value={record.receita} 
+                          onSave={(v) => handleDbUpdate(record, "receita", v)} 
+                          placeholder="Receita" 
+                        />
+                      </td>
+                      <td className="px-1 py-1">
+                        <YesNoSelectCell 
+                          value={record.venda} 
+                          onSave={(v) => handleDbUpdate(record, "venda", v)} 
+                          placeholder="Venda" 
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-sm">{record.date}</td>
+                      <td className="px-1 py-1">
+                        <YesNoSelectCell 
+                          value={record.visitou_loja} 
+                          onSave={(v) => handleDbUpdate(record, "visitou_loja", v)} 
+                          placeholder="Visitou" 
+                        />
+                      </td>
+                      <td className="px-1 py-1">
+                        <ExpandableTextCell 
+                          value={record.obs} 
+                          onSave={(v) => handleDbUpdate(record, "obs", v)} 
+                          placeholder="Motivo / observação" 
+                        />
+                      </td>
+                      <td className="px-1 py-1 text-center">
+                        <div className="flex items-center justify-center gap-0.5">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                                <MoreVertical className="w-3.5 h-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-popover border-border z-50">
+                              <DropdownMenuItem onClick={() => handleAddToLeads(record)} className="cursor-pointer">
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Adicionar aos Leads
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir registro</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir <strong>{record.patient_name}</strong> da lista? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => {
+                                  if (record.dbId) {
+                                    onDeleteDb(record.dbId);
+                                  }
+                                }}
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                         </AlertDialog>
+                        </div>
+                       </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!isLoading && filteredRecords.length === 0 && (
+          <div className="px-6 py-12 text-center text-muted-foreground">
+            <p>Nenhum atendimento encontrado.</p>
+            <p className="text-sm mt-1">
+              {hasActiveFilters 
+                ? "Tente ajustar os filtros." 
+                : "Ajuste o período ou verifique se há atendimentos concluídos na unidade."}
+            </p>
+          </div>
         )}
       </div>
-      {isLoading && attendances.length === 0 ? (
-        <div className="hidden rounded-xl border border-border bg-card shadow-md md:block">
-          <DataState
-            variant="loading"
-            title="Carregando atendimentos"
-            description="Consultando o período selecionado no Amigo."
-            className="min-h-48 rounded-none border-0 bg-transparent"
-          />
-        </div>
-      ) : sourceError ? (
-        <div className="hidden rounded-xl border border-border bg-card shadow-md md:block">
-          <DataState
-            variant="error"
-            title="Período indisponível"
-            description={sourceError}
-            action={{ label: "Tentar novamente", onClick: onRefresh }}
-            className="min-h-48 rounded-none border-0 bg-transparent"
-          />
-        </div>
-      ) : filteredRecords.length === 0 ? (
-        <div className="hidden rounded-xl border border-border bg-card shadow-md md:block">
-          <DataState
-            variant="empty"
-            title="Nenhum atendimento encontrado"
-            description={hasActiveFilters ? "Ajuste os filtros selecionados." : "Ajuste o período ou verifique se há atendimentos concluídos na unidade."}
-            action={hasActiveFilters ? { label: "Limpar filtros", onClick: clearFilters } : undefined}
-            className="min-h-48 rounded-none border-0 bg-transparent px-6 py-12"
-          />
-        </div>
-      ) : (
-        <EntityDataTable
-          table={attendanceTable}
-          label="Atendimentos e complementos comerciais"
-          busy={isLoading}
-          className="hidden rounded-xl border border-border bg-card shadow-md animate-fade-in md:block"
-          tableClassName="min-w-[1120px]"
-          headerRowClassName="bg-table-header border-table-border hover:bg-table-header"
-          rowClassName="table-cell-hover animate-slide-in"
-          getRowStyle={(_, index) => ({ animationDelay: `${index * 15}ms` })}
-          getHeaderClassName={(columnId) => ({
-            patient_name: "w-[200px] text-xs font-semibold uppercase tracking-wider",
-            patient_age: "w-[80px] text-xs font-semibold uppercase tracking-wider",
-            patient_phone: "w-[140px] text-xs font-semibold uppercase tracking-wider",
-            event_name: "w-[120px] text-xs font-semibold uppercase tracking-wider",
-            origem: "w-[160px] text-xs font-semibold uppercase tracking-wider",
-            receita: "w-[80px] text-xs font-semibold uppercase tracking-wider",
-            venda: "w-[80px] text-xs font-semibold uppercase tracking-wider",
-            date: "w-[100px] text-xs font-semibold uppercase tracking-wider",
-            visita: "w-[120px] text-xs font-semibold uppercase tracking-wider",
-            observacao: "min-w-[200px] text-xs font-semibold uppercase tracking-wider",
-            acoes: "w-[72px] text-center text-xs font-semibold uppercase tracking-wider",
-          })[columnId]}
-          getCellClassName={(columnId) => ({
-            patient_name: "px-3 py-2 text-sm",
-            patient_age: "px-3 py-2 text-sm",
-            patient_phone: "px-3 py-2",
-            event_name: "px-3 py-2 text-sm",
-            origem: "px-1 py-1",
-            receita: "px-1 py-1",
-            venda: "px-1 py-1",
-            date: "px-3 py-2 text-sm",
-            visita: "px-1 py-1",
-            observacao: "px-1 py-1",
-            acoes: "px-1 py-1 text-center",
-          })[columnId]}
-        />
-      )}
-      <AlertDialog
-        open={pendingVisitLead !== null}
-        onOpenChange={(open) => { if (!open && !isAddingVisitLead) setPendingVisitLead(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Adicionar aos Leads?</AlertDialogTitle>
-            <AlertDialogDescription>
-              <strong>{pendingVisitLead?.patient_name}</strong> visitou a loja. Deseja adicionar este cliente na aba Leads? Nome, telefone, médico, canal e observação já vão preenchidos; os vendedores completam o restante.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isAddingVisitLead}>Agora não</AlertDialogCancel>
-            <AlertDialogAction disabled={isAddingVisitLead} onClick={() => void confirmVisitLead()}>
-              {isAddingVisitLead ? "Adicionando..." : "Adicionar aos Leads"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
-  );
-}
-
-function OriginCategorySelect({ value, categories, fallbackValues, onSave, ariaLabel, disabled = false }: {
-  value: string;
-  categories: CategoryCatalogItem[];
-  fallbackValues: string[];
-  onSave: (value: string) => void;
-  ariaLabel: string;
-  disabled?: boolean;
-}) {
-  return (
-    <CategorySelect
-      value={value}
-      categories={categories}
-      fallbackValues={fallbackValues}
-      onValueChange={onSave}
-      placeholder="Selecionar origem"
-      ariaLabel={ariaLabel}
-      clearable
-      emptyLabel="Não informado"
-      disabled={disabled}
-      className="min-w-[150px]"
-    />
   );
 }

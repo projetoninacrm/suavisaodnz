@@ -1,11 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
 
 type TableName = "indicadores" | "metas" | "detalhado" | "mkt";
-const TABLE_QUERY_TIMEOUT_MS = 30_000;
-const TABLE_QUERY_TIMEOUT_MESSAGE = "A consulta demorou mais de 30 segundos. Tente novamente.";
 
 export interface GenericRecord {
   id: string;
@@ -17,33 +15,20 @@ export interface GenericRecord {
 export function useGenericTable(tableName: TableName, defaultValues: Record<string, string> = {}) {
   const [records, setRecords] = useState<GenericRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
-  const requestIdRef = useRef(0);
-  const activeControllerRef = useRef<AbortController | null>(null);
 
-  const fetchRecords = useCallback(async () => {
-    const requestId = ++requestIdRef.current;
-    activeControllerRef.current?.abort();
-    const controller = new AbortController();
-    activeControllerRef.current = controller;
-    let timedOut = false;
-    const timeout = window.setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, TABLE_QUERY_TIMEOUT_MS);
+  const fetchRecords = async () => {
     setIsLoading(true);
-    setErrorMessage(null);
     try {
       let data: GenericRecord[] | null = null;
       let error: Error | null = null;
 
       if (tableName === "indicadores") {
-        const result = await supabase.from("indicadores").select("*").order("created_at", { ascending: true }).abortSignal(controller.signal);
+        const result = await supabase.from("indicadores").select("*").order("created_at", { ascending: true });
         data = result.data as GenericRecord[] | null;
         error = result.error;
       } else if (tableName === "metas") {
-        const result = await supabase.from("metas").select("*").order("created_at", { ascending: true }).abortSignal(controller.signal);
+        const result = await supabase.from("metas").select("*").order("created_at", { ascending: true });
         data = result.data as GenericRecord[] | null;
         error = result.error;
       } else if (tableName === "detalhado") {
@@ -53,7 +38,7 @@ export function useGenericTable(tableName: TableName, defaultValues: Record<stri
         const pageSize = 1000;
         let hasMore = true;
         while (hasMore) {
-          const result = await supabase.from("detalhado").select("*").order("created_at", { ascending: true }).range(from, from + pageSize - 1).abortSignal(controller.signal);
+          const result = await supabase.from("detalhado").select("*").order("created_at", { ascending: true }).range(from, from + pageSize - 1);
           if (result.error) { error = result.error; break; }
           const page = (result.data || []) as GenericRecord[];
           allData = allData.concat(page);
@@ -63,31 +48,24 @@ export function useGenericTable(tableName: TableName, defaultValues: Record<stri
         if (!error) data = allData;
         // error already handled in the loop above
       } else if (tableName === "mkt") {
-        const result = await supabase.from("mkt").select("*").order("created_at", { ascending: true }).abortSignal(controller.signal);
+        const result = await supabase.from("mkt").select("*").order("created_at", { ascending: true });
         data = result.data as GenericRecord[] | null;
         error = result.error;
       }
 
       if (error) throw error;
-      if (requestId !== requestIdRef.current) return;
       setRecords(data || []);
     } catch (error) {
-      if (requestId !== requestIdRef.current) return;
       console.error(`Error fetching ${tableName}:`, error);
-      setErrorMessage(timedOut ? TABLE_QUERY_TIMEOUT_MESSAGE : `Não foi possível carregar ${tableName}. Tente novamente.`);
       toast({
         title: "Erro ao carregar dados",
-        description: timedOut ? TABLE_QUERY_TIMEOUT_MESSAGE : `Não foi possível carregar ${tableName}.`,
+        description: `Não foi possível carregar ${tableName}.`,
         variant: "destructive",
       });
     } finally {
-      window.clearTimeout(timeout);
-      if (requestId === requestIdRef.current) {
-        activeControllerRef.current = null;
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
-  }, [tableName, toast]);
+  };
 
   const updateRecord = async (id: string, field: string, value: string) => {
     try {
@@ -221,13 +199,8 @@ export function useGenericTable(tableName: TableName, defaultValues: Record<stri
   };
 
   useEffect(() => {
-    void fetchRecords();
-    return () => {
-      requestIdRef.current += 1;
-      activeControllerRef.current?.abort();
-      activeControllerRef.current = null;
-    };
-  }, [fetchRecords]);
+    fetchRecords();
+  }, [tableName]);
 
-  return { records, isLoading, error: errorMessage, fetchRecords, updateRecord, addRecord, createRecord, deleteRecord };
+  return { records, isLoading, fetchRecords, updateRecord, addRecord, createRecord, deleteRecord };
 }
