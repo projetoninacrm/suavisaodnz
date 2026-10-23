@@ -239,6 +239,39 @@ export type Database = {
         }
         Relationships: []
       }
+      category_catalog: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          domain: string
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          domain: string
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          domain?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       detalhado: {
         Row: {
           como_conheceu: string | null

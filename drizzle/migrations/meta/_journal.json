@@ -29,6 +29,13 @@
       "when": 1792765647679,
       "tag": "0003_employee_and_professional_directories",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792765673574,
+      "tag": "0004_category_catalog",
+      "breakpoints": true
     }
   ]
 }
