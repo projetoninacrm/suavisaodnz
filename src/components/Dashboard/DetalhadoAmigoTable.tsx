@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { buildLeadFromAttendance, type AttendanceLeadDraft } from "@/lib/leads";
 
 interface DetalhadoAmigoTableProps {
   attendances: AmigoAttendance[];
@@ -54,7 +55,7 @@ interface DetalhadoAmigoTableProps {
   onCreateDb: (record: Partial<GenericRecord>) => Promise<string | null>;
   onDeleteDb: (id: string) => void;
   onRefreshDb: () => void;
-  onAddToLeads: (lead: { nome: string; numero: string }) => Promise<void>;
+  onAddToLeads: (lead: AttendanceLeadDraft) => Promise<void>;
 }
 
 interface Filters {
@@ -342,6 +343,8 @@ export function DetalhadoAmigoTable({
   const [filters, setFilters] = useRouteState("atendimentosFilters", emptyFilters, parseFilters);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [pendingVisitLead, setPendingVisitLead] = useState<CombinedRecord | null>(null);
+  const [isAddingVisitLead, setIsAddingVisitLead] = useState(false);
 
   const [calendarRange, setCalendarRange] = useState<DateRange | undefined>({
     from: dateRange.start,
@@ -508,14 +511,26 @@ export function DetalhadoAmigoTable({
 
   const handleAddToLeads = async (record: CombinedRecord) => {
     if (isLoading) return;
-    await onAddToLeads({
-      nome: record.patient_name || "",
-      numero: record.patient_phone || "",
-    });
+    await onAddToLeads(buildLeadFromAttendance(record));
+  };
+
+  const confirmVisitLead = async () => {
+    const record = pendingVisitLead;
+    if (!record) return;
+    setIsAddingVisitLead(true);
+    try {
+      await handleAddToLeads(record);
+    } catch {
+      // Error toast already shown by the lead creation flow.
+    } finally {
+      setIsAddingVisitLead(false);
+      setPendingVisitLead(null);
+    }
   };
 
   const handleDbUpdate = async (record: CombinedRecord, field: string, value: string) => {
     if (isLoading || isDbLoading || dbError) return;
+    const becameStoreVisit = field === "visitou_loja" && value === "Sim" && record.visitou_loja?.toLowerCase() !== "sim";
     if (record.dbId) {
       // Atualizar registro existente no banco
       onUpdateDb(record.dbId, field, value);
@@ -535,6 +550,7 @@ export function DetalhadoAmigoTable({
         onRefreshDb();
       }
     }
+    if (becameStoreVisit) setPendingVisitLead({ ...record, visitou_loja: "Sim" });
   };
 
   const attendanceTable = useTable({
@@ -1078,6 +1094,25 @@ export function DetalhadoAmigoTable({
           })[columnId]}
         />
       )}
+      <AlertDialog
+        open={pendingVisitLead !== null}
+        onOpenChange={(open) => { if (!open && !isAddingVisitLead) setPendingVisitLead(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Adicionar aos Leads?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{pendingVisitLead?.patient_name}</strong> visitou a loja. Deseja adicionar este cliente na aba Leads? Nome, telefone, médico, canal e observação já vão preenchidos; os vendedores completam o restante.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isAddingVisitLead}>Agora não</AlertDialogCancel>
+            <AlertDialogAction disabled={isAddingVisitLead} onClick={() => void confirmVisitLead()}>
+              {isAddingVisitLead ? "Adicionando..." : "Adicionar aos Leads"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

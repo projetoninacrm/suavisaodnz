@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792765610985,
+      "tag": "0000_restore_automacoes_instancia",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792765615485,
+      "tag": "0001_restore_leads_obs2",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792765629564,
+      "tag": "0002_whatsapp_forward_capture",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792765647679,
+      "tag": "0003_employee_and_professional_directories",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792765673574,
+      "tag": "0004_category_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792765699332,
+      "tag": "0005_atomic_schedule_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792765709907,
+      "tag": "0006_update_employee_directory_person",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792765720492,
+      "tag": "0007_grant_directory_and_catalog_access",
+      "breakpoints": true
+    }
+  ]
+}

@@ -5,11 +5,15 @@ import { DetalhadoAmigoTable } from "@/components/Dashboard/DetalhadoAmigoTable"
 import { useDetalhadoAmigo } from "@/hooks/useDetalhadoAmigo";
 import { useGenericTable } from "@/hooks/useGenericTable";
 import { useCreateLead } from "@/hooks/useLeads";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { isSamePhone, type AttendanceLeadDraft } from "@/lib/leads";
 
 export default function AtendimentosPage() {
   const amigo = useDetalhadoAmigo();
   const details = useGenericTable("detalhado");
   const { createLead } = useCreateLead();
+  const { toast } = useToast();
   const loadedRangeLabel = amigo.loadedDateRange
     ? `${format(amigo.loadedDateRange.start, "dd/MM/yyyy")} a ${format(amigo.loadedDateRange.end, "dd/MM/yyyy")}`
     : null;
@@ -17,17 +21,34 @@ export default function AtendimentosPage() {
     ? `${amigo.error}${loadedRangeLabel ? ` Última consulta válida: ${loadedRangeLabel}.` : ""}`
     : null;
 
-  const addPatientToCommercial = async ({ nome, numero }: { nome: string; numero: string }) => {
+  const findExistingLead = async (numero: string) => {
+    const digits = numero.replace(/\D/g, "");
+    if (digits.length < 8) return null;
+    const { data, error } = await supabase
+      .from("leads")
+      .select("id, nome, numero")
+      .ilike("numero", `%${digits.slice(-4)}%`)
+      .limit(50);
+    if (error) return null;
+    return (data || []).find((lead) => isSamePhone(lead.numero, numero)) ?? null;
+  };
+
+  const addPatientToCommercial = async (lead: AttendanceLeadDraft) => {
+    const existing = await findExistingLead(lead.numero);
+    if (existing) {
+      toast({ title: "Já está nos Leads", description: `${existing.nome || lead.nome} já foi cadastrado com este telefone.` });
+      return;
+    }
     await createLead({
       data_registro: format(new Date(), "dd/MM/yyyy"),
-      canal: "",
-      nome,
-      numero,
+      canal: lead.canal,
+      nome: lead.nome,
+      numero: lead.numero,
       orcamento: "Não",
-      venda: "Não",
+      venda: lead.venda,
       entrar_em_contato: "",
-      medico: "",
-      obs: "",
+      medico: lead.medico,
+      obs: lead.obs,
     });
   };
 

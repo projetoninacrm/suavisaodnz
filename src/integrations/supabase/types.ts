@@ -10,43 +10,10 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
-      category_catalog: {
-        Row: {
-          aliases: string[]
-          created_at: string
-          domain: "lead_channel" | "service_origin"
-          id: string
-          is_active: boolean
-          label: string
-          sort_order: number
-          updated_at: string
-        }
-        Insert: {
-          aliases?: string[]
-          created_at?: string
-          domain: "lead_channel" | "service_origin"
-          id?: string
-          is_active?: boolean
-          label: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Update: {
-          aliases?: string[]
-          created_at?: string
-          domain?: "lead_channel" | "service_origin"
-          id?: string
-          is_active?: boolean
-          label?: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
       acompanhamento_diario: {
         Row: {
           created_at: string
@@ -272,6 +239,39 @@ export type Database = {
         }
         Relationships: []
       }
+      category_catalog: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          domain: string
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          domain: string
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          domain?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       detalhado: {
         Row: {
           como_conheceu: string | null
@@ -317,33 +317,6 @@ export type Database = {
         }
         Relationships: []
       }
-      employees: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          role: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          role?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          role?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       disparos_perdidos: {
         Row: {
           created_at: string
@@ -383,6 +356,33 @@ export type Database = {
           nome_cliente?: string | null
           status?: string
           telefone?: string | null
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          role?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -698,15 +698,59 @@ export type Database = {
           },
         ]
       }
+      whatsapp_capture_settings: {
+        Row: {
+          singleton: boolean
+          started_at: string
+        }
+        Insert: {
+          singleton?: boolean
+          started_at?: string
+        }
+        Update: {
+          singleton?: boolean
+          started_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          body: string
+          chat_id: string
+          from_me: boolean
+          id: number
+          instance: string
+          message_at: string
+          message_id: string
+          received_at: string
+        }
+        Insert: {
+          body: string
+          chat_id: string
+          from_me: boolean
+          id?: never
+          instance?: string
+          message_at: string
+          message_id: string
+          received_at?: string
+        }
+        Update: {
+          body?: string
+          chat_id?: string
+          from_me?: boolean
+          id?: never
+          instance?: string
+          message_at?: string
+          message_id?: string
+          received_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      update_employee_directory_person: {
-        Args: { p_employee_id: string; p_name: string; p_role: string }
-        Returns: undefined
-      }
       get_inactive_patients: {
         Args: { dias_janela?: number; dias_limite?: number }
         Returns: {
@@ -735,6 +779,19 @@ export type Database = {
         Returns: {
           id: string
         }[]
+      }
+      replace_schedule_month: {
+        Args: {
+          p_month: number
+          p_rows: Json
+          p_sheet_name: string
+          p_year: number
+        }
+        Returns: Json
+      }
+      update_employee_directory_person: {
+        Args: { p_employee_id: string; p_name: string; p_role: string }
+        Returns: undefined
       }
     }
     Enums: {
