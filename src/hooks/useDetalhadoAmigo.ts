@@ -74,7 +74,7 @@ const formatTime = (isoDate?: string): string => {
   return format(date, "HH:mm");
 };
 
-export function useDetalhadoAmigo() {
+export function useDetalhadoAmigo(enabled = true) {
   const [attendances, setAttendances] = useState<AmigoAttendance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>(() => {
@@ -193,9 +193,11 @@ export function useDetalhadoAmigo() {
     }
   }, [dateRange]);
 
+  // Só consulta a API Amigo quando a aba Detalhado for aberta
   useEffect(() => {
+    if (!enabled) return;
     fetchAttendances();
-  }, [fetchAttendances]);
+  }, [fetchAttendances, enabled]);
 
   const updateDateRange = useCallback((start: Date, end: Date) => {
     setDateRange({ start, end });

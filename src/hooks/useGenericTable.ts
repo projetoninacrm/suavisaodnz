@@ -12,7 +12,7 @@ export interface GenericRecord {
   [key: string]: string | null;
 }
 
-export function useGenericTable(tableName: TableName, defaultValues: Record<string, string> = {}) {
+export function useGenericTable(tableName: TableName, defaultValues: Record<string, string> = {}, enabled = true) {
   const [records, setRecords] = useState<GenericRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -199,8 +199,9 @@ export function useGenericTable(tableName: TableName, defaultValues: Record<stri
   };
 
   useEffect(() => {
+    if (!enabled) return;
     fetchRecords();
-  }, [tableName]);
+  }, [tableName, enabled]);
 
   return { records, isLoading, fetchRecords, updateRecord, addRecord, createRecord, deleteRecord };
 }

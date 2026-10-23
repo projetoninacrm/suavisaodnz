@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { Header } from "@/components/Dashboard/Header";
 import { TabNavigation } from "@/components/Dashboard/TabNavigation";
@@ -51,11 +51,17 @@ const Index = () => {
     pendente: false,
   });
   
+  // Detalhado é pesado (API Amigo + milhares de registros): só carrega quando a aba for aberta
+  const [detalhadoOpened, setDetalhadoOpened] = useState(false);
+  useEffect(() => {
+    if (activeTab === "Detalhado") setDetalhadoOpened(true);
+  }, [activeTab]);
+
   const schedules = useSchedules("Escala");
   const leads = useLeads();
   const indicadores = useGenericTable("indicadores");
-  const detalhadoAmigo = useDetalhadoAmigo();
-  const detalhadoDb = useGenericTable("detalhado");
+  const detalhadoAmigo = useDetalhadoAmigo(detalhadoOpened);
+  const detalhadoDb = useGenericTable("detalhado", {}, detalhadoOpened);
   
   const acompanhamento = useAcompanhamentoDiario();
   const leadGenderStats = useLeadsGenderStats(leads.leads, leadsFilters, activeTab === "Leads");

@@ -1,41 +1,13 @@
-project_id = "zwowpjdftalmlrocieog"
+project_id = "hlnzqkvffyoafppxcozx"
 
 [functions.amigo-api]
-verify_jwt = true
+verify_jwt = false
 
 [functions.import-attendances]
-verify_jwt = true
+verify_jwt = false
 
 [functions.whatsapp-automacao]
-verify_jwt = true
+verify_jwt = false
 
 [functions.whatsapp-webhook]
-verify_jwt = true
-
-
-[functions.backfill-observacoes]
-verify_jwt = true
-
-[functions.bootstrap-admin]
-verify_jwt = true
-
-[functions.chatlabs-analise]
-verify_jwt = true
-
-[functions.chatlabs-conversas]
-verify_jwt = true
-
-[functions.extract-ad-metrics]
-verify_jwt = true
-
-[functions.import-schedule-image]
-verify_jwt = true
-
-[functions.return-rate]
-verify_jwt = true
-
-[functions.summarize-conversa]
-verify_jwt = true
-
-[functions.whatsapp-disparo]
-verify_jwt = true
+verify_jwt = false
