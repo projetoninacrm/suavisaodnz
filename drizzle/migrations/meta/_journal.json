@@ -15,6 +15,20 @@
       "when": 1792765615485,
       "tag": "0001_restore_leads_obs2",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792765629564,
+      "tag": "0002_whatsapp_forward_capture",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792765647679,
+      "tag": "0003_employee_and_professional_directories",
+      "breakpoints": true
     }
   ]
 }
