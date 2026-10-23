@@ -76,6 +76,7 @@ const App = () => (
               <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
                 <Route path="/" element={<Navigate to="/hoje" replace />} />
                 <Route path="/hoje" element={<Suspense fallback={<PageLoading />}><HojePage /></Suspense>} />
+                <Route path="/comercial" element={<Navigate to="/comercial/leads" replace />} />
                 <Route path="/comercial/leads/:leadId?" element={<Suspense fallback={<PageLoading />}><CommercialPage /></Suspense>} />
                 <Route path="/atendimentos" element={<Suspense fallback={<PageLoading />}><AtendimentosPage /></Suspense>} />
                 <Route path="/escala" element={<Suspense fallback={<PageLoading />}><EscalaPage /></Suspense>} />
