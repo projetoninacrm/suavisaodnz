@@ -9,17 +9,18 @@ import { AppShell } from "./components/app/AppShell";
 import { ThemeProvider } from "./components/app/ThemeProvider";
 import { getDocumentTitle } from "./components/app/page-titles";
 import { DataState } from "@/components/data/DataState";
+import { lazyPage } from "@/lib/lazyPage";
 
-const CommercialPage = lazy(() => import("./features/comercial/CommercialPage"));
-const AtendimentosPage = lazy(() => import("./features/atendimentos/AtendimentosPage"));
-const EscalaPage = lazy(() => import("./features/escala/EscalaPage"));
-const CadastrosPage = lazy(() => import("./features/cadastros/CadastrosPage"));
-const ResultadosPage = lazy(() => import("./features/resultados/ResultadosPage"));
-const AutomacoesPage = lazy(() => import("./features/automacoes/AutomacoesPage"));
-const SettingsPage = lazy(() => import("./features/configuracoes/SettingsPage"));
-const HojePage = lazy(() => import("./features/hoje/HojePage"));
-const AuthPage = lazy(() => import("./pages/Auth"));
-const NotFoundPage = lazy(() => import("./pages/NotFound"));
+const CommercialPage = lazyPage(() => import("./features/comercial/CommercialPage"));
+const AtendimentosPage = lazyPage(() => import("./features/atendimentos/AtendimentosPage"));
+const EscalaPage = lazyPage(() => import("./features/escala/EscalaPage"));
+const CadastrosPage = lazyPage(() => import("./features/cadastros/CadastrosPage"));
+const ResultadosPage = lazyPage(() => import("./features/resultados/ResultadosPage"));
+const AutomacoesPage = lazyPage(() => import("./features/automacoes/AutomacoesPage"));
+const SettingsPage = lazyPage(() => import("./features/configuracoes/SettingsPage"));
+const HojePage = lazyPage(() => import("./features/hoje/HojePage"));
+const AuthPage = lazyPage(() => import("./pages/Auth"));
+const NotFoundPage = lazyPage(() => import("./pages/NotFound"));
 const PageLoading = () => (
   <DataState
     variant="loading"
@@ -59,7 +60,7 @@ function RouteDocumentTitle() {
 const queryClient = new QueryClient();
 const componentGalleryEnabled = import.meta.env.DEV || import.meta.env.VITE_ENABLE_COMPONENT_GALLERY === "true";
 const ComponentGalleryPage = componentGalleryEnabled
-  ? lazy(() => import("./features/configuracoes/ComponentGalleryPage"))
+  ? lazyPage(() => import("./features/configuracoes/ComponentGalleryPage"))
   : null;
 
 const App = () => (
