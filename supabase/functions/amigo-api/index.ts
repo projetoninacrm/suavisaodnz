@@ -50,10 +50,10 @@ Deno.serve(async (req) => {
           cursor = chunkEnd + DAY_MS;
         }
 
-        const merged: unknown[] = [];
-        for (const c of chunks) {
+        // Busca as janelas em paralelo (até 4 por vez) para períodos longos carregarem rápido
+        console.log("Buscando atendimentos em lotes");
+        const fetchChunk = async (c: { s: string; e: string }) => {
           const chunkUrl = `${AMIGO_API_BASE}/attendances?start_date=${c.s}&end_date=${c.e}${status ? `&status=${status}` : ''}`;
-          console.log("Buscando atendimentos em lotes");
           const res = await fetch(chunkUrl, {
             method: 'GET',
             headers: {
@@ -67,8 +67,14 @@ Deno.serve(async (req) => {
             throw new Error(`API retornou status ${res.status}: ${errText}`);
           }
           const json = await res.json();
-          const items = Array.isArray(json?.data) ? json.data : [];
-          merged.push(...items);
+          return Array.isArray(json?.data) ? json.data : [];
+        };
+
+        const merged: unknown[] = [];
+        const CONCURRENCY = 4;
+        for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+          const results = await Promise.all(chunks.slice(i, i + CONCURRENCY).map(fetchChunk));
+          for (const items of results) merged.push(...items);
         }
 
         console.log(`Atendimentos agregados: ${merged.length} em ${chunks.length} janelas`);

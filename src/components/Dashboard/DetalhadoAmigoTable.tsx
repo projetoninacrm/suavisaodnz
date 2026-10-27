@@ -78,6 +78,8 @@ interface CombinedRecord {
   obs: string;
 }
 
+const PAGE_SIZE = 200;
+
 export function DetalhadoAmigoTable({ 
   attendances, 
   isLoading, 
@@ -107,6 +109,11 @@ export function DetalhadoAmigoTable({
     from: dateRange.start,
     to: dateRange.end,
   });
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [pickingEnd, setPickingEnd] = useState(false);
+  useEffect(() => {
+    if (!calendarOpen) setPickingEnd(false);
+  }, [calendarOpen]);
 
   // Carregar dados do banco quando a API retornar
   useEffect(() => {
@@ -121,13 +128,21 @@ export function DetalhadoAmigoTable({
     return name.toLowerCase().trim().replace(/\s+/g, " ");
   };
 
+  // Índice nome+data dos registros do banco (evita comparar cada atendimento
+  // com todos os milhares de registros, o que travava a tela em períodos longos)
+  const dbIndex = useMemo(() => {
+    const map = new Map<string, GenericRecord>();
+    for (const db of dbRecords) {
+      const key = `${normalizeName(db.nome)}|${db.data}`;
+      if (!map.has(key)) map.set(key, db);
+    }
+    return map;
+  }, [dbRecords]);
+
   // Combinar dados da API com dados do banco
   const combinedRecords = useMemo((): CombinedRecord[] => {
     return attendances.map(att => {
-      // Procurar registro no banco pelo nome normalizado e data
-      const dbRecord = dbRecords.find(db => 
-        normalizeName(db.nome) === normalizeName(att.patient_name) && db.data === att.date
-      );
+      const dbRecord = dbIndex.get(`${normalizeName(att.patient_name)}|${att.date}`);
 
       return {
         apiId: att.id,
@@ -148,7 +163,7 @@ export function DetalhadoAmigoTable({
         obs: (dbRecord as any)?.obs || "",
       };
     });
-  }, [attendances, dbRecords]);
+  }, [attendances, dbIndex]);
 
   // Buscar valores únicos do banco para os filtros (além da API)
   const uniqueValuesFromDb = useMemo(() => {
@@ -211,17 +226,19 @@ export function DetalhadoAmigoTable({
       return true;
     });
     // Ordenar por data e hora decrescente (mais recentes primeiro)
-    return filtered.sort((a, b) => {
-      const dateA = a.date ? new Date(a.date.split('/').reverse().join('-')) : new Date(0);
-      const dateB = b.date ? new Date(b.date.split('/').reverse().join('-')) : new Date(0);
-      const dateDiff = dateB.getTime() - dateA.getTime();
-      if (dateDiff !== 0) return dateDiff;
-      // Se mesma data, ordenar por hora decrescente
-      const timeA = a.time || "00:00";
-      const timeB = b.time || "00:00";
-      return timeB.localeCompare(timeA);
-    });
+    const sortKey = (r: CombinedRecord) =>
+      `${r.date ? r.date.split('/').reverse().join('-') : '0000-00-00'} ${r.time || '00:00'}`;
+    return filtered
+      .map((r) => ({ r, k: sortKey(r) }))
+      .sort((a, b) => (a.k < b.k ? 1 : a.k > b.k ? -1 : 0))
+      .map(({ r }) => r);
   }, [combinedRecords, filters]);
+
+  // Mostra a tabela aos poucos para não travar com milhares de atendimentos
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [attendances, filters]);
 
   const hasActiveFilters = Object.entries(filters).some(([, value]) => 
     Array.isArray(value) ? value.length > 0 : value !== ""
@@ -251,11 +268,20 @@ export function DetalhadoAmigoTable({
     return cleaned;
   };
 
-  const handleDateRangeSelect = (range: DateRange | undefined) => {
-    setCalendarRange(range);
-    if (range?.from && range?.to) {
-      onDateRangeChange(range.from, range.to);
+  // Seleção em dois cliques: 1º = dia inicial, 2º = dia final. Só busca na API
+  // depois do segundo clique (antes, cada clique disparava uma busca enorme).
+  const handleDateRangeSelect = (_range: DateRange | undefined, day: Date) => {
+    if (!pickingEnd || !calendarRange?.from) {
+      setCalendarRange({ from: day, to: undefined });
+      setPickingEnd(true);
+      return;
     }
+    const start = day < calendarRange.from ? day : calendarRange.from;
+    const end = day < calendarRange.from ? calendarRange.from : day;
+    setCalendarRange({ from: start, to: end });
+    setPickingEnd(false);
+    setCalendarOpen(false);
+    onDateRangeChange(start, end);
   };
 
   const handleAddToLeads = async (record: CombinedRecord) => {
@@ -606,17 +632,27 @@ export function DetalhadoAmigoTable({
             <Calendar className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-medium text-foreground">Período:</span>
           </div>
-          <Popover>
+          <Popover
+            open={calendarOpen}
+            onOpenChange={(open) => {
+              setCalendarOpen(open);
+              if (open) setCalendarRange({ from: dateRange.start, to: dateRange.end });
+            }}
+          >
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-9 text-sm">
                 {format(dateRange.start, "dd/MM/yyyy", { locale: ptBR })} - {format(dateRange.end, "dd/MM/yyyy", { locale: ptBR })}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 bg-popover border-border" align="start">
+              <p className="px-4 pt-3 text-xs text-muted-foreground">
+                {pickingEnd ? "Agora clique no dia final" : "Clique no dia inicial"}
+              </p>
               <CalendarComponent
                 mode="range"
                 selected={calendarRange}
                 onSelect={handleDateRangeSelect}
+                defaultMonth={dateRange.start}
                 numberOfMonths={2}
                 locale={ptBR}
                 className="pointer-events-auto"
@@ -756,13 +792,13 @@ export function DetalhadoAmigoTable({
                 </tr>
               </thead>
               <tbody className="divide-y divide-table-border">
-                {filteredRecords.map((record, index) => {
+                {filteredRecords.slice(0, visibleCount).map((record, index) => {
                   const whatsappNumber = formatPhoneForWhatsApp(record.patient_phone);
                   return (
                     <tr 
                       key={record.apiId} 
                       className="table-cell-hover animate-slide-in"
-                      style={{ animationDelay: `${index * 15}ms` }}
+                      style={{ animationDelay: `${Math.min(index, 20) * 15}ms` }}
                     >
                       <td className="px-3 py-2 text-sm">
                         <div>{record.patient_name}</div>
@@ -874,6 +910,19 @@ export function DetalhadoAmigoTable({
                 })}
               </tbody>
             </table>
+            {filteredRecords.length > visibleCount && (
+              <div className="flex items-center justify-center gap-3 py-4 border-t border-table-border">
+                <span className="text-sm text-muted-foreground">
+                  Mostrando {visibleCount} de {filteredRecords.length}
+                </span>
+                <Button variant="outline" size="sm" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
+                  Mostrar mais
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setVisibleCount(filteredRecords.length)}>
+                  Mostrar todos
+                </Button>
+              </div>
+            )}
           </div>
         )}
         {!isLoading && filteredRecords.length === 0 && (
