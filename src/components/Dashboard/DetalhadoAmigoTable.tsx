@@ -78,6 +78,8 @@ interface CombinedRecord {
   obs: string;
 }
 
+const PAGE_SIZE = 200;
+
 export function DetalhadoAmigoTable({ 
   attendances, 
   isLoading, 
@@ -224,17 +226,19 @@ export function DetalhadoAmigoTable({
       return true;
     });
     // Ordenar por data e hora decrescente (mais recentes primeiro)
-    return filtered.sort((a, b) => {
-      const dateA = a.date ? new Date(a.date.split('/').reverse().join('-')) : new Date(0);
-      const dateB = b.date ? new Date(b.date.split('/').reverse().join('-')) : new Date(0);
-      const dateDiff = dateB.getTime() - dateA.getTime();
-      if (dateDiff !== 0) return dateDiff;
-      // Se mesma data, ordenar por hora decrescente
-      const timeA = a.time || "00:00";
-      const timeB = b.time || "00:00";
-      return timeB.localeCompare(timeA);
-    });
+    const sortKey = (r: CombinedRecord) =>
+      `${r.date ? r.date.split('/').reverse().join('-') : '0000-00-00'} ${r.time || '00:00'}`;
+    return filtered
+      .map((r) => ({ r, k: sortKey(r) }))
+      .sort((a, b) => (a.k < b.k ? 1 : a.k > b.k ? -1 : 0))
+      .map(({ r }) => r);
   }, [combinedRecords, filters]);
+
+  // Mostra a tabela aos poucos para não travar com milhares de atendimentos
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [attendances, filters]);
 
   const hasActiveFilters = Object.entries(filters).some(([, value]) => 
     Array.isArray(value) ? value.length > 0 : value !== ""

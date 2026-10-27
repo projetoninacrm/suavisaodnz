@@ -85,7 +85,13 @@ export function useDetalhadoAmigo(enabled = true) {
     };
   });
 
+  // Cada busca recebe um número; respostas de buscas antigas (mais lentas) são
+  // ignoradas para não sobrescrever o período escolhido por último.
+  const requestIdRef = useRef(0);
+
   const fetchAttendances = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    const isStale = () => requestId !== requestIdRef.current;
     setIsLoading(true);
     try {
       // Garantia extra contra "Invalid time value"
@@ -108,6 +114,8 @@ export function useDetalhadoAmigo(enabled = true) {
           },
         },
       });
+
+      if (isStale()) return;
 
       if (error) {
         console.error("[useDetalhadoAmigo] Error:", error);
