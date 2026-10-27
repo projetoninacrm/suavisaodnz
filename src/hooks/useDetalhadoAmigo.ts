@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { toast } from "sonner";
@@ -193,11 +193,12 @@ export function useDetalhadoAmigo(enabled = true) {
       console.log(`[useDetalhadoAmigo] Set ${mapped.length} attendances`);
 
     } catch (err) {
+      if (isStale()) return;
       console.error("[useDetalhadoAmigo] Exception:", err);
       toast.error("Erro ao processar atendimentos");
       setAttendances([]);
     } finally {
-      setIsLoading(false);
+      if (!isStale()) setIsLoading(false);
     }
   }, [dateRange]);
 
